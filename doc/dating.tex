@@ -1,0 +1,50 @@
+% This is LLNCS.DEM the demonstration file of
+% the LaTeX macro package from Springer-Verlag
+% for Lecture Notes in Computer Science,
+% version 2.4 for LaTeX2e as of 16. April 2010
+%
+\documentclass{llncs}
+%
+\usepackage{amsmath}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+%
+\begin{document}
+%
+\title{Speed dating}
+%
+\titlerunning{Speed dating}
+%
+\author{Author 1\inst{1} \and Author 2\inst{1}
+\and Author 3\inst{1,2}}
+%
+\authorrunning{Author 1 et al.} % abbreviated author list
+%
+%%%% list of authors for the TOC (use if author list has to be modified)
+\tocauthor{Author 1, Author 2}
+%
+\institute{Institute 1\\
+\email{\{Authors\}@h-its.org}
+\and
+Institute 2,\\
+Address, Country\\
+\email{Author3@h-its.org}}
+
+
+%% Eumerating parts in aligned environments %%
+\newcommand\enum{\addtocounter{equation}{1}\tag{\theequation}}
+
+\maketitle              % typeset the title of the contribution
+
+\begin{abstract}
+The abstract
+\end{abstract}
+
+\section {Introduction}
+
+The intro cites \cite{Akerborg2008}
+
+\bibliographystyle{splncs03}
+\bibliography{dating}
+%
+\end{document}
