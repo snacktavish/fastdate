@@ -22,9 +22,14 @@
 \newcommand{\timevec}[0]{\ensuremath{\mathbf{t}}\xspace}
 \newcommand{\duration}[1]{\ensuremath{t_{#1}}\xspace}
 \newcommand{\age}[1]{\ensuremath{\tau_{#1}}\xspace}
-\newcommand{\parent}[1]{\ensuremath{{#1}^{\circ}}\xspace}
-\newcommand{\ratePriorDensity}[0]{\ensuremath{f}\xspace}
-\newcommand{\timePriorDensity}[0]{\ensuremath{g}\xspace}
+\newcommand{\agevec}[0]{\ensuremath{\boldsymbol{\tau}}\xspace}
+\newcommand{\parent}[1]{\ensuremath{a[{#1}]}\xspace}
+\newcommand{\firstChild}[1]{\ensuremath{b[{#1}]}\xspace}
+\newcommand{\secondChild}[1]{\ensuremath{c[{#1}]}\xspace}
+\newcommand{\subtreeOptFactor}[2]{\ensuremath{f_{[{#1}][{#2}]}}\xspace}
+\newcommand{\optChildAges}[3]{\ensuremath{x_{[{#1}][{#2}][{#3}]}}\xspace}
+\newcommand{\ratePriorDensity}[0]{\ensuremath{g}\xspace}
+\newcommand{\timePriorDensity}[0]{\ensuremath{h}\xspace}
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
 \DeclareMathOperator*{\argmax}{\arg\!\max}
 \usepackage{hyperref}
@@ -66,17 +71,18 @@ in time comparable to standard substitution model-based reconstruction methods.'
     \item[\rate{v}] is the rate of substitution along edge $v$
     \item[\duration{v}] is the duration of edge $v$ in time
 \begin{equation}
-    \edgeLen{v} = \rate{v}\duration{v}
+    \edgeLen{v} \equiv \rate{v}\duration{v}
 \end{equation}
     \item[\age{v}] is the age of node $v$. The difference between the node time and the present (which is time 0)
     \item[\parent{v}] is the parent node of node $v$
 \begin{equation}
-    \duration{v} = \age{\parent{v}} - \age{v}
+    \duration{v} \equiv \age{\parent{v}} - \age{v}
 \end{equation}
+    \item[\firstChild{v}, \secondChild{v}] denote the two children of node $v$
     \item[\ratePriorDensity] is the prior probability density on rates
     \item[\timePriorDensity] is the prior probability density on durations of edges
 \begin{equation}
-    \mbox{MAP}(\ratevec, \timevec)  = \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
+    \mbox{MAP}(\ratevec, \timevec)  \equiv \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
 \end{equation}
     \item[\numAges] is the discrete number of ages used in their binning
 \end{compactitem}
@@ -94,7 +100,7 @@ MetropHastings & posterior ratio & $>0$ & invalid - \textsc{FactorRT} is an hill
 \hline
 HillClimbing & posterior ratio & 0 & $\ratevec\times \timevec$-method for MAP \\
 \hline
-HillClimbing & posterior ratio & 0  & if you do not include $\ratevec$ and $\timevec$ in parameters, but just use $\edgeLen{}$ parameters, this is the $l$-method, but I don't see how they calculate the solid lines in Figure 2. Or the prior ratio for $\edgeLen$ during the MCMC. \\
+HillClimbing & posterior ratio & 0  & if you do not include $\ratevec$ and $\timevec$ in parameters, but just use $\edgeLen{}$ parameters, this is the $l$-method, but I don't see how they calculate the solid lines in Figure 2. Or the prior ratio for $\edgeLen{}$ during the MCMC. \\
 \hline
 HillClimbing & posterior ratio & 0.001 & combined method for MAP \\
 \hline
@@ -109,7 +115,6 @@ HillClimbing & likelihood & 0.001 & combined method targetting likelihood dotted
 \end{tabular}
 \end{table}
 
-
 \begin{algorithm} \caption{Combined Akerborg \etal \textsc{MCMC}}\label{AMCMC}
 \begin{algorithmic}
     \REQUIRE $\boldsymbol{\theta}$, the starting values for all parameters
@@ -118,32 +123,138 @@ HillClimbing & likelihood & 0.001 & combined method targetting likelihood dotted
     \REQUIRE \textsc{AcceptMove}, a funciton that takes the proposed target density, the current target density, and the Hastings ratio for the proposal
 \STATE  $\boldsymbol{\theta^{(0)}} \leftarrow \boldsymbol{\theta}$
 \STATE  $z^{(0)} \leftarrow O(\boldsymbol{\theta})$
-\FOR{$i=1$ to $\infty$}
+\FOR{$i \in \left[1, 2,\ldots \infty \right) $}
     \IF{$\mbox{Uniform}(0, 1) > p$}
         \STATE $k \sim \mbox{UniformInt}(0, \left|\boldsymbol{\theta^{(i-1)}}\right|)$
         \STATE $\theta_k^{(i-1)}\leftarrow$ element $k$ of $\boldsymbol{\theta^{(i-1)}}$
         \STATE $\theta_k^{\prime} \sim \mbox{LogNormal}(\theta_k^{(i-1)}, \sigma)$
-        \STATE $q = \mbox{\textsc{HastingsRatio}}(\theta_k^{\prime}, \theta_k^{(i-1)}, \sigma)$
+        \STATE $q \leftarrow  \mbox{\textsc{HastingsRatio}}(\theta_k^{\prime}, \theta_k^{(i-1)}, \sigma)$
         \STATE $\boldsymbol{\theta^{\prime}}\leftarrow \boldsymbol{\theta^{(i-1)}}$ with $\theta_k^{\prime}$ substituted for parameter $k$
-        \STATE $z^{\prime} = O(\theta^{\prime})$
+        \STATE $z^{\prime} \leftarrow  O(\theta^{\prime})$
         \STATE doAccept$ \leftarrow \mbox{\textsc{AcceptMove}}(z^{\prime}, z^{(i-1)}, q)$
     \ELSE
-    \STATE $\boldsymbol{\theta^{\prime}}, z^{\prime} \leftarrow \mbox{\textsc{FactorRT}}(\boldsymbol{\theta^{(i)}}, z^{(i-1)})$
+        \STATE $\boldsymbol{\theta^{\prime}}, d \leftarrow \mbox{\textsc{FactorRT}}(\boldsymbol{\theta^{(i)}}, z^{(i-1)})$
+        \STATE $z^{\prime} \leftarrow  d + z^{(i-1)}$
         \STATE doAccept$ \leftarrow$ TRUE
     \ENDIF
     \IF{doAccept}
-        \STATE $z^{(i)} = z^{\prime}$
-        \STATE $\boldsymbol{\theta^{(i)}} =\boldsymbol{\theta}^{\prime}$
+        \STATE $z^{(i)} \leftarrow  z^{\prime}$
+        \STATE $\boldsymbol{\theta^{(i)}} \leftarrow \boldsymbol{\theta}^{\prime}$
     \ELSE
-    \STATE $z^{(i)} = z^{(i-1)}$
-    \STATE $\boldsymbol{\theta^{(i)}} =\boldsymbol{\theta}^{(i-1)}$
+    \STATE $z^{(i)} \leftarrow  z^{(i-1)}$
+    \STATE $\boldsymbol{\theta^{(i)}} \leftarrow \boldsymbol{\theta}^{(i-1)}$
     \ENDIF
 \ENDFOR
 \end{algorithmic}
 \end{algorithm}
 
-\bibliographystyle{splncs03}
+The ``speed dating'' aspect of their work is the \textsc{FactorRT} operation.
+\begin{algorithm} \caption{\textsc{FactorRT}}\label{factorRT}
+\begin{algorithmic}
+\REQUIRE $\ratevec$
+\REQUIRE $\agevec$
+\REQUIRE $\mu, \sigma^2$ the mean and variance (respectively) of the distribution of rates
+\ENSURE that the returned parameter vector $\ratevec^{\prime}$ and $\agevec^{\prime}$ are
+approximately optimal combinations of rates and ages that preserve $\edgeLen{}$ (and hence 
+do not require recalculation of the likelihood.\\
+\COMMENT{\textsc{Initialization}}
+\STATE allocate \subtreeOptFactor{}{} as $2\numLeaves -1$ by $\numAges$ matrix of floating point numbers.
+\STATE allocate \optChildAges{}{}{} as $2\numLeaves -1$ by $\numAges$ by $2$ matrix of integers
+\FOR{$i \in \left[0, 1, \ldots, 2\numLeaves - 1\right)$}
+    \STATE $\edgeLen{i} \leftarrow  \rate{i} \duration{i}$
+\ENDFOR
+\FOR{each leaf node, $u$, in postorder}
+    \STATE \subtreeOptFactor{u}{0} = 1.0
+    \FOR{$d \in [1, 2, \ldots, \numAges)$ }
+        \STATE \subtreeOptFactor{u}{d} = 0.0
+    \ENDFOR
+\ENDFOR \\
+\COMMENT{\textsc{End of Initialization}}
+\FOR{each non-root, internal node $u$ in postorder}
+    \FOR{$d \in [1, 2, \ldots, \numAges)$ }
+        \STATE $\subtreeOptFactor{u}{d}, y, z \leftarrow \mbox{\textsc{PruneFactorRT}}(\edgeLen, \firstChild{u}, \secondChild{u}, f, d)$
+        \STATE \optChildAges{u}{d}{0}, \optChildAges{u}{d}{1} = y, z
+    \ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
 
+
+
+\begin{algorithm} \caption{\textsc{PruneFactorRT}}\label{pruneFactorRT}
+\begin{algorithmic}
+    \REQUIRE $\edgeLen{}$ the edge lengths (in expected changes per site)
+\REQUIRE $v, w$ two sibling nodes
+\REQUIRE $f$ The lookup table with entries already filled in for $v$ and $w$
+\REQUIRE $d$ the age of the parent
+\REQUIRE $\mu, \sigma^2$ the mean and variance (respectively) of the distribution of rates
+\ENSURE return the highest prior density for the subtree if the parent of $v$ and $u$ is at node age $d$\\
+\COMMENT{\textsc{Initialization}}
+\STATE $d_v, d_w \leftarrow 0, 0$
+\STATE $o = -1$ \COMMENT{impossibly low value for the best value}\\
+\COMMENT{\textsc{End of Initialization}}
+\FOR{$i \in [0, 1, \ldots, d)$ }
+    \STATE $t_v^{\ast} \leftarrow d - i$
+    \STATE $r_v^{\ast} \leftarrow l_v^{\ast} / t_v^{\ast}$
+    \STATE $m_v^{\ast} \leftarrow \ratePriorDensity(r_v^{\ast})$
+    \FOR{$j \in [0, 1, \ldots, d)$ }
+        \STATE $t_w^{\ast} \leftarrow d - j$
+        \STATE $r_w^{\ast} \leftarrow l_w^{\ast} / t_w^{\ast}$
+        \STATE $m_w^{\ast} \leftarrow \ratePriorDensity(r_w^{\ast})$
+        \STATE $q \leftarrow \timePriorDensity(d \mid \tree, i, j)$
+        \STATE $y \leftarrow q m_v^{\ast} m_w^{\ast} \subtreeOptFactor{v}{i} \subtreeOptFactor{w}{j}$
+        \IF{$y > o$}
+            \STATE $o \leftarrow y$
+            \STATE $d_v = i$
+            \STATE $d_w = j$
+        \ENDIF
+    \ENDFOR
+\ENDFOR
+\RETURN $o, d_v, d_w$
+\end{algorithmic}
+\end{algorithm}
+
+Note that the only calculation in the inner loop of \textsc{PruneFactorRT} that needs both $i$ and $j$ is the prior density of the tree.
+So many of the caculations (e.g. the calculation of $m_w^{\ast} \leftarrow \ratePriorDensity(r_w^{\ast})$)
+could be done in a separate loop rather than a nested loop.
+
+For some sets of prior on divergence times, the priors on the branch durations is 
+the product of each descendant branch prior so one could do two separate pruning
+steps
+(see \textsc{PruneFactorRTIndepPrior}) as the Pruning step.
+
+\begin{algorithm} \caption{\textsc{PruneFactorRTIndepPrior}}\label{pruneFactorRTIndep}
+\begin{algorithmic}
+    \STATE $o_v, d_v\leftarrow \mbox{\textsc{PruneFactorRTIndepPriorOneChild}}(l, v, f, d)$
+    \STATE $o_w, d_w\leftarrow \mbox{\textsc{PruneFactorRTIndepPriorOneChild}}(l, w, f, d)$
+    \STATE $o \leftarrow o_v o_w$
+    \RETURN $o, d_v, d_w$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm} \caption{\textsc{PruneFactorRTIndepPriorOneChild}}\label{pruneFactorRTIndepOneChild}
+\begin{algorithmic}
+\STATE $d_v\leftarrow 0$
+\STATE $o = -1$ \COMMENT{impossibly low value for the best value}\\
+\FOR{$i \in [0, 1, \ldots, d)$ }
+    \STATE $t_v^{\ast} \leftarrow d - i$
+    \STATE $r_v^{\ast} \leftarrow l_v^{\ast} / t_v^{\ast}$
+    \STATE $m_v^{\ast} \leftarrow \ratePriorDensity(r_v^{\ast})$
+    \STATE $q \leftarrow \timePriorDensity(d \mid \tree, i)$
+    \STATE $y \leftarrow q m_v^{\ast}\subtreeOptFactor{v}{i}$
+    \IF{$y > o$}
+        \STATE $o \leftarrow y$
+        \STATE $d_v = i$
+        \STATE $d_w = j$
+    \ENDIF
+\ENDFOR
+\RETURN $o, d_v$
+\end{algorithmic}
+\end{algorithm}
+\end{document}
+\COMMENT{\textsc{End of Initialization}}
+
+\bibliographystyle{splncs03}
 \bibliography{dating}
 \end{document}
 
