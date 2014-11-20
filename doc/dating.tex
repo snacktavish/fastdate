@@ -10,6 +10,7 @@
 \usepackage{graphicx}
 \usepackage{paralist}
 \usepackage{xspace}
+\usepackage{algorithm,algorithmic}
 \newcommand{\etal}[0]{{\em et al.}\xspace}
 \newcommand{\numLeaves}[0]{\ensuremath{s}\xspace}
 \newcommand{\numSites}[0]{\ensuremath{n}\xspace}
@@ -17,10 +18,15 @@
 \newcommand{\tree}[0]{\ensuremath{T}\xspace}
 \newcommand{\edgeLen}[1]{\ensuremath{l_{#1}}\xspace}
 \newcommand{\rate}[1]{\ensuremath{r_{#1}}\xspace}
+\newcommand{\ratevec}[0]{\ensuremath{\mathbf{r}}\xspace}
+\newcommand{\timevec}[0]{\ensuremath{\mathbf{t}}\xspace}
 \newcommand{\duration}[1]{\ensuremath{t_{#1}}\xspace}
 \newcommand{\age}[1]{\ensuremath{\tau_{#1}}\xspace}
 \newcommand{\parent}[1]{\ensuremath{{#1}^{\circ}}\xspace}
-%\newcommand{\par}[1]{\ensuremath{{#1}^{\ast}}\xspace}
+\newcommand{\ratePriorDensity}[0]{\ensuremath{f}\xspace}
+\newcommand{\timePriorDensity}[0]{\ensuremath{g}\xspace}
+\newcommand{\numAges}[0]{\ensuremath{N}\xspace}
+\DeclareMathOperator*{\argmax}{\arg\!\max}
 \usepackage{hyperref}
 \hypersetup{backref,  linkcolor=blue, citecolor=red, colorlinks=true, hyperindex=true}
 %
@@ -67,9 +73,79 @@ in time comparable to standard substitution model-based reconstruction methods.'
 \begin{equation}
     \duration{v} = \age{\parent{v}} - \age{v}
 \end{equation}
+    \item[\ratePriorDensity] is the prior probability density on rates
+    \item[\timePriorDensity] is the prior probability density on durations of edges
+\begin{equation}
+    \mbox{MAP}(\ratevec, \timevec)  = \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
+\end{equation}
+    \item[\numAges] is the discrete number of ages used in their binning
 \end{compactitem}
 
+Algorithm \ref{AMCMC} is the high level MCMC used by Akerborg \etal.
+The table below describes how MTH {\em thinks} they use this to 
+get the results in Figure 2.
+\begin{table}
+    \begin{tabular}{c|c|c|p{20em}}
+\textsc{AcceptMove} & $O$ & p & Result \\
+\hline
+MetropHastings & posterior ratio & 0 & typical Bayesian MCMC \\
+\hline
+MetropHastings & posterior ratio & $>0$ & impossible (no \textsc{HastingRatioFactor} is described)\\
+\hline
+HillClimbing & posterior ratio & 0 & $\ratevec\times \timevec$-method for MAP \\
+\hline
+HillClimbing & posterior ratio & 0  & if you do not include $\ratevec$ and $\timevec$ in parameters, but just use $\edgeLen{}$ parameters, this is the $l$-method, but I don't see how they calculate the solid lines in Figure 2. Or the prior ratio for $\edgeLen$ during the MCMC. \\
+\hline
+HillClimbing & posterior ratio & 0.001 & combined method for MAP \\
+\hline
+MetropHastings & likelihood & 0 & some integrated likelihood method (not described) \\
+\hline
+MetropHastings & likelihood & $>0$ & impossible (no \textsc{HastingRatioFactor} is described)\\
+\hline
+HillClimbing & likelihood & 0 & $\ratevec\times\timevec$ optimization dashed red in Fig 2 \\
+\hline
+HillClimbing & posterior ratio & 0  & if you do not include $\ratevec$ and $\timevec$ in parameters, but just use $\edgeLen{}$ parameters, this is the $l$-method. dashed blue in Figure 2 \\
+\hline
+HillClimbing & likelihood & 0.001 & combined method targetting likelihood dotted green in figure 2 \\
+\hline
+\end{tabular}
+\end{table}
+\begin{algorithm} \caption{Combined Akerborg \etal \textsc{MCMC}}\label{AMCMC}
+\begin{algorithmic}
+    \REQUIRE $\boldsymbol{\theta}$, the starting values for all parameters
+    \REQUIRE $p$, the probability of conducing a FactorRT proposal in any iteration
+    \REQUIRE $O$, a function to calculation the target density (posterior or just the ``data likelihood''.
+    \REQUIRE \textsc{AcceptMove}, a funciton that takes the proposed target density, the current target density, and the Hastings ratio for the proposal
+\STATE  $\boldsymbol{\theta^{(0)}} \leftarrow \boldsymbol{\theta}$
+\FOR{$i=1$ to $\infty$}
+    \IF{$p == 1$ or $\mbox{Uniform}(0, 1) > p$}
+        \STATE $k \sim \mbox{UniformInt}(0, \left|\boldsymbol{\theta^{(i-1)}}\right|)$
+        \STATE $\theta_k^{(i-1)}\leftarrow$ element $k$ of $\boldsymbol{\theta^{(i-1)}}$
+        \STATE $\theta_k^{\prime} \sim \mbox{LogNormal}(\theta_k^{(i-1)}, \sigma)$
+        \STATE $q = \mbox{\textsc{HastingsRatio}}(\theta_k^{\prime}, \theta_k^{(i-1)}, \sigma)$
+    \ELSE
+    \STATE $\theta_k^{\prime} \rightarrow \mbox{\textsc{FactorRT}}(\boldsymbol{\theta^{(i)}})$
+    \STATE $q = \mbox{\textsc{HastingsRatioFactor}}(\theta_k^{\prime}, \theta_k^{(i-1)})$
+    \ENDIF
+    \STATE $\boldsymbol{\theta^{\prime}}\leftarrow \boldsymbol{\theta^{(i-1)}}$ with $\theta_k^{\prime}$ substituted for parameter $k$
+    \STATE $z^{\prime} = O(\theta^{\prime})$
+    \IF{$\mbox{\textsc{AcceptMove}}(z^{\prime}, z^{(i-1)}, q)$}
+        \STATE $z^{(i)} = z^{\prime}$
+        \STATE $\boldsymbol{\theta^{(i)}} =\boldsymbol{\theta}^{\prime}$
+    \ELSE
+    \STATE $z^{(i)} = z^{(i-1)}$
+    \STATE $\boldsymbol{\theta^{(i)}} =\boldsymbol{\theta}^{(i-1)}$
+    \ENDIF
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
 \bibliographystyle{splncs03}
+
 \bibliography{dating}
-%
 \end{document}
+
+\begin{algorithm} \caption{}\label{}
+\begin{algorithmic}
+\end{algorithmic}
+\end{algorithm}
