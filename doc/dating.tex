@@ -176,6 +176,11 @@ do not require recalculation of the likelihood.\\
         \STATE \optChildAges{u}{d}{0}, \optChildAges{u}{d}{1} = y, z
     \ENDFOR
 \ENDFOR
+\STATE $u\leftarrow 2\numLeaves - 1$ \COMMENT{The root node is at 1.0}
+\STATE $w, y, z \leftarrow  \mbox{\textsc{PruneFactorRT}}(\edgeLen, \firstChild{u}, \secondChild{u}, f, \numAges)$
+
+\STATE $\ratevec, \agevec \leftarrow \mbox{\textsc{TraceBack}}(\edgeLen, \firstChild{u}, \secondChild{u}, y, z)$
+\RETURN $\ratevec, \agevec, w$
 \end{algorithmic}
 \end{algorithm}
 
@@ -222,6 +227,7 @@ For some sets of prior on divergence times, the priors on the branch durations i
 the product of each descendant branch prior so one could do two separate pruning
 steps
 (see \textsc{PruneFactorRTIndepPrior}) as the Pruning step.
+I'm not sure if they use such priors.
 
 \begin{algorithm} \caption{\textsc{PruneFactorRTIndepPrior}}\label{pruneFactorRTIndep}
 \begin{algorithmic}
