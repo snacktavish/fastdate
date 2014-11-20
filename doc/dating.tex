@@ -110,11 +110,13 @@ HillClimbing & likelihood & 0.001 & combined method targetting likelihood dotted
 \hline
 \end{tabular}
 \end{table}
+
+
 \begin{algorithm} \caption{Combined Akerborg \etal \textsc{MCMC}}\label{AMCMC}
 \begin{algorithmic}
     \REQUIRE $\boldsymbol{\theta}$, the starting values for all parameters
     \REQUIRE $p$, the probability of conducing a FactorRT proposal in any iteration
-    \REQUIRE $O$, a function to calculation the target density (posterior or just the ``data likelihood''.
+    \REQUIRE $O$, a function to calculation the target density (posterior or just the ``data probability'').
     \REQUIRE \textsc{AcceptMove}, a funciton that takes the proposed target density, the current target density, and the Hastings ratio for the proposal
 \STATE  $\boldsymbol{\theta^{(0)}} \leftarrow \boldsymbol{\theta}$
 \FOR{$i=1$ to $\infty$}
