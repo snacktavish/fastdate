@@ -8,41 +8,66 @@
 \usepackage{amsmath}
 \usepackage{pdfpages}
 \usepackage{graphicx}
+\usepackage{paralist}
+\usepackage{xspace}
+\newcommand{\etal}[0]{{\em et al.}\xspace}
+\newcommand{\numLeaves}[0]{\ensuremath{s}\xspace}
+\newcommand{\numSites}[0]{\ensuremath{n}\xspace}
+\newcommand{\dataMatrix}[0]{\ensuremath{D}\xspace}
+\newcommand{\tree}[0]{\ensuremath{T}\xspace}
+\newcommand{\edgeLen}[1]{\ensuremath{l_{#1}}\xspace}
+\newcommand{\rate}[1]{\ensuremath{r_{#1}}\xspace}
+\newcommand{\duration}[1]{\ensuremath{t_{#1}}\xspace}
+\newcommand{\age}[1]{\ensuremath{\tau_{#1}}\xspace}
+\newcommand{\parent}[1]{\ensuremath{{#1}^{\circ}}\xspace}
+%\newcommand{\par}[1]{\ensuremath{{#1}^{\ast}}\xspace}
+\usepackage{hyperref}
+\hypersetup{backref,  linkcolor=blue, citecolor=red, colorlinks=true, hyperindex=true}
 %
 \begin{document}
-%
 \title{Speed dating}
-%
 \titlerunning{Speed dating}
-%
-\author{Author 1\inst{1} \and Author 2\inst{1}
-\and Author 3\inst{1,2}}
-%
+\author{Author 1\inst{1} \and Author 2\inst{1} \and Author 3\inst{1,2}}
 \authorrunning{Author 1 et al.} % abbreviated author list
-%
-%%%% list of authors for the TOC (use if author list has to be modified)
 \tocauthor{Author 1, Author 2}
-%
 \institute{Institute 1\\
-\email{\{Authors\}@h-its.org}
-\and
-Institute 2,\\
-Address, Country\\
+\email{\{Authors\}@h-its.org} \and Institute 2,\\ Address, Country\\
 \email{Author3@h-its.org}}
-
-
 %% Eumerating parts in aligned environments %%
 \newcommand\enum{\addtocounter{equation}{1}\tag{\theequation}}
-
 \maketitle              % typeset the title of the contribution
-
-\begin{abstract}
-The abstract
-\end{abstract}
-
+\begin{abstract} The abstract \end{abstract}
 \section {Introduction}
-
-The intro cites \cite{Akerborg2008}
+Akerborg \etal \cite{Akerborg2008} describe a fast method for approximating
+the maximum a posteriori (MAP) estimate of the age of a node in tree.
+There is not an open source implementation accompanying that paper.
+Howver, these authors do distribute software primeGSR
+(\url{http://prime.sbc.su.se/primeGSR/docs.html}).
+That software is not explicitly mentioned in \cite{Akerborg2008}, but its manual
+(\url{http://prime.sbc.su.se/primeGSR/downloads/primegsr_manual.pdf})
+states ``Thanks to
+new algorithms, that uses a discretization of divergence times, it can reconstruct gene trees
+in time comparable to standard substitution model-based reconstruction methods.''
+\section{Notation}
+(trying to stick to Akerborg \etal's notation:
+\begin{compactitem}
+    \item[\numLeaves] is the number of leaves.
+    \item[\numSites] is the number of sites
+    \item[\dataMatrix] is the alignment
+    \item[\tree] is the tree
+    \item[``edge $v$''] means the edge connecting node $v$ to its parent.
+    \item[\edgeLen{v}] is the length edge $v$ in expected number of substitutions per site
+    \item[\rate{v}] is the rate of substitution along edge $v$
+    \item[\duration{v}] is the duration of edge $v$ in time
+    \begin{equation}
+        \edgeLen{v} = \rate{v}\duration{v}
+    \end{equation}
+    \item[\age{v}] is the age of node $v$. The difference between the node time and the present (which is time 0)
+    \item[\parent{v}] is the parent node of node $v$
+    \begin{equation}
+        \duration{v} = \age{\parent{v}} - \age{v}
+    \end{equation}
+\end{compactitem}
 
 \bibliographystyle{splncs03}
 \bibliography{dating}
