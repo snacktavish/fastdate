@@ -1,0 +1,157 @@
+% This is LLNCS.DEM the demonstration file of
+% the LaTeX macro package from Springer-Verlag
+% for Lecture Notes in Computer Science,
+% version 2.4 for LaTeX2e as of 16. April 2010
+%
+\documentclass{llncs}
+%
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+
+\newcounter{instr}
+\newcommand{\ninstr}{\refstepcounter{instr}\theinstr.}
+
+
+\begin{document}
+
+\title{A dynamic programming approach for speed-dating}
+
+\titlerunning{Speed dating}
+
+\author{Tom\'{a}\v{s} Flouri1\inst{1}}
+\authorrunning{Tom\'{a}\v{s} Flouri et al.} % abbreviated author list
+\institute{Heidelberg Institute of Theoretical Studies\\
+\email{Tomas.Flouri@h-its.org}}
+
+\maketitle
+
+\begin{abstract}
+An explanation of the dynamic programming algorithm used in \cite{Akerborg2008}.
+\end{abstract}
+
+\section{Preliminaries}
+
+\subsection{Basic definitions}
+
+A tree $T=(V,E)$ is a connected acyclic graph where $V$ is the set of {\em
+nodes} and $E$ the set of {\em edges}, such that $E = V\times V$. We use the
+notation $(u,v) \in E$ to denote an edge with end-points $u,v \in V$. If $T$ is
+{\em oriented}, then {\em in-degree} (resp. {\em out-degree}) of a node denotes
+the number of incoming (resp. outgoing edges) of $u$. In the opposite case, the
+{\em degree} of node $u$ denotes the number of edges $u$ is an end-point of.
+Further, we denote with $T_u$ the subtree of $T$ rooted at node $u$.  A {\em
+rooted binary tree} $T$ is a {\em directed} tree with all nodes having
+in-degree 1 and out-degree 1 ({\em inner} nodes), or in-degree 1 and out-degree
+0 ({\em leaves}). Furthermore, one node has in-degree 0 and out-degree 2 ({\em
+root}).  In the rest of the text we implicitely assume under the term tree a
+binary rooted tree.  We denote the set of leaves of tree $T$ as $L(T)$.  The
+cardinality of a set $X$ is denoted as $|X|$. The {\em height} $h(u)$ of a node
+$u$ of $T$ is defined as 
+%
+\[ h(u) = \left\{ \begin{array}{ll}
+\max(h(v), h(w)) + 1 & \quad : \quad u \notin L(T)\\
+1                    & \quad : \quad u    \in L(T)\\
+\end{array}\right. \] 
+The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
+implicitely use the notation $r$ for specifying the root of a tree, and
+$\ell_{u,v}$ for the length of edge $(u,v)$.
+
+\subsection{Gamma function, Gamma distribution}
+
+The {\em Gamma function} is an extension to the factorial function to handle
+any real or complex number as argument. For point $t$ it is defined as
+$$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
+
+The {\em probability density function} in the shape-rate parameterization of a
+{\em gamma distribution} given the {\em mean} $\mu$ and variance $\sigma$ is
+$$ g(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
+
+where $\beta = \mu / \sigma$ and $\alpha = \mu \beta$.
+Its natural logarithm can be computed as
+$$ \ln g(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
+
+\section{Dynamic programming algorithm}
+
+We are given an integer $N \geq h(T)$ which we use to construct a grid of lines
+over the height of a tree (numbered 1 to $N$), such that the (uniform) distance between any two
+adjacent lines is $h(T) / N$.  Our goal is to project each node of $T$ onto one
+of the $N$ using a mapping $\phi : V \mapsto \{1,\ldots,N\}$ such that the
+following properties are maintained.
+\begin{enumerate}
+\item $\forall u,v,w \in V : (u,v), (u,w) \in E \Rightarrow \phi(u) > \phi(v) \wedge \phi(u) > \phi(w)$,
+\item $\phi(u) = 1, \forall u \in L(T)$,
+\item $\phi(r) = N$
+\end{enumerate}
+
+Property 1 ensures that no node $v$ in the subtree rooted at $u$ is placed on
+line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves to the first line (line 1).
+Property 3 maps the root to the highest line (line $N$).
+
+The mapping is computed by maximizing a function, which defines a
+dynamic programming algorithm.  We briefly explain the algorithm informally.
+
+The DP uses a post-order traversal of the target tree. For each node $u$, it
+computes the maximal value $f(u,t)$ for each line $t$ that node $u$ is allowed to be
+placed on, along with all the lines that its two children are allowed to placed
+on. This maximal value is then stored in a table along with the positions (lines) its
+two children were placed on. 
+
+We first need to set the interval of lines (discretizations) that a specific
+node can be placed on.  This interval (denoted $d(u)$) for node $u$ is defined
+as $$ d(u) = \{ x\ |\  h(u) \leq x \leq N - (h(r) - h(u))\}.$$  This is
+justified by the fact that the farthest {\em path} leading from node $u$ to a
+leaf is of size $h(u)$ and contains exactly $h(u)$ nodes including $v$.
+Therefore, even if all nodes in the distinct height in the subtree rooted at
+$u$ are placed on distinct discretization, the lowest line that $u$ can be
+placed on is line $h(u)$.
+
+Next, we define the maximization function $f$ that is computed for each node $u \in
+V\setminus L(T)$ and for each discretization line $t_u$:  
+$$ f(u,t_u) = b(t_u,|L(T_u)|) \ln g(\ell_{u,v} / (t_u - t_v)) \ln g(\ell_{u,w} / (t_u -
+t_w)) f(v,t_v) f(w,t_w) $$ where $t_u \in d(u)$, $t_v \in d(v)$, $t_w \in
+d(w)$ and $b(t_u,|L(T_u)|)$ is the birth-death process function {\bf TODO:
+finish description} which is based on the placement of $u$ and the number of
+leaves the subtree rooted at $u$ has.
+Fig.~\ref{fig:dp} describes the algorithm in detail.
+
+
+\setcounter{instr}{0}
+\begin{figure}[t]
+\begin{center}
+\begin{tabular}{|rl|}
+\hline
+\multicolumn{2}{|l|}{\textsc{DP}$(T, N, u)$}\\
+\ninstr & $v \leftarrow$ left child of $u$\\
+\ninstr & $w \leftarrow$ right child of $u$\\
+\ninstr & \textbf{if} $v \in L(T)$ \textbf{then}\\
+\ninstr & \qquad $M(v,1) \leftarrow 1$\\
+\ninstr & \qquad \textbf{return}\\
+\ninstr & \textsc{DP}(T,N,v)\\        
+\ninstr & \textbf{if} $w \in L(T)$ \textbf{then}\\
+\ninstr & \qquad $M(w,1) \leftarrow 1$\\
+\ninstr & \qquad \textbf{return}\\
+\ninstr & \textsc{DP}(T,N,w)\\        
+\ninstr & \textbf{for} $t_u \leftarrow \min d(u)$ \textbf{to} $\max d(u)$ \\
+\ninstr & \qquad $\hat{f}_u \leftarrow 0, \hat{t}_v \leftarrow 0, \hat{t}_w \leftarrow 0$\\
+\ninstr & \qquad \textbf{for} $t_v \leftarrow \min d(v)$ \textbf{to} $\min\{\max d(v), t_u\}$ \\
+\ninstr & \qquad \qquad \textbf{for} $t_w \leftarrow d(w)$ \textbf{to} $\min\{\max d(w), t_u\}$ \\
+\ninstr & \qquad \qquad \qquad $r_{u,v} \leftarrow \ell_{u,v}/(t_u - t_v)$ \\
+\ninstr & \qquad \qquad \qquad $r_{u,w} \leftarrow \ell_{u,w}/(t_u - t_w)$ \\
+\ninstr & \qquad \qquad \qquad $f(u,t_u) \leftarrow b(t_u,|L(T_u)|) \ln g(r_{u,v}) \ln g(r_{u,w}) f(v,t_v) f(w,t_w)$\\
+\ninstr & \qquad \qquad \qquad \textbf{if} $f(u,t_u) > \hat{f}_u$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad \qquad $\hat{f}_u \leftarrow f(u,t_u), \hat{t}_v \leftarrow t_v, \hat{t}_w \leftarrow t_w$\\
+\ninstr & \qquad $M(u,t_u) \leftarrow \hat{f}_u, M^l(u,t_u) \leftarrow \hat{t}_v, M^r(u,t_u) \leftarrow \hat{t}_w$  \\
+\hline  
+\end{tabular}
+\end{center}
+\caption{The DP algorithm for computing relative divergence times. The
+algorithm starts by passing the tree ($T$), number of discretization lines
+(($N$) and the root of $T$ ($u$). It recursively traverses the tree in
+postorder and thne computes the best placement for every node $u$.}
+\label{fig:dp}
+\end{figure}
+
+\bibliographystyle{splncs03}
+\bibliography{dating}
+\end{document}
