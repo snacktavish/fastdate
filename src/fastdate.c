@@ -21,18 +21,15 @@
 
 #include "fastdate.h"
 
-
 static char * progname;
 static char progheader[80];
 static char * cmdline;
 
 /* number of mandatory options for the user to input */
-static const char mandatory_options_count = 3;
-static const char * mandatory_options_list = " --tree-file\n"
-                                             " --fasta-file\n"
-                                             " --out-file";
+static const char mandatory_options_count = 2;
+static const char * mandatory_options_list = " --tree-file --out-file";
+
 /* input/output params */
-char * opt_alignmentfile;
 char * opt_treefile;
 char * opt_outfile;
 
@@ -51,14 +48,15 @@ double opt_edgerate_var;
 long   opt_help;
 long   opt_version;
 long   opt_divtimes;
+long   opt_show_tree;
 
 
 static struct option long_options[] =
 {
   {"help",               no_argument,       0, 0 },  /*  0 */
   {"version",            no_argument,       0, 0 },  /*  1 */
-  {"alignment-file",     required_argument, 0, 0 },  /*  2 */
-  {"tree-file",          required_argument, 0, 0 },  /*  3 */
+  {"tree-file",          required_argument, 0, 0 },  /*  2 */
+  {"show-tree",          no_argument,       0, 0 },  /*  3 */
   {"out-file",           required_argument, 0, 0 },  /*  4 */
   {"iterations",         required_argument, 0, 0 },  /*  5 */
   {"birth-rate",         required_argument, 0, 0 },  /*  6 */      
@@ -80,8 +78,8 @@ void args_init(int argc, char ** argv)
   opt_help          = 0;
   opt_version       = 0;
   opt_divtimes      = 0;
+  opt_show_tree     = 0;
 
-  opt_alignmentfile = NULL;
   opt_treefile      = NULL;
   opt_outfile       = NULL;
 
@@ -110,8 +108,7 @@ void args_init(int argc, char ** argv)
         break;
 
       case 3:
-        free(opt_alignmentfile);
-        opt_alignmentfile = optarg;
+        opt_show_tree = 1;
         break;
 
       case 4:
@@ -156,8 +153,6 @@ void args_init(int argc, char ** argv)
   /* check for --divtimes mandatory options */
   if (opt_treefile)
     mand_options++;
-  if (opt_alignmentfile)
-    mand_options++;
   if (opt_outfile)
     mand_options++;
 
@@ -193,9 +188,9 @@ void cmd_help()
           "General options:\n"
           "  --help                         display help information.\n"
           "  --version                      display version information.\n"
+          "  --show-tree                    display an ASCII version of the tree.\n"
           "  --divtimes                     perform divergence time estimations.\n"
           "Input and output options:\n"
-          "  --alignment-file     FILE      aligned sequences in FASTA format.\n"
           "  --tree-file          FILE      tree file in newick format.\n"
           "  --out-file           FILE      output file name.\n"
           "Model parameters:\n"
@@ -208,8 +203,19 @@ void cmd_help()
 
 void cmd_divtimes()
 {
-  fatal("Divergence times estimation not yet implemented :-(");
+  /* parse tree */
+  tree_node_t * tree = yy_parse_tree(opt_treefile);
+  if (!tree)
+    fatal("Tree is probably not binary.\n");
+
+  if (opt_show_tree)
+    show_ascii_tree(tree);
+
+  yy_dealloc_tree(tree);
+
+  fatal("Divergence times estimation not yet implemented");
 }
+
 
 void getentirecommandline(int argc, char * argv[])
 {
@@ -261,5 +267,6 @@ int main (int argc, char * argv[])
     cmd_divtimes();
   }
 
+  free(cmdline);
   return (0);
 }

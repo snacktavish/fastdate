@@ -44,21 +44,25 @@
 #define PROG_ARCH "linux_x86_64"
 #endif
 
-#ifndef LINE_MAX
-#define LINE_MAX 2048
-#endif
-
 /* structures and data types */
 
 typedef unsigned int UINT32;
 typedef unsigned short WORD;
 typedef unsigned char BYTE;
 
+typedef struct tree_noderec
+{
+  char * label;
+  double length;
+  struct tree_noderec * left;
+  struct tree_noderec * right;
+  void * data;
+} tree_node_t;
+
 /* macros */
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
-
 
 /* matrices */
 
@@ -83,7 +87,10 @@ extern long avx2_present;
 
 void fatal(const char * format, ...);
 void * xmalloc(size_t size);
+void * xrealloc(void *ptr, size_t size);
 char * xstrchrnul(char *s, int c);
+char * xstrdup(const char * s);
+char * xstrndup(const char * s, size_t len);
 void encode_sequence(char * s, const char * map);
 long getusec(void);
 void show_rusage();
@@ -97,3 +104,13 @@ void init_symmetric_scorematrix(void);
 void fillheader();
 void show_header();
 void cmd_divtimes();
+
+/* functions in tree.c */
+
+tree_node_t * yy_create_tree();
+void yy_dealloc_tree(tree_node_t * tree);
+void show_ascii_tree(tree_node_t * tree);
+
+/* functions in newick.y */
+
+tree_node_t * yy_parse_tree(const char * filename);

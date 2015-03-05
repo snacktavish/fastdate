@@ -34,12 +34,20 @@ void fatal(const char * format, ...)
 void * xmalloc(size_t size)
 {
   const size_t alignment = 16;
-  void * t;
+  void * t = NULL;
   posix_memalign(& t, alignment, size);
 
   if (!t)
     fatal("Unable to allocate enough memory.");
 
+  return t;
+}
+
+void * xrealloc(void *ptr, size_t size)
+{
+  void * t = realloc(ptr, size);
+  if (!t)
+    fatal("Unable to allocate enough memory.");
   return t;
 }
 
@@ -51,6 +59,21 @@ char * xstrchrnul(char *s, int c)
     return r;
   else
     return (char *)s + strlen(s);
+}
+
+char * xstrdup(const char * s)
+{
+  size_t len = strlen(s);
+  char * p = (char *)xmalloc(len+1);
+  return strcpy(p,s);
+}
+
+char * xstrndup(const char * s, size_t len)
+{
+  char * p = (char *)xmalloc(len+1);
+  strncpy(p,s,len);
+  p[len] = 0;
+  return p;
 }
 
 void encode_sequence(char * s, const char * map)
