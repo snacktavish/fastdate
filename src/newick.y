@@ -68,6 +68,7 @@ input: OPAR subtree COMMA subtree CPAR optional_label optional_length SEMICOLON
   tree->right  = $4;
   tree->label  = $6;
   tree->length = $7 ? atof($7) : 0;
+  tree->leaves = $2->leaves + $4->leaves;
   free($7);
 };
 
@@ -78,6 +79,7 @@ subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
   $$->right  = $4;
   $$->label  = $6;
   $$->length = $7 ? atof($7) : 0;
+  $$->leaves = $2->leaves + $4->leaves;
   free($7);
 }
        | label optional_length
@@ -87,6 +89,7 @@ subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
   $$->length = $2 ? atof($2) : 0;
   $$->left   = NULL;
   $$->right  = NULL;
+  $$->leaves = 1;
   free($2);
 };
 

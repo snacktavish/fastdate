@@ -27,6 +27,7 @@ WARN=-Wall -Wsign-compare
 CC = gcc
 CFLAGS = -g -O3 $(WARN)
 LINKFLAGS=$(PROFILING)
+LIBS=-lm
 
 BISON = bison
 FLEX = flex
@@ -35,18 +36,18 @@ PROG=fastdate
 
 all: $(PROG)
 
-OBJS=util.o fastdate.o maps.o tree.o newick.o lex.o
+OBJS=util.o fastdate.o maps.o tree.o dp.o gamma.o bd.o newick.o lex.o
 
 $(PROG): $(OBJS)
-	$(CC) $(LINKFLAGS) $+ -o $@
+	$(CC) $(LINKFLAGS) $+ -o $@ $(LIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-newick.c: newick.y
+%.c: %.y
 	$(BISON) -d -o $@ $<
 
-lex.c: newick.l
+%.c: %.l
 	$(FLEX) -o $@ $<
 
 clean:

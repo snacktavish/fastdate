@@ -23,6 +23,8 @@
 
 static int indend_space = 4;
 
+static void output_tree_recursive(tree_node_t * node, FILE * fp_out);
+
 tree_node_t * yy_create_tree()
 {
   tree_node_t * t = xrealloc(0, sizeof(tree_node_t));
@@ -73,8 +75,9 @@ static void print_tree_recurse(tree_node_t * tree,
   printf("+");
   for (j = 0; j < indend_space-1; ++j)
     printf ("-");
+  if (tree->left || tree->right) printf("+");
 
-  printf (" %s:%f\n", tree->label, tree->length);
+  printf (" %s:%f (age: %d)\n", tree->label, tree->length, tree->interval_line);
 
   if (active_node_order[indend_level-1] == 2) active_node_order[indend_level-1] = 0;
 
@@ -101,9 +104,46 @@ void show_ascii_tree(tree_node_t * tree)
   active_node_order[0] = 1;
   active_node_order[1] = 1;
 
-  printf ("%s:%f\n", tree->label, tree->length);
-  print_tree_recurse(tree->left,1, active_node_order);
-  print_tree_recurse(tree->right,1, active_node_order);
+  printf (" %s:%f (age: %d)\n", tree->label, tree->length, tree->interval_line);
+  print_tree_recurse(tree->left, 1, active_node_order);
+  print_tree_recurse(tree->right, 1, active_node_order);
   free(active_node_order);
 }
 
+int set_node_heights(tree_node_t * root)
+{
+  if (!root) return (0);
+
+  root->height = MAX(set_node_heights(root->left), 
+                     set_node_heights(root->right)) + 1;
+
+  return (root->height);
+
+}
+
+static void output_tree_recursive(tree_node_t * node, FILE * fp_out)
+{
+  if (!node->left || !node->right)
+    fprintf(fp_out, "%s:[&age=%d]%f", node->label, node->interval_line, node->length);
+  else
+  {
+    fprintf(fp_out, "(");
+    output_tree_recursive(node->left, fp_out);
+    fprintf(fp_out, ",");
+    output_tree_recursive(node->right, fp_out);
+    fprintf(fp_out, ")%s:[&age=%d]%f", node->label ? node->label : "", 
+                    node->interval_line, node->length);
+  }
+}
+
+void write_newick_tree(tree_node_t * node)
+{
+  FILE * fp_out = fopen(opt_outfile, "w");
+  if (!fp_out)
+    fatal("Unable to open output file for writing");
+
+  output_tree_recursive(node, fp_out);
+  fprintf(fp_out, ";");
+
+  fclose(fp_out);
+}

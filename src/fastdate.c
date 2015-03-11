@@ -33,8 +33,8 @@ static const char * mandatory_options_list = " --tree-file --out-file";
 char * opt_treefile;
 char * opt_outfile;
 
-/* mcmc params */
-long   opt_iterations;
+/* discretization */
+long opt_grid_intervals;
 
 /* birth-death model params */
 double opt_birth_rate;
@@ -45,10 +45,10 @@ double opt_edgerate_mean;
 double opt_edgerate_var;
 
 /* other commands */
-long   opt_help;
-long   opt_version;
-long   opt_divtimes;
-long   opt_show_tree;
+long opt_help;
+long opt_version;
+long opt_divtimes;
+long opt_show_tree;
 
 
 static struct option long_options[] =
@@ -58,7 +58,7 @@ static struct option long_options[] =
   {"tree-file",          required_argument, 0, 0 },  /*  2 */
   {"show-tree",          no_argument,       0, 0 },  /*  3 */
   {"out-file",           required_argument, 0, 0 },  /*  4 */
-  {"iterations",         required_argument, 0, 0 },  /*  5 */
+  {"grid-intervals",     required_argument, 0, 0 },  /*  5 */
   {"birth-rate",         required_argument, 0, 0 },  /*  6 */      
   {"death-rate",         required_argument, 0, 0 },  /*  7 */
   {"edge-rate-mean",     required_argument, 0, 0 },  /*  8 */
@@ -75,20 +75,20 @@ void args_init(int argc, char ** argv)
 
   progname = argv[0];
 
-  opt_help          = 0;
-  opt_version       = 0;
-  opt_divtimes      = 0;
-  opt_show_tree     = 0;
+  opt_help           = 0;
+  opt_version        = 0;
+  opt_divtimes       = 0;
+  opt_show_tree      = 0;
 
-  opt_treefile      = NULL;
-  opt_outfile       = NULL;
+  opt_treefile       = NULL;
+  opt_outfile        = NULL;
 
   /* set some useful defaults here */
-  opt_iterations    = 0;
-  opt_birth_rate    = 0;
-  opt_death_rate    = 0;
-  opt_edgerate_mean = 0;
-  opt_edgerate_var  = 0;
+  opt_grid_intervals = 0;
+  opt_birth_rate     = 0;
+  opt_death_rate     = 0;
+  opt_edgerate_mean  = 0;
+  opt_edgerate_var   = 0;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -117,7 +117,7 @@ void args_init(int argc, char ** argv)
         break;
       
       case 5:
-        opt_iterations = atol(optarg);
+        opt_grid_intervals = atol(optarg);
         break;
 
       case 6:
@@ -190,30 +190,38 @@ void cmd_help()
           "  --version                      display version information.\n"
           "  --show-tree                    display an ASCII version of the tree.\n"
           "  --divtimes                     perform divergence time estimations.\n"
+          "  --grid-intervals INT           number of grid intervals to use.\n"
           "Input and output options:\n"
-          "  --tree-file          FILE      tree file in newick format.\n"
-          "  --out-file           FILE      output file name.\n"
+          "  --tree-file FILENAME           tree file in newick format.\n"
+          "  --out-file FILENAME            output file name.\n"
           "Model parameters:\n"
-          "  --birth-rate         FLOAT     birth rate for Birth/Death model.\n"
-          "  --death-rate         FLOAT     death rate for Birth/Death model.\n"
-          "  --edge-rate-mean     FLOAT     Mean value of edge rate model.\n"
-          "  --edge-rate-variance FLOAT     Variance value for edge rate model.\n"
+          "  --birth-rate REAL              birth rate for Birth/Death model.\n"
+          "  --death-rate REAL              death rate for Birth/Death model.\n"
+          "  --edge-rate-mean REAL          Mean value of edge rate model.\n"
+          "  --edge-rate-variance REAL      Variance value for edge rate model.\n"
          );
 }
 
 void cmd_divtimes()
 {
   /* parse tree */
+  fprintf(stdout, "Parsing tree file...\n");
   tree_node_t * tree = yy_parse_tree(opt_treefile);
   if (!tree)
     fatal("Tree is probably not binary.\n");
 
+
+  dp(tree);
+
   if (opt_show_tree)
     show_ascii_tree(tree);
 
+  fprintf(stdout, "Writing tree file...\n");
+  write_newick_tree(tree);
+  fprintf(stdout, "Done\n");
+
   yy_dealloc_tree(tree);
 
-  fatal("Divergence times estimation not yet implemented");
 }
 
 
