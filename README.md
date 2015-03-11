@@ -42,7 +42,7 @@ Model parameters:
 In the example below, we estimate the divergence times (`--divtimes`) of a
 dataset using FASTDATE. We use a birth-death process with birth rate
 (`--birth-rate`) 2 and death rate (`--death-rate`) 1. The prior for the edge
-rates is a gamma distribution with mean (`--edge-rate-mean) 1 and variance
+rates is a gamma distribution with mean (`--edge-rate-mean`) 1 and variance
 (`edge-rate-variance`) 1. We output a diagram of the tree with time estimates
 on screen (`--show-tree`) and write the annotated file in newick format in a
 file (`--out-file`).
