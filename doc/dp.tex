@@ -152,6 +152,53 @@ postorder and thne computes the best placement for every node $u$.}
 \label{fig:dp}
 \end{figure}
 
+
+\section{Sampled Birth Death from Stadler 2010}
+
+\begin{enumerate}
+\item[] $p_0(t)$ is the probability that an individual alive at time $t$ before today has no sampled descendents (extinct or extant)\\
+\item[] $p_1(t)$ is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents and no sampled extinct descendents\\
+\item[] $\hat{p_1}(t)$ is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents, when no extinct taxa have been sampled ($\psi = 0$)\\
+\item[] $\psi$ is the rate of sampling of lineages in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$)\\
+\item[] $\rho$ is the proportion of total extant descendent $N$ which are sampled $d$ \\
+\item[] $\psi$ is set to 0 under no fossil sampling\\
+\item[] $n$ is the number of extant (current) sampled descendents of a node\\
+\item[] $m$ is the number of extinct (fossil) sampled descendents of a node\\
+\item[] $t_{mrca}=x_1$ is the node time\\
+\item[] $x_i$ is the estimated time for each child node (there are be $n+m-1$)\\
+\item[] $y_i$ is the (known?) time for each fossil tip\\
+
+\end{enumerate}
+$$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
+
+$$\hat{c_1}=c_1(\psi=0) = |\sqrt{(\lambda-\mu)^2}|$$
+
+$$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
+
+$$\hat{c_2}=c_2(\psi=0) = \frac{\lambda-\mu-2\lambda\rho}{\hat{c_1}}$$
+
+
+$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
+
+$$\hat{p_1}(t) = p_1(t|\psi=0)$$
+
+$$\hat{p_1}(t) = \frac{4\rho}{2(1-\hat{c_2}^2)+e^{-\hat{c_1}t}(1-\hat{c_2})^2+e^{\hat{c_1}t}(1+\hat{c_2})^2}$$
+
+Corollary 3.9 The probaility density of a sampled tree $T$ with $n>1$ extant sampled leaves, $m\geq0$ and $k\geq0$ sampled individuals with sampled descendents, 
+conditioned on the time of the mrca being $x_1$. (EJM needs to triple check against Stadler 2010)
+
+$$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+m+2}\psi^{k+m}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
+p_1(x_1)\prod_{i=1}^{n+m-1}p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+
+
+with no sampled fossils ($\psi=0$) this simplifies to:
+$$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+2}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
+\hat{p_1}(x_1)\prod_{i=1}^{n-1}\hat{p_1}(x_i)$$
+
+This is what we should use for  $b(tu, n)$ in the DP algorithm.\\
+Requires node times for all nodes in subtree $x_1 ... x_n-1$. Do we keep those?\\
+
+
 \bibliographystyle{splncs03}
 \bibliography{dating}
 \end{document}
