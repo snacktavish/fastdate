@@ -66,10 +66,12 @@ any real or complex number as argument. For point $t$ it is defined as
 $$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
 
 The {\em probability density function} in the shape-rate parameterization of a
-{\em gamma distribution} given the {\em mean} $\mu$ and variance $\sigma$ is
+{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma$ is
 $$ g(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
 
-where $\beta = \mu / \sigma$ and $\alpha = \mu \beta$.
+where $\beta = \bar{r} / \sigma$ and $\alpha = \bar{r} \beta$.
+\ejmcomment{I re-labeled this with $\bar{r}$ for the mean of the gamma prior to avoid confusion with $\mu$ for birth rate.}
+
 Its natural logarithm can be computed as
 $$ \ln g(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
 
@@ -159,38 +161,32 @@ postorder and thne computes the best placement for every node $u$.}
 
 
 \begin{enumerate}
-\item[$p_0(t)$]  is the probability that an individual alive at time $t$ before today has no sampled descendents (extinct or extant).
-$$p_0(t) = \frac{\lambda+\mu+\psi+c_1\frac{e^{-c_1t}(1-c_2)-(1+c_2)}{e^{-c_1t}(1-c_2)+(1+c_2)}}{2\lambda}$$
-\item[$p_1(t)$]  is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents and no sampled extinct descendents.
-$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
-$$\hat{p_1}(t) = p_1(t|\psi=0)$$
-$$\hat{p_1}(t) = \frac{4\rho}{2(1-\hat{c_2}^2)+e^{-\hat{c_1}t}(1-\hat{c_2})^2+e^{\hat{c_1}t}(1+\hat{c_2})^2}$$
-\item[$\hat{p_1}(t)$]  is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents. When no extinct taxa have been sampled $\psi = 0$.
-\item[$\psi$]  is the rate of sampling of lineages in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
-\item[$\rho$ ] is the proportion of total extant descendent $N$ which are sampled $d$.
+\item[$\lambda$]  is the per lineage birth (speciation) rate
+\item[$\mu$]  is the per lineage death (extinction) rate
+\item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
+\item[$\rho$ ] is the proportion of total extant descendents $N$ which are sampled $n$.
 \item[$n$] is the number of extant (current) sampled descendents of a node.
 \item[$m$] is the number of extinct (fossil) sampled descendents of a node.
-\item[$x_1$]  is the node time of interest ($t_{mrca}=x_1$).
-\item[$x_i$]  is the estimated time for each child node (there are $n+m-1$).
 \item[$c_1,c_2$]  are useful constants.
 $$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
 $$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
 \item[$\hat{c_1},\hat{c_2}$]  are $c_1,c_2$ when $\psi=0$
 $$\hat{c_1}=c_1(\psi=0) = |\sqrt{(\lambda-\mu)^2}|$$
 $$\hat{c_2}=c_2(\psi=0) = \frac{\lambda-\mu-2\lambda\rho}{\hat{c_1}}$$
+\item[$p_0(t)$]  is the probability that an individual alive at time $t$ before today has no sampled descendents (extinct or extant).
+$$p_0(t) = \frac{\lambda+\mu+\psi+c_1\frac{e^{-c_1t}(1-c_2)-(1+c_2)}{e^{-c_1t}(1-c_2)+(1+c_2)}}{2\lambda}$$
+\item[$p_1(t)$]  is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents and no sampled extinct descendents.
+$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
+\item[$\hat{p_1}(t)$]  is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents. When no extinct taxa have been sampled $\psi = 0$.
+$$\hat{p_1}(t) = p_1(t|\psi=0)$$
+$$\hat{p_1}(t) = \frac{4\rho}{2(1-\hat{c_2}^2)+e^{-\hat{c_1}t}(1-\hat{c_2})^2+e^{\hat{c_1}t}(1+\hat{c_2})^2}$$
+\item[$x_1$]  is the node time of interest ($t_{mrca}=x_1$).
+\item[$x_i$]  is the estimated node time for each child node (there are $n+m-1$).
 
 \end{enumerate}
 
 
-
-
-$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
-
-$$\hat{p_1}(t) = p_1(t|\psi=0)$$
-
-$$\hat{p_1}(t) = \frac{4\rho}{2(1-\hat{c_2}^2)+e^{-\hat{c_1}t}(1-\hat{c_2})^2+e^{\hat{c_1}t}(1+\hat{c_2})^2}$$
-
-\subsection{Corollary 3.9} The probability density of a sampled tree $T$ with $n>1$ extant sampled leaves, $m\geq0$ extinct sampled leaves and $k\geq0$ sampled individuals with sampled descendents, 
+\subsubsection{Corollary 3.9} The probability density of a sampled tree $T$ with $n>1$ extant sampled leaves, $m\geq0$ extinct sampled leaves and $k\geq0$ sampled individuals with sampled descendents, 
 conditioned on the time of the mrca being $x_1$. \ejmcomment{EJM needs to re-check against Stadler 2010}
 
 $$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+m+2}\psi^{k+m}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
@@ -201,14 +197,49 @@ with no sampled fossils ($\psi=0$, $m=0$) this simplifies to:
 $$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+2}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
 \hat{p_1}(x_1)\prod_{i=1}^{n-1}\hat{p_1}(x_i)$$
 
-This is what we should use for  $b(t_u, n)$ in the DP algorithm with no fossils.\\
+\textbf{This is what we should use for  $b(t_u, n)$ in the DP algorithm with no fossils.}\\
 Requires node times for all nodes in subtree $x_1 ... x_n-1$.\\
 \ejmcomment{Do we keep those? I'm not clear on how to incorporate this into the DP algorithm}
 
-\subsection{Theorem 3.11} The probability density of a sampled tree $T$ with $n$ extant sampled leaves, $m$ extinct sampled leaves, $n+m>0$, and $k\geq0$ sampled individuals with sampled descendents, 
+\subsubsection{Theorem 3.11} The probability density of a sampled tree $T$ with $n$ extant sampled leaves, $m$ extinct sampled leaves, $n+m>0$, and $k\geq0$ sampled individuals with sampled descendents, 
 conditioned on the time of the mrca being $x_1$. \ejmcomment{EJM needs to re-check against Stadler 2010}
 
 $$f[T|t_{mrca}=x_1,n,m] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+
+\subsubsection{BD process from Kendall 1949 from Gernhard 2008\\}
+
+$p_0(t)=\frac{\mu(1-e^{-(\lambda-u)t}}{\lambda-\mu e^{-(\lambda-\mu)t}}$\\
+$p_1(t)=\frac{(\lambda-u)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}$\\
+$p_n(t)=(\frac{\lambda}{\mu})^2p_1(t)(p_0(t))^{n-1}$\\
+$p_n(t)=(\frac{\lambda}{\mu})^2\frac{(\lambda-u)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}(\frac{\mu(1-e^{-(\lambda-u)t}}{\lambda-\mu e^{-(\lambda-\mu)t}})^{n-1}$\\
+%$log(p_n(t))= 2(log(\lambda)-log(\mu)$
+
+\subsubsection{BD process from Prime GSR\\}
+
+dbdiff $= \mu - \lambda$\\
+$u_t =\frac{\lambda-(1-e^{-(\lambda-\mu)t})}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ From BirthDeathProbs::calcPt\_Ut, in the case that $\lambda != \mu$. \ejmcomment{$t$ may or may not always be 1 in $u_t$?}\\
+$P_t = \frac{-(\lambda-\mu)}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ from BirthDeathProbs::partialEdgeTimeProb\\
+$E=e^{-(\lambda-\mu)t}$\\
+Probabilty Factor $= (n-1)\frac{\lambda}{u_t}$ from BirthDeathProbs::partialEdgeTimeProb, because BDvar[y]=$u_t$ from BirthDeathProbs::calcBirthDeathProbs\_recursive. 
+\ejmcomment{is this in order to scale the relative time probabilities to the assumption that the root is at $t=1$?}\\
+partialEdgeTimeProb = Probability Factor $*P_t^2 *E$\\
+partialEdgeTimeProb = $(n-1)\frac{\lambda}{u_t} * ( \frac{-(\lambda-\mu)}{\lambda-(\mu e^{-(\lambda - \mu)t})})^2 * e^{-(\lambda-\mu)t}$\ejmcomment{But I'm not sure which of these are logged already...}\\
+
+\subsection{Corrrelated rates \cite{Kishino2001}}\ejmcomment{This section is still just notes}
+Treats each node as having a rate.
+The rate for each edge is the mean of the rates at the two nodes.
+Given log  of the rate at the beginning of the branch $u$, the log of the rate at the end of the branch $v$ should be normally distributed with a mean of that value.
+Variance, $\sigma$, is the branch length $l$ (in substitutions per site NOT TIME) multiplied by some parameter $\nu$
+$\nu$ determines the extent of rate-autocorrelation. High $\nu$ implies low autocorrelation. 
+
+Force one branch from root to have no change.
+
+
+Would be easy to implement in DP using:\\
+Consider the rate at a node $u$ to be the rate for the edge from $p$ (the parent of $u$) to $u$.\\
+Correlated gamma rates prior, $g_c(r)$, requires altering $\bar{r}$ of the prior for the rates $r_{u,v}, r_{u,w}$.\\
+For $r_{u,v}$ and $r_{u,w}$, mean of $g_c(r)$, $\bar{r}$ = $r_{p,u}$.\\
+\cite{Kishino2001} use log-normal distributions.\\
 
 
 
