@@ -209,7 +209,7 @@ $$f[T|t_{mrca}=x_1,n,m] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2
 \subsubsection{BD process from Kendall 1949 from Gernhard 2008\\}
 
 $p_0(t)=\frac{\mu(1-e^{-(\lambda-\mu)t}}{\lambda-\mu e^{-(\lambda-\mu)t}}$\\
-$p_1(t)=\frac{(\lambda-u)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}$\\
+$p_1(t)=\frac{(\lambda-\mu)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}$\\
 $p_n(t)=(\frac{\lambda}{\mu})^2p_1(t)(p_0(t))^{n-1}$\\
 $p_n(t)=(\frac{\lambda}{\mu})^2\frac{(\lambda-\mu)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}(\frac{\mu(1-e^{-(\lambda-\mu)t}}{\lambda-\mu e^{-(\lambda-\mu)t}})^{n-1}$\\
 %$log(p_n(t))= 2(log(\lambda)-log(\mu)$
@@ -217,7 +217,7 @@ $p_n(t)=(\frac{\lambda}{\mu})^2\frac{(\lambda-\mu)^2e^{-(\lambda-\mu)t}}{(\lambd
 \subsubsection{BD process from Prime GSR\\}
 
 dbdiff $= \mu - \lambda$\\
-$u_t =\frac{\lambda-(1-e^{-(\lambda-\mu)t})}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ From calcPt\_Ut, in the case that $\lambda != \mu$. \ejmcomment{$t$ may or may not always be 1 in $u_t$?}\\
+$u_t =\frac{\lambda(1-e^{-(\lambda-\mu)t})}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ From calcPt\_Ut, in the case that $\lambda != \mu$. \ejmcomment{$t$ may or may not always be 1 in $u_t$?}\\
 $P_t = \frac{-(\lambda-\mu)}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ from partialEdgeTimeProb\\
 $E=e^{-(\lambda-\mu)t}$\\
 factor $= (n-1)\frac{\lambda}{u_t}$ from partialEdgeTimeProb, because BDvar[y]=$u_t$ from calcBirthDeathProbs\_recursive. 
