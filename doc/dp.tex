@@ -193,18 +193,25 @@ $$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+m+2}\psi^{k+m}}{(n-1)\hat{p_1}(x_1)^2}\
 p_1(x_1)\prod_{i=1}^{n+m-1}p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
 
 
-with no sampled fossils ($\psi=0$, $m=0$) this simplifies to:
+with no sampled fossils ($\psi=0$, $m=0$, $k=0$) this simplifies to:
 $$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+2}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
 \hat{p_1}(x_1)\prod_{i=1}^{n-1}\hat{p_1}(x_i)$$
 
-\textbf{This is what we should use for  $b(t_u, n)$ in the DP algorithm with no fossils.}\\
 Requires node times for all nodes in subtree $x_1 ... x_n-1$.\\
 \ejmcomment{Do we keep those? I'm not clear on how to incorporate this into the DP algorithm}
 
 \subsubsection{Theorem 3.11} The probability density of a sampled tree $T$ with $n$ extant sampled leaves, $m$ extinct sampled leaves, $n+m>0$, and $k\geq0$ sampled individuals with sampled descendents, 
 conditioned on the time of the mrca being $x_1$. \ejmcomment{EJM needs to re-check against Stadler 2010}
 
-$$f[T|t_{mrca}=x_1,n,m] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+$$f[T|n] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler pers comm agree that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
+\\
+with no sampled fossils ($\psi=0$, $m=0$, $k=0$) this simplifies to:
+$$f[T|n] = \frac{4n\rho\lambda}{\hat{c_1}(\hat{c_2}+1)(1-\hat{c_2}+(1+\hat{c_2})e^{\hat{c_1}x_1})}\prod_{i=1}^{n-1}\lambda \hat{p_1}(x_i)$$
+
+
+\textbf{This is what we should use for  $b(t_u, n)$ in the DP algorithm with no fossils.}\\
+We can scale that by some other probability density on times for nodes that we have some dating (fossil or otherwise) information for.
 
 \subsubsection{BD process from Kendall 1949 from Gernhard 2008\\}
 
