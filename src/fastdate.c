@@ -29,22 +29,18 @@ static char * cmdline;
 static const char mandatory_options_count = 2;
 static const char * mandatory_options_list = " --tree-file --out-file";
 
-/* input/output params */
+/* options */
 char * opt_treefile;
 char * opt_outfile;
-
-/* discretization */
-long opt_grid_intervals;
-
-/* birth-death model params */
 double opt_birth_rate;
 double opt_death_rate;
-
-/* edge rate params */
 double opt_edgerate_mean;
 double opt_edgerate_var;
-
-/* other commands */
+int opt_quiet;
+int opt_exhaustive_bd;
+int opt_outformat;
+long opt_threads;
+long opt_grid_intervals;
 long opt_help;
 long opt_version;
 long opt_divtimes;
@@ -64,6 +60,10 @@ static struct option long_options[] =
   {"edge-rate-mean",     required_argument, 0, 0 },  /*  8 */
   {"edge-rate-variance", required_argument, 0, 0 },  /*  9 */
   {"divtimes",           no_argument,       0, 0 },  /* 10 */
+  {"quiet",              no_argument,       0, 0 },  /* 11 */
+  {"threads",            required_argument, 0, 0 },  /* 12 */
+  {"exhaustive-bd",      no_argument,       0, 0 },  /* 13 */
+  {"output-form",        required_argument, 0, 0 },  /* 14 */
   { 0, 0, 0, 0 }
 };
 
@@ -73,22 +73,25 @@ void args_init(int argc, char ** argv)
   int c;
   int mand_options = 0;
 
+  /* set defaults */
+
   progname = argv[0];
 
-  opt_help           = 0;
-  opt_version        = 0;
-  opt_divtimes       = 0;
-  opt_show_tree      = 0;
-
-  opt_treefile       = NULL;
-  opt_outfile        = NULL;
-
-  /* set some useful defaults here */
+  opt_help = 0;
+  opt_version = 0;
+  opt_divtimes = 0;
+  opt_show_tree = 0;
+  opt_treefile = NULL;
+  opt_outfile = NULL;
   opt_grid_intervals = 0;
-  opt_birth_rate     = 0;
-  opt_death_rate     = 0;
-  opt_edgerate_mean  = 0;
-  opt_edgerate_var   = 0;
+  opt_birth_rate = 0;
+  opt_death_rate = 0;
+  opt_edgerate_mean = 0;
+  opt_edgerate_var = 0;
+  opt_quiet = 0;
+  opt_exhaustive_bd = 0;
+  opt_threads = 0;
+  opt_outformat = OUTPUT_DATED;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -140,6 +143,27 @@ void args_init(int argc, char ** argv)
         opt_divtimes = 1;
         break;
 
+      case 11:
+        opt_quiet = 1;
+        break;
+      
+      case 12:
+        opt_threads = atol(optarg);
+        break;
+
+      case 13:
+        opt_exhaustive_bd = 1;
+        break; 
+
+      case 14:
+        if (strcasecmp(optarg, "ultrametric") == 0)
+          opt_outformat = OUTPUT_ULTRAMETRIC;
+        else if (strcasecmp(optarg, "dated") == 0)
+          opt_outformat = OUTPUT_DATED;
+        else
+          fatal("Unrecognized argument for --output-form");
+        break;
+
       default:
         fatal("Internal error in option parsing");
     }
@@ -177,6 +201,13 @@ void args_init(int argc, char ** argv)
 
   /* if no command specified, turn on --help */
   if (!commands) opt_help = 1; 
+
+  if ((opt_threads < 0) || (opt_threads > 1024))
+    fatal("The argument to --threads must be in the range 0 (default) to 1024");
+
+  if (opt_threads == 0)
+    opt_threads = sysconf(_SC_NPROCESSORS_ONLN);
+  
 }
 
 void cmd_help()
@@ -190,10 +221,14 @@ void cmd_help()
           "  --version                      display version information.\n"
           "  --show-tree                    display an ASCII version of the tree.\n"
           "  --divtimes                     perform divergence time estimations.\n"
+          "  --quiet                        only output warnings and fatal errors to stderr.\n"
+          "  --threads INT                  number of threads to use, zero for all cores (default: 0).\n"
           "  --grid-intervals INT           number of grid intervals to use.\n"
           "Input and output options:\n"
           "  --tree-file FILENAME           tree file in newick format.\n"
           "  --out-file FILENAME            output file name.\n"
+          "  --output-form STRING           format of the output tree. Can be either 'dated' or"
+                                            "'ultrametric' (default: 'ultrametric').\n"
           "Model parameters:\n"
           "  --birth-rate REAL              birth rate for Birth/Death model.\n"
           "  --death-rate REAL              death rate for Birth/Death model.\n"
@@ -205,7 +240,8 @@ void cmd_help()
 void cmd_divtimes()
 {
   /* parse tree */
-  fprintf(stdout, "Parsing tree file...\n");
+  if (!opt_quiet)
+    fprintf(stdout, "Parsing tree file...\n");
   tree_node_t * tree = yy_parse_tree(opt_treefile);
   if (!tree)
     fatal("Tree is probably not binary.\n");
@@ -216,9 +252,11 @@ void cmd_divtimes()
   if (opt_show_tree)
     show_ascii_tree(tree);
 
-  fprintf(stdout, "Writing tree file...\n");
+  if (!opt_quiet)
+    fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
-  fprintf(stdout, "Done\n");
+  if (!opt_quiet)
+    fprintf(stdout, "Done\n");
 
   yy_dealloc_tree(tree);
 
@@ -246,8 +284,10 @@ void getentirecommandline(int argc, char * argv[])
 void fillheader()
 {
   snprintf(progheader, 80,
-           "%s %s_%s",
-           PROG_NAME, PROG_VERSION, PROG_ARCH);
+           "%s %s_%s, %1.fGB RAM, %ld cores",
+           PROG_NAME, PROG_VERSION, PROG_ARCH,
+           arch_get_memtotal() / 1024.0 / 1024.0 / 1024.0,
+           sysconf(_SC_NPROCESSORS_ONLN));
 }
 
 void show_header()

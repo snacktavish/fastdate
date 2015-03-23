@@ -23,7 +23,10 @@
 
 static int indend_space = 4;
 
-static void output_tree_recursive(tree_node_t * node, FILE * fp_out);
+static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out);
+static void output_um_tree_recursive(tree_node_t * node, 
+                                     FILE * fp_out, 
+                                     int prev_age);
 
 tree_node_t * yy_create_tree()
 {
@@ -79,7 +82,8 @@ static void print_tree_recurse(tree_node_t * tree,
 
   printf (" %s:%f (age: %d)\n", tree->label, tree->length, tree->interval_line);
 
-  if (active_node_order[indend_level-1] == 2) active_node_order[indend_level-1] = 0;
+  if (active_node_order[indend_level-1] == 2) 
+    active_node_order[indend_level-1] = 0;
 
   active_node_order[indend_level] = 1;
   print_tree_recurse(tree->left, indend_level+1, active_node_order);
@@ -121,18 +125,37 @@ int set_node_heights(tree_node_t * root)
 
 }
 
-static void output_tree_recursive(tree_node_t * node, FILE * fp_out)
+static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
-    fprintf(fp_out, "%s:[&age=%d]%f", node->label, node->interval_line, node->length);
+    fprintf(fp_out, "%s:[&age=%d]%f", 
+            node->label, node->interval_line, node->length);
   else
   {
     fprintf(fp_out, "(");
-    output_tree_recursive(node->left, fp_out);
+    output_dated_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
-    output_tree_recursive(node->right, fp_out);
+    output_dated_tree_recursive(node->right, fp_out);
     fprintf(fp_out, ")%s:[&age=%d]%f", node->label ? node->label : "", 
                     node->interval_line, node->length);
+  }
+}
+
+static void output_um_tree_recursive(tree_node_t * node, 
+                                     FILE * fp_out, 
+                                     int prev_age)
+{
+  if (!node->left || !node->right)
+    fprintf(fp_out, "%s:%f", node->label, 
+            (prev_age - node->interval_line) / (double)opt_grid_intervals);
+  else
+  {
+    fprintf(fp_out, "(");
+    output_um_tree_recursive(node->left, fp_out, node->interval_line);
+    fprintf(fp_out, ",");
+    output_um_tree_recursive(node->right, fp_out, node->interval_line);
+    fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
+            (prev_age - node->interval_line) / (double)opt_grid_intervals);
   }
 }
 
@@ -142,7 +165,13 @@ void write_newick_tree(tree_node_t * node)
   if (!fp_out)
     fatal("Unable to open output file for writing");
 
-  output_tree_recursive(node, fp_out);
+  if (opt_outformat == OUTPUT_ULTRAMETRIC)
+    output_um_tree_recursive(node, fp_out, opt_grid_intervals);
+  else if (opt_outformat == OUTPUT_DATED)
+    output_dated_tree_recursive(node, fp_out);
+  else
+    fatal("Internal error while selecting output format");
+    
   fprintf(fp_out, ";");
 
   fclose(fp_out);

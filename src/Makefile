@@ -36,10 +36,10 @@ PROG=fastdate
 
 all: $(PROG)
 
-OBJS=util.o fastdate.o maps.o tree.o dp.o gamma.o bd.o newick.o lex.o
+OBJS=util.o maps.o fastdate.o tree.o dp.o gamma.o bd.o newick.o lex.o arch.o
 
 $(PROG): $(OBJS)
-	$(CC) $(LINKFLAGS) $+ -o $@ $(LIBS)
+	$(CC) -Wall $(LINKFLAGS) $+ -o $@ $(LIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<

@@ -33,6 +33,7 @@
 #include <math.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <unistd.h>
 
 /* constants */
 
@@ -72,6 +73,11 @@ typedef struct tree_noderec
   void * data;
 } tree_node_t;
 
+/* definitions */
+
+#define OUTPUT_ULTRAMETRIC      0
+#define OUTPUT_DATED            1
+
 /* macros */
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -79,6 +85,9 @@ typedef struct tree_noderec
 
 /* options */
 
+extern int opt_quiet;
+extern int opt_exhaustive_bd;
+extern int opt_outformat;
 extern char * opt_treefile;
 extern char * opt_outfile;
 extern long opt_grid_intervals;
@@ -86,6 +95,7 @@ extern long opt_help;
 extern long opt_version;
 extern long opt_divtimes;
 extern long opt_show_tree;
+extern long opt_threads;
 extern double opt_birth_rate;
 extern double opt_death_rate;
 extern double opt_edgerate_mean;
@@ -158,3 +168,8 @@ double bd_prob(int leaves, double t);
 /* functions in newick.y */
 
 tree_node_t * yy_parse_tree(const char * filename);
+
+/* functions in arch.c */
+
+unsigned long arch_get_memused();
+unsigned long arch_get_memtotal();

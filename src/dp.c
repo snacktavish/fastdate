@@ -117,14 +117,9 @@ void dp_recurse(tree_node_t * node, int root_height)
 
   /* initialize discretization domain for the three nodes */
   if (node->height == root_height)
-  {
     low = opt_grid_intervals;
-  }
   else
-  {
     low = node->height - 1;
-
-  }
 
   left_low = left->height - 1;
   right_low = right->height - 1;
@@ -138,30 +133,46 @@ void dp_recurse(tree_node_t * node, int root_height)
     
     jmax = (node->height == root_height) ? 
            left->entries : MIN(i+1,left->entries);
-
+    
+    int jbest = -1;
+    double jbest_sum = -__DBL_MAX__;
     for (j = 0; j < jmax; ++j)
     {
       jtime = (1.0 / opt_grid_intervals) * (left_low+j);
       prob_rate_left = gamma_dist_logpdf(left->length / (itime - jtime));
-
-      kmax = (node->height == root_height) ? 
-             right->entries : MIN(i+1,right->entries);
-      for (k = 0; k < kmax; ++k)
+      if (left->matrix[j] + prob_rate_left > jbest_sum)
       {
-        ktime = (1.0 / opt_grid_intervals) * (right_low+k);
-        prob_rate_right = gamma_dist_logpdf(right->length / (itime - ktime));
-
-        prob_node_time = bd_prob(node->leaves, itime) + prob_rate_left +
-                                 prob_rate_right +
-                                 left->matrix[j] + right->matrix[k];
-        
-        if (prob_node_time > node->matrix[i])
-        {
-          node->matrix[i] = prob_node_time;
-          node->matrix_left[i] = j;
-          node->matrix_right[i] = k;
-        }
+        jbest = j;
+        jbest_sum = left->matrix[j] + prob_rate_left;
       }
+    }
+
+    kmax = (node->height == root_height) ? 
+           right->entries : MIN(i+1,right->entries);
+    int kbest = -1;
+    double kbest_sum = -__DBL_MAX__;
+    for (k = 0; k < kmax; ++k)
+    {
+      ktime = (1.0 / opt_grid_intervals) * (right_low+k);
+      prob_rate_right = gamma_dist_logpdf(right->length / (itime - ktime));
+      if (right->matrix[k] + prob_rate_right > kbest_sum)
+      {
+        kbest = k;
+        kbest_sum = right->matrix[k] + prob_rate_right;
+      }
+    }
+
+    assert(jbest > -1);
+    assert(kbest > -1);
+
+    prob_node_time = bd_prob(node->leaves, itime) + jbest_sum + kbest_sum;
+    
+    /* store best placement of children and likelihood for interval line i */
+    if (prob_node_time > node->matrix[i])
+    {
+      node->matrix[i] = prob_node_time;
+      node->matrix_left[i] = jbest;
+      node->matrix_right[i] = kbest;
     }
   }
   sum_entries += node->entries;
@@ -197,7 +208,8 @@ void dp(tree_node_t * tree)
   dp_recurse(tree,tree->height);
   progress_done();
 
-  printf ("Backtracking...\n");
+  if (!opt_quiet)
+    printf ("Backtracking...\n");
   dp_backtrack(tree,0);
   tree->interval_line = opt_grid_intervals;
 
