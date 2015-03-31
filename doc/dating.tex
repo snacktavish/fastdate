@@ -40,6 +40,7 @@
 \newcommand{\ratePriorDensity}[0]{\ensuremath{g}\xspace}
 \newcommand{\timePriorDensity}[0]{\ensuremath{h}\xspace}
 \newcommand{\ImpDensity}[0]{\ensuremath{v}\xspace}
+\newcommand{\ImpPr}[0]{\ensuremath{\mathbb{P}}\xspace}
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
 \newcommand{\norm}[0]{\ensuremath{\mathbb{N}}\xspace}
 % from http://tex.stackexchange.com/a/33547
@@ -301,9 +302,9 @@ This importance distribution would not lead to a continuous density function, bu
 
 Let $\ImpDensity$ be the probability density of the importance distribution:
 \begin{eqnarray}
-    \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \Pr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime_i \mid \binFor{i} = \timeBinRealization{i}) \\
-    \Pr(\timeBinRealizationVec \mid \dataMatrix) & = &\left[\Pr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm\\
-    \norm & = & \Pr(\dataMatrix) = \sum_{\timeBinRealizationVec} \left[\Pr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]
+    \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \ImpPr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime_i \mid \binFor{i} = \timeBinRealization{i}) \\
+    \ImpPr(\timeBinRealizationVec \mid \dataMatrix) & = &\left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm\\
+    \norm & = & \ImpPr(\dataMatrix) = \sum_{\timeBinRealizationVec} \left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]
     %\Pr(\ratevec, \timevec)  \equiv \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
 \end{eqnarray}
 If there you have a large amount of character data, then there should be relatively uncertainty in the branch length or the best rate for each branch
@@ -313,9 +314,16 @@ Thus the
     \Pr(D\mid \timeBinRealizationVec) & = & \int\Pr(D \mid \edgeLenVec) f(\edgeLenVec \mid \timeBinRealizationVec) d\edgeLenVec\\
                                       & \appropto & \Pr(D \mid \hat{\edgeLenVec})f(\hat{\edgeLenVec} \mid \timeBinRealizationVec) \\
     f(\hat{\edgeLenVec}\mid \timeBinRealizationVec) & = & \ratePriorDensity(\hat{\ratevec}) \\
-    \hat{\rate{i}} & = & \frac{\hat{\edgeLen{i}}}{\timeBinRealization{\parent{i}} - \timeBinRealization{i}} \hskip 5em \forall i\in [0, 1, \ldots 2\numLeaves]
+    \hat{\rate{i}} & = & \frac{\hat{\edgeLen{i}}}{\timeBinRealization{\parent{i}} - \timeBinRealization{i}} \hskip 5em \forall i\in [0, 1, \ldots 2\numLeaves] \\
+    \ImpPr(D \mid \timeBinRealizationVec) & := & \Pr(D \mid \hat{\edgeLenVec})f(\hat{\edgeLenVec} \mid \timeBinRealizationVec)
 \end{eqnarray}
 
+Crucially, we should be able to factor $\ImpPr$ into parts that depend on subtrees, as in the DP alogrithm for finding the MAP.
+The normalization constant $\norm$ could be approximated by summing over the full depth of the table.
+Thus we should be able to calculate an importance density and sample from it by:
+\begin{compactenum}
+\item Filling in the DP table with subtree-specific factors for $\ImpPr(D\mid\timeBinRealizationVec)$
+\end{compactenum}
 \bibliographystyle{splncs03}
 \bibliography{dating}
 
