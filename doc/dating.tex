@@ -323,6 +323,9 @@ The normalization constant $\norm$ could be approximated by summing over the ful
 Thus we should be able to calculate an importance density and sample from it by:
 \begin{compactenum}
 \item Filling in the DP table with subtree-specific factors for $\ImpPr(D\mid\timeBinRealizationVec)$
+\item Selecting a time for the root from the $\ImpPr$ distribution.
+\item Back tracking to select a node position conditional on its parent's position.
+\item Selecting a set of continuous times given the realization of time bins
 \end{compactenum}
 \bibliographystyle{splncs03}
 \bibliography{dating}
