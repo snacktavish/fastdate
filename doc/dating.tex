@@ -5,11 +5,13 @@
 %
 \documentclass{llncs}
 %
+\usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{pdfpages}
 \usepackage{graphicx}
 \usepackage{paralist}
 \usepackage{xspace}
+\usepackage{bm}
 \usepackage{algorithm,algorithmic}
 \newcommand{\etal}[0]{{\em et al.}\xspace}
 \newcommand{\numLeaves}[0]{\ensuremath{s}\xspace}
@@ -17,11 +19,18 @@
 \newcommand{\dataMatrix}[0]{\ensuremath{D}\xspace}
 \newcommand{\tree}[0]{\ensuremath{T}\xspace}
 \newcommand{\edgeLen}[1]{\ensuremath{l_{#1}}\xspace}
+\newcommand{\edgeLenVec}[0]{\ensuremath{\bm{l}}\xspace}
 \newcommand{\rate}[1]{\ensuremath{r_{#1}}\xspace}
 \newcommand{\ratevec}[0]{\ensuremath{\mathbf{r}}\xspace}
 \newcommand{\timevec}[0]{\ensuremath{\mathbf{t}}\xspace}
+\newcommand{\timebin}[0]{\ensuremath{t}\xspace}
+\newcommand{\contTime}[0]{\ensuremath{\tau}\xspace}
+\newcommand{\contTimeVec}[0]{\ensuremath{\bm{\tau}}\xspace}
+\newcommand{\timeBinRealizationVec}[0]{\ensuremath{\bm{\xi}}\xspace}
+\newcommand{\timeBinRealization}[1]{\ensuremath{\xi_{#1}}\xspace}
 \newcommand{\duration}[1]{\ensuremath{t_{#1}}\xspace}
 \newcommand{\age}[1]{\ensuremath{\tau_{#1}}\xspace}
+\newcommand{\binFor}[1]{\ensuremath{b({#1})}\xspace}
 \newcommand{\agevec}[0]{\ensuremath{\boldsymbol{\tau}}\xspace}
 \newcommand{\parent}[1]{\ensuremath{a[{#1}]}\xspace}
 \newcommand{\firstChild}[1]{\ensuremath{b[{#1}]}\xspace}
@@ -30,7 +39,13 @@
 \newcommand{\optChildAges}[3]{\ensuremath{x_{[{#1}][{#2}][{#3}]}}\xspace}
 \newcommand{\ratePriorDensity}[0]{\ensuremath{g}\xspace}
 \newcommand{\timePriorDensity}[0]{\ensuremath{h}\xspace}
+\newcommand{\ImpDensity}[0]{\ensuremath{v}\xspace}
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
+\newcommand{\norm}[0]{\ensuremath{\mathbb{N}}\xspace}
+% from http://tex.stackexchange.com/a/33547
+\newcommand{\appropto}{\mathrel{\vcenter{
+              \offinterlineskip\halign{\hfil$##$\cr
+                      \propto\cr\noalign{\kern2pt}\sim\cr\noalign{\kern-2pt}}}}}
 \DeclareMathOperator*{\argmax}{\arg\!\max}
 \usepackage{hyperref}
 \hypersetup{backref,  linkcolor=blue, citecolor=red, colorlinks=true, hyperindex=true}
@@ -60,7 +75,7 @@ states ``Thanks to
 new algorithms, that uses a discretization of divergence times, it can reconstruct gene trees
 in time comparable to standard substitution model-based reconstruction methods.''
 \section{Notation}
-(trying to stick to Akerborg \etal's notation:
+(trying to stick to Akerborg \etal's notation):
 \begin{compactitem}
     \item[\numLeaves] is the number of leaves.
     \item[\numSites] is the number of sites
@@ -257,11 +272,55 @@ I'm not sure if they use such priors.
 \RETURN $o, d_v$
 \end{algorithmic}
 \end{algorithm}
-\end{document}
-\COMMENT{\textsc{End of Initialization}}
+
+\section{Sampling trees}
+Bastien and Gergely email of late March, 2015: can the 
+algorithm be used to provide samples for an importance distribution?
+
+To do this, it seems like we would need:
+\begin{enumerate}
+    \item to be able draw realizations of all node times from the posterior
+        probability distribution, and
+    \item be able to assign a probability density for each realization
+\end{enumerate}
+
+Presumably, this would require that the times would be continuous.
+If $\contTime_j$ is the age of a node $j$ in continuous time,
+    $\binFor{j}$ is a latent variable describing the assignment of node
+    $j$ to a discrete time bin, and
+    and $\timebin_i$ is the time of the $i$-th discrete time bin, then I think that one could
+    draw $\conTime$ from a uniform conditional on what time bin the 
+    node had been assigned to:
+\begin{eqnarray}
+    p(\contTime_j \mid \binFor{j} = \timebin_i) & = & \left(\timebin_{i} - \timebin_{i - 1}\right)^{-1}\\
+    & = & w
+\end{eqnarray}
+if the bins are equally spaced, and $w$ is the difference between different bin endpoints.
+This importance distribution would not lead to a continuous density function, but I do
+    not think that that is a requirement of importance sampling.
+
+Let $\ImpDensity$ be the probability density of the importance distribution:
+\begin{eqnarray}
+    \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \Pr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime_i \mid \binFor{i} = \timeBinRealization{i}) \\
+    \Pr(\timeBinRealizationVec \mid \dataMatrix) & = &\left[\Pr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm\\
+    \norm & = & \Pr(\dataMatrix) = \sum_{\timeBinRealizationVec} \left[\Pr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]
+    %\Pr(\ratevec, \timevec)  \equiv \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
+\end{eqnarray}
+If there you have a large amount of character data, then there should be relatively uncertainty in the branch length or the best rate for each branch
+conditional on the time duration of that branch.
+Thus the 
+\begin{eqnarray}
+    \Pr(D\mid \timeBinRealizationVec) & = & \int\Pr(D \mid \edgeLenVec) f(\edgeLenVec \mid \timeBinRealizationVec) d\edgeLenVec\\
+                                      & \appropto & \Pr(D \mid \hat{\edgeLenVec})f(\hat{\edgeLenVec} \mid \timeBinRealizationVec) \\
+    f(\hat{\edgeLenVec}\mid \timeBinRealizationVec) & = & \ratePriorDensity(\hat{\ratevec}) \\
+    \hat{\rate{i}} & = & \frac{\hat{\edgeLen{i}}}{\timeBinRealization{\parent{i}} - \timeBinRealization{i}} \hskip 5em \forall i\in [0, 1, \ldots 2\numLeaves]
+\end{eqnarray}
 
 \bibliographystyle{splncs03}
 \bibliography{dating}
+
+
+
 \end{document}
 
 \begin{algorithm} \caption{}\label{}
