@@ -364,7 +364,7 @@ Thus we should be able to calculate an importance density and sample from it by:
             \STATE $q_v = g\left(\frac{l_v}{d-d_v}\right)$
             \FOR{$d_w \in [\minbin{w}, 2, \ldots, d - 1)$ }
                 \STATE $q_w = g\left(\frac{l_w}{d-d_w}\right)$
-                \STATE \STATE $\subtreeAgeSum{u}{d} \leftarrow \subtreeAgeSum{u}{d} + q_v q_w \timePriorDensity(d | d_v, d_w)$
+                \STATE \STATE $\subtreeAgeSum{u}{d} \leftarrow \subtreeAgeSum{u}{d} + q_v q_w \timePriorDensity(d | d_v, d_w)\subtreeAgeSum{v}{d_v}\subtreeAgeSum{w}{d_w}$
             \ENDFOR
         \ENDFOR
     \ENDFOR
