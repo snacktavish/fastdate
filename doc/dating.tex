@@ -45,6 +45,8 @@
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
 \newcommand{\norm}[0]{\ensuremath{\mathbb{N}}\xspace}
 \newcommand{\minbin}[1]{\mathcal{M}_{#1}}
+\newcommand{\subtreeConst}[2]{\mathcal{S}_{#1,#2}}
+\newcommand{\rootNode}[0]{\rho}
 % from http://tex.stackexchange.com/a/33547
 \newcommand{\appropto}{\mathrel{\vcenter{
               \offinterlineskip\halign{\hfil$##$\cr
@@ -339,7 +341,45 @@ Thus we should be able to calculate an importance density and sample from it by:
 \item Selecting a set of continuous times given the realization of time bins
 \end{compactenum}
 
+Using the approximations, above we can approximate the posterior probability of any
+    joint realization of samples of discrete times $\timeBinRealizationVec$.
+By using the MLE's of the branch lengths.
+
+\begin{eqnarray}
+    \ImpPr(\timeBinRealizationVec \mid \dataMatrix) & \approx &\left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm_a\\
+    & = & \left[\Pr(D \mid \hat{\edgeLenVec})f(\hat{\edgeLenVec} \mid \timeBinRealizationVec)\timePriorDensity(\timeBinRealizationVec) \right]/\norm_a\\
+    \norm_a & = & \sum_{\timeBinRealizationVec} \left[\Pr(D \mid \hat{\edgeLenVec})f(\hat{\edgeLenVec} \mid \timeBinRealizationVec)\timePriorDensity(\timeBinRealizationVec)\right] \\
+    & = & \Pr(D \mid \hat{\edgeLenVec})\sum_{\timeBinRealizationVec} \left[f(\hat{\edgeLenVec} \mid \timeBinRealizationVec)\timePriorDensity(\timeBinRealizationVec)\right] \\
+        & = & \Pr(D \mid \hat{\edgeLenVec})\norm_p \\
+    \norm_p & = & \sum_{\timeBinRealizationVec} \left[f(\hat{\edgeLenVec} \mid \timeBinRealizationVec)\timePriorDensity(\timeBinRealizationVec)\right]
+\end{eqnarray}
+For and uncorrelated rate prior and a prior on dates that only depend on the children of a node, we can
+    use a pruning-style dynamic programming approach.
+Let $\subtreeConst{u}{d}$ represent the set of configurations of the node-age assignments ($\timeBinRealizationVec$)
+    for descendants of node $u$ such that all node ages are $<d$ and are consistent
+    with the basic constraints of at tree (all daughters ages are lower than their parent).
+We can accumulate the posterior probability of an entire subtree (all descendants of $u$)
+    conditional on $u$ being assigned an age of $d$.
+If we tolerate some abuse of notation to indicate the idea of 
+    sweeping over all members of $\subtreeConst{u}{d}$ and extracting the
+    ages for the two children of $u$, which we call $v$ and $w$, then
+    we can write:
+\begin{eqnarray}
+\subtreeAgeSum{u}{d} & = & \sum_{d_v,d_w \in \subtreeConst{u}{d}}
+    \subtreeAgeSum{v}{d_v} \subtreeAgeSum{w}{d_w}
+    \ratePriorDensity(\edgeLen{v} \mid d, d_v)\ratePriorDensity(\edgeLen{w} \mid d, d_w)
+    \timePriorDensity(d \mid d_v, d_w)
+\end{eqnarray}
+Where $\subtreeAgeSum{u}{d}$ is filled in by sweeping over the tree for values of $u$ from tip to root (postorder) and the $\subtreeAgeSum{x}{}$ for any tip is set to 1 for the age bin of the tip $x$ and 0 for all other age bins.
+
+This enables:
+\begin{eqnarray}
+    \norm_p & = & \sum_{d = 1}^{N} \subtreeAgeSum{\rootNode}{d}
+\end{eqnarray}
+where $\rootNode$ indicates the root node.
+
 \newpage
+
 \begin{algorithm} \caption{\textsc{PruneNodeAges}}\label{pruneNodeAges}
 \begin{algorithmic}
 \REQUIRE $\edgeLenVec$ - vector of MLE's of edge lengths (in expected \# subst/site)
