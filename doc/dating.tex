@@ -36,6 +36,7 @@
 \newcommand{\firstChild}[1]{\ensuremath{b[{#1}]}\xspace}
 \newcommand{\secondChild}[1]{\ensuremath{c[{#1}]}\xspace}
 \newcommand{\subtreeOptFactor}[2]{\ensuremath{f_{[{#1}][{#2}]}}\xspace}
+\newcommand{\subtreeAgeSum}[2]{\ensuremath{\beta_{[{#1}][{#2}]}}\xspace}
 \newcommand{\optChildAges}[3]{\ensuremath{x_{[{#1}][{#2}][{#3}]}}\xspace}
 \newcommand{\ratePriorDensity}[0]{\ensuremath{g}\xspace}
 \newcommand{\timePriorDensity}[0]{\ensuremath{h}\xspace}
@@ -43,6 +44,7 @@
 \newcommand{\ImpPr}[0]{\ensuremath{\mathbb{P}}\xspace}
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
 \newcommand{\norm}[0]{\ensuremath{\mathbb{N}}\xspace}
+\newcommand{\minbin}[1]{\mathcal{M}_{#1}}
 % from http://tex.stackexchange.com/a/33547
 \newcommand{\appropto}{\mathrel{\vcenter{
               \offinterlineskip\halign{\hfil$##$\cr
@@ -274,6 +276,11 @@ I'm not sure if they use such priors.
 \end{algorithmic}
 \end{algorithm}
 
+\newpage
+
+
+
+
 \section{Sampling trees}
 Bastien and Gergely email of late March, 2015: can the 
 algorithm be used to provide samples for an importance distribution?
@@ -290,24 +297,28 @@ If $\contTime_j$ is the age of a node $j$ in continuous time,
     $\binFor{j}$ is a latent variable describing the assignment of node
     $j$ to a discrete time bin, and
     and $\timebin_i$ is the time of the $i$-th discrete time bin, then I think that one could
-    draw $\conTime$ from a uniform conditional on what time bin the 
+    draw $\contTime$ from a uniform conditional on what time bin the 
     node had been assigned to:
 \begin{eqnarray}
     p(\contTime_j \mid \binFor{j} = \timebin_i) & = & \left(\timebin_{i} - \timebin_{i - 1}\right)^{-1}\\
     & = & w
 \end{eqnarray}
-if the bins are equally spaced, and $w$ is the difference between different bin endpoints.
+if the bins are equally spaced, and $w$ is reciprocal of the
+difference between different bin endpoints.
 This importance distribution would not lead to a continuous density function, but I do
     not think that that is a requirement of importance sampling.
 
-Let $\ImpDensity$ be the probability density of the importance distribution:
+
+Let $\ImpDensity$ be the probability density of the importance distribution and 
+$\timeBinRealization$ be a realization of what time bins the set of nodes are assigned to:
 \begin{eqnarray}
     \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \ImpPr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime_i \mid \binFor{i} = \timeBinRealization{i}) \\
     \ImpPr(\timeBinRealizationVec \mid \dataMatrix) & = &\left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm\\
     \norm & = & \ImpPr(\dataMatrix) = \sum_{\timeBinRealizationVec} \left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]
     %\Pr(\ratevec, \timevec)  \equiv \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
 \end{eqnarray}
-If there you have a large amount of character data, then there should be relatively uncertainty in the branch length or the best rate for each branch
+If there you have a large amount of character data, then there should be relatively little 
+uncertainty in the branch length or the best rate for each branch
 conditional on the time duration of that branch.
 Thus the 
 \begin{eqnarray}
@@ -327,6 +338,41 @@ Thus we should be able to calculate an importance density and sample from it by:
 \item Back tracking to select a node position conditional on its parent's position.
 \item Selecting a set of continuous times given the realization of time bins
 \end{compactenum}
+
+\newpage
+\begin{algorithm} \caption{\textsc{PruneNodeAges}}\label{pruneNodeAges}
+\begin{algorithmic}
+\REQUIRE $\edgeLenVec$ - vector of MLE's of edge lengths (in expected \# subst/site)
+\REQUIRE parameters of a prior on rates of mol.~evol. and a prior on node ages
+\ENSURE fill a table \subtreeAgeSum{i}{d} for node $i$ at discrete age $d$\\
+\COMMENT{\textsc{Initialization}}
+\STATE allocate \subtreeAgeSum{}{} as $2\numLeaves -1$ by $\numAges$ matrix of floating point numbers.
+\FOR{each leaf node, $u$, in postorder}
+    \STATE $\minbin{u} = \mbox{Age of tip } u$
+    \FOR{$d \in [0, 1, 2, \ldots, \numAges)$ }
+        \STATE \subtreeAgeSum{u}{d} = 0.0
+    \ENDFOR
+    \STATE \subtreeAgeSum{\minbin{u}}{0} = 1.0
+\ENDFOR \\
+\COMMENT{\textsc{End of Initialization}}
+\FOR{each non-root, internal node $u$ in postorder}
+    \STATE $v, w \leftarrow \firstChild{u}, \secondChild{u}$ \COMMENT{\textsc{Nodes $u,v$ are children of $u$}}
+    \STATE $\minbin{u} \leftarrow 1 + \min(\minbin{v}, \minbin{w})$
+    \FOR{$d \in [\minbin{u}, 2, \ldots, \numAges)$ }
+        \STATE $\subtreeAgeSum{u}{d} \leftarrow 0.0$
+        \FOR{$d_v \in [\minbin{v}, 2, \ldots, d -1)$ }
+            \STATE $q_v = g\left(\frac{l_v}{d-d_v}\right)$
+            \FOR{$d_w \in [\minbin{w}, 2, \ldots, d - 1)$ }
+                \STATE $q_w = g\left(\frac{l_w}{d-d_w}\right)$
+                \STATE \STATE $\subtreeAgeSum{u}{d} \leftarrow \subtreeAgeSum{u}{d} + q_v q_w \timePriorDensity(d | d_v, d_w)$
+            \ENDFOR
+        \ENDFOR
+    \ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+
 \bibliographystyle{splncs03}
 \bibliography{dating}
 
