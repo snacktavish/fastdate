@@ -46,7 +46,11 @@
 \newcommand{\norm}[0]{\ensuremath{\mathbb{N}}\xspace}
 \newcommand{\minbin}[1]{\mathcal{M}_{#1}}
 \newcommand{\subtreeConst}[2]{\mathcal{S}_{#1,#2}}
+\newcommand{\firstCSubtreeConst}[4]{\mathcal{B}_{#1,#2;#3,#4}}
 \newcommand{\rootNode}[0]{\rho}
+\newcommand{\rootPostProbCache}[2]{\ensuremath{\lambda_{[{#1}][{#2}]}}\xspace}
+\newcommand{\postProbCache}[4]{\ensuremath{\delta_{[{#1}][{#2}][{#3}][{#4}]}}\xspace}
+
 % from http://tex.stackexchange.com/a/33547
 \newcommand{\appropto}{\mathrel{\vcenter{
               \offinterlineskip\halign{\hfil$##$\cr
@@ -377,6 +381,41 @@ This enables:
     \norm_p & = & \sum_{d = 1}^{N} \subtreeAgeSum{\rootNode}{d}
 \end{eqnarray}
 where $\rootNode$ indicates the root node.
+
+The algorithmic expression of this is algorithm \ref{pruneNodeAges} \textsc{PruneNodeAges}.
+
+If one needs to draw a large number of realizations from this distribution over $\timeBinRealizationVec$,
+    then one would want to cache the probabilities involved in simulation of 
+    a realization.
+First the posterior probability of the root having age $d$ is simply, cached in $\rootPostProbCache{\rootNode}{d}$:
+\begin{eqnarray}
+    \rootPostProbCache{\rootNode}{d} & = & \frac{\subtreeAgeSum{\rootNode}{d}}{\norm_p} \label{rootProb}
+\end{eqnarray}
+
+In general,  $\postProbCache{u}{d_v}{d_w}{z}$, will hold the posterior probability of
+    the children of $u$ being assigned ages of $d_v$ and $d_w$ respectively
+    conditional on the fact that its $u$ has been assigned an age $z$.
+
+The normalization constant for each next draw is of children ages, $d_v$ and $d_w$ is:
+\begin{eqnarray}
+    \norm[z] & = & \subtreeAgeSum{u}{z}.
+\end{eqnarray}
+
+\begin{eqnarray}
+    \postProbCache{u}{d_v}{d_w}{z} & = & \frac{
+    \subtreeAgeSum{v}{d_v} \subtreeAgeSum{w}{d_w}
+    \ratePriorDensity(\edgeLen{v} \mid d, d_v)\ratePriorDensity(\edgeLen{w} \mid d, d_w)
+    \timePriorDensity(d \mid d_v, d_w)}{\subtreeAgeSum{u}{z}}.\label{cherryProb}
+\end{eqnarray}
+
+Thus, a realization can be quickly sampled by:
+\begin{compactenum}
+    \item draw $d_{\rootNode}$ from the probability distribution described by eqn (\ref{rootProb}).
+    \item visit each internal node in preorder:
+    \begin{compactenum}
+        \item draw a pair of ages for the 2 children of the node from equation (\ref{cherryProb}).
+    \end{compactenum}
+\end{compactenum}
 
 \newpage
 
