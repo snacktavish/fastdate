@@ -96,9 +96,12 @@ int tree_indend_level(tree_node_t * tree, int indend)
 {
   if (!tree) return indend;
 
-  return MAX(tree_indend_level(tree->left, indend+1),
-             tree_indend_level(tree->right, indend+1));
+  int a, b;
 
+  a = tree_indend_level(tree->left, indend+1);
+  b = tree_indend_level(tree->right, indend+1);
+
+  return MAX(a,b);
 }
 
 void show_ascii_tree(tree_node_t * tree)
@@ -118,11 +121,14 @@ int set_node_heights(tree_node_t * root)
 {
   if (!root) return (0);
 
-  root->height = MAX(set_node_heights(root->left), 
-                     set_node_heights(root->right)) + 1;
+  int a,b;
 
+  a = set_node_heights(root->left);
+  b = set_node_heights(root->right);
+
+  root->height = MAX(a,b) + 1;
+                     
   return (root->height);
-
 }
 
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)

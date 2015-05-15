@@ -29,10 +29,11 @@ General options:
 
 * `--help`
 * `--version`
-* `--divtimes`
 * `--show-tree`
+* `--divtimes`
 * `--quiet`
 * `--threads`
+* `--grid-intervals`
 
 Input and output options:
 
@@ -50,13 +51,14 @@ Model parameters:
 ## Usage example
 
 In the example below, we estimate the divergence times (`--divtimes`) of a
-dataset using FASTDATE. We use a birth-death process with birth rate
+dataset using FASTDATE by discretizing time into 100 equally long intervals
+(`--grid-intervals`). We use a birth-death process with birth rate
 (`--birth-rate`) 2 and death rate (`--death-rate`) 1. The prior for the edge
 rates is a gamma distribution with mean (`--edge-rate-mean`) 1 and variance
 (`edge-rate-variance`) 1. We output a diagram of the tree with time estimates
 on screen (`--show-tree`) and write the annotated file in newick format in a
-file (`--out-file`). Instead of producing a dated tree, we choose as output
-an ultrametric tree (--output-form).
+file (`--out-file`). Instead of producing a dated tree, we choose as output an
+ultrametric tree (`--output-form`).
 
 `./fastdate --divtimes --show-tree --grid-intervals 100 --birth-rate 2 --death-rate 1 --edge-rate-mean 1 --edge-rate-variance 1 --tree-file tree.newick --out-file output.newick --output-form ultrametric`
 
@@ -68,19 +70,19 @@ The code is currently licensed under the GNU Affero General Public License versi
 
 The code is written in C.
 
-    File     | Description
--------------|------
-**bd.c**  | Birth-death process related functions.
+    File       | Description
+---------------|----------------
+**bd.c**       | Birth-death process related functions.
 **fastdate.c** | Main file handling command-line parameters and executing corresponding parts.
-**gamma.c** | Gamma density distribution functions.
-**maps.c** | Character mapping arrays for converting sequences to internal representation.
-**tree.c** | Functions on the tree structure.
-**util.c** | Various common utility functions.
-**arch.c** | Architecture specific code (Mac/Linux).
-**dp.c**   | Dynamic programming algorithm.
-**Makefile** | Makefile
-**newick.y** | Bison grammar file for newick binary tree parsing.
-**lex.l** | Flex lexical analyzer.
+**gamma.c**    | Gamma density distribution functions.
+**maps.c**     | Character mapping arrays for converting sequences to internal representation.
+**tree.c**     | Functions on the tree structure.
+**util.c**     | Various common utility functions.
+**arch.c**     | Architecture specific code (Mac/Linux).
+**dp.c**       | Dynamic programming algorithm.
+**Makefile**   | Makefile
+**newick.y**   | Bison grammar file for newick binary tree parsing.
+**lex.l**      | Flex lexical analyzer.
 
 ## Bugs
 
