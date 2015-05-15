@@ -317,7 +317,7 @@ This importance distribution would not lead to a continuous density function, bu
 
 
 Let $\ImpDensity$ be the probability density of the importance distribution and 
-$\timeBinRealization$ be a realization of what time bins the set of nodes are assigned to:
+$\timeBinRealizationVec$ be a realization of what time bins the set of nodes are assigned to
 \begin{eqnarray}
     \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \ImpPr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime{i} \mid \binFor{i} = \timeBinRealization{i}) \\
     \ImpPr(\timeBinRealizationVec \mid \dataMatrix) & = &\left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm\\
