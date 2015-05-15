@@ -24,8 +24,8 @@
 \newcommand{\ratevec}[0]{\ensuremath{\mathbf{r}}\xspace}
 \newcommand{\timevec}[0]{\ensuremath{\mathbf{t}}\xspace}
 \newcommand{\timebin}[0]{\ensuremath{t}\xspace}
-\newcommand{\contTime}[0]{\ensuremath{\tau}\xspace}
-\newcommand{\contTimeVec}[0]{\ensuremath{\bm{\tau}}\xspace}
+\newcommand{\contTime}[1]{\ensuremath{\sigma}_{#1}\xspace}
+\newcommand{\contTimeVec}[0]{\ensuremath{\bm{\sigma}}\xspace}
 \newcommand{\timeBinRealizationVec}[0]{\ensuremath{\bm{\xi}}\xspace}
 \newcommand{\timeBinRealization}[1]{\ensuremath{\xi_{#1}}\xspace}
 \newcommand{\duration}[1]{\ensuremath{t_{#1}}\xspace}
@@ -98,6 +98,7 @@ in time comparable to standard substitution model-based reconstruction methods.'
     \edgeLen{v} \equiv \rate{v}\duration{v}
 \end{equation}
     \item[\age{v}] is the age of node $v$. The difference between the node time and the present (which is time 0)
+    \item[\contTime{v}] is a continuous parameter describing the age of node $v$. This is only used at the end of the doc when we discuss importance sampling.
     \item[\parent{v}] is the parent node of node $v$
 \begin{equation}
     \duration{v} \equiv \age{\parent{v}} - \age{v}
@@ -299,14 +300,14 @@ To do this, it seems like we would need:
 \end{enumerate}
 
 Presumably, this would require that the times would be continuous.
-If $\contTime_j$ is the age of a node $j$ in continuous time,
+If $\contTime{j}$ is the age of a node $j$ in continuous time,
     $\binFor{j}$ is a latent variable describing the assignment of node
     $j$ to a discrete time bin, and
     and $\timebin_i$ is the time of the $i$-th discrete time bin, then I think that one could
-    draw $\contTime$ from a uniform conditional on what time bin the 
+    draw $\contTimeVec$ from a uniform conditional on what time bin the 
     node had been assigned to:
 \begin{eqnarray}
-    p(\contTime_j \mid \binFor{j} = \timebin_i) & = & \left(\timebin_{i} - \timebin_{i - 1}\right)^{-1}\\
+    p(\contTime{j} \mid \binFor{j} = \timebin_i) & = & \left(\timebin_{i} - \timebin_{i - 1}\right)^{-1}\\
     & = & w
 \end{eqnarray}
 if the bins are equally spaced, and $w$ is reciprocal of the
@@ -318,7 +319,7 @@ This importance distribution would not lead to a continuous density function, bu
 Let $\ImpDensity$ be the probability density of the importance distribution and 
 $\timeBinRealization$ be a realization of what time bins the set of nodes are assigned to:
 \begin{eqnarray}
-    \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \ImpPr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime_i \mid \binFor{i} = \timeBinRealization{i}) \\
+    \ImpDensity(\contTimeVec \mid \dataMatrix) & = &  \ImpPr(\timeBinRealizationVec \mid \dataMatrix)\prod_{i=\numLeaves}^{2*\numLeaves-1} p(\contTime{i} \mid \binFor{i} = \timeBinRealization{i}) \\
     \ImpPr(\timeBinRealizationVec \mid \dataMatrix) & = &\left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]/\norm\\
     \norm & = & \ImpPr(\dataMatrix) = \sum_{\timeBinRealizationVec} \left[\ImpPr(D\mid \timeBinRealizationVec)\Pr(\timeBinRealizationVec) \right]
     %\Pr(\ratevec, \timevec)  \equiv \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
@@ -431,7 +432,7 @@ Thus, a realization can be quickly sampled by:
     \FOR{$d \in [0, 1, 2, \ldots, \numAges)$ }
         \STATE \subtreeAgeSum{u}{d} = 0.0
     \ENDFOR
-    \STATE \subtreeAgeSum{\minbin{u}}{0} = 1.0
+    \STATE \subtreeAgeSum{u}{\minbin{u}} = 1.0
 \ENDFOR \\
 \COMMENT{\textsc{End of Initialization}}
 \FOR{each non-root, internal node $u$ in postorder}
