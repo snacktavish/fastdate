@@ -23,11 +23,11 @@
 \newcommand{\rate}[1]{\ensuremath{r_{#1}}\xspace}
 \newcommand{\ratevec}[0]{\ensuremath{\mathbf{r}}\xspace}
 \newcommand{\timevec}[0]{\ensuremath{\mathbf{t}}\xspace}
-\newcommand{\timebin}[0]{\ensuremath{t}\xspace}
+\newcommand{\timebin}[0]{\ensuremath{\tau}\xspace}
 \newcommand{\contTime}[1]{\ensuremath{\sigma}_{#1}\xspace}
 \newcommand{\contTimeVec}[0]{\ensuremath{\bm{\sigma}}\xspace}
-\newcommand{\timeBinRealizationVec}[0]{\ensuremath{\bm{\xi}}\xspace}
-\newcommand{\timeBinRealization}[1]{\ensuremath{\xi_{#1}}\xspace}
+\newcommand{\timeBinRealizationVec}[0]{\ensuremath{\bm{\tau}}\xspace}
+\newcommand{\timeBinRealization}[1]{\ensuremath{\tau_{#1}}\xspace}
 \newcommand{\duration}[1]{\ensuremath{t_{#1}}\xspace}
 \newcommand{\age}[1]{\ensuremath{\tau_{#1}}\xspace}
 \newcommand{\binFor}[1]{\ensuremath{b({#1})}\xspace}
@@ -294,8 +294,8 @@ algorithm be used to provide samples for an importance distribution?
 
 To do this, it seems like we would need:
 \begin{enumerate}
-    \item to be able draw realizations of all node times from the posterior
-        probability distribution, and
+    \item to be able draw realizations of all node times from an approximation of
+     the posterior probability distribution, and
     \item be able to assign a probability density for each realization
 \end{enumerate}
 
@@ -307,6 +307,7 @@ If $\contTime{j}$ is the age of a node $j$ in continuous time,
     draw $\contTimeVec$ from a uniform conditional on what time bin the 
     node had been assigned to:
 \begin{eqnarray}
+    \contTime{j} & \sim & \mbox{Uniform}[\timebin_i, \timebin_{i+1}) \\
     p(\contTime{j} \mid \binFor{j} = \timebin_i) & = & \left(\timebin_{i} - \timebin_{i - 1}\right)^{-1}\\
     & = & w
 \end{eqnarray}
