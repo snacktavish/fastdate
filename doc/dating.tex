@@ -80,7 +80,7 @@
 Akerborg \etal \cite{Akerborg2008} describe a fast method for approximating
 the maximum a posteriori (MAP) estimate of the age of a node in tree.
 There is not an open source implementation accompanying that paper.
-Howver, these authors do distribute software primeGSR
+However, these authors do distribute software primeGSR
 (\url{http://prime.sbc.su.se/primeGSR/docs.html}).
 That software is not explicitly mentioned in \cite{Akerborg2008}, but its manual
 (\url{http://prime.sbc.su.se/primeGSR/downloads/primegsr_manual.pdf})
@@ -102,7 +102,7 @@ in time comparable to standard substitution model-based reconstruction methods.'
     \edgeLen{v} \equiv \rate{v}\duration{v}
 \end{equation}
     \item[\age{v}] is the age of node $v$. The difference between the node time and the present (which is time 0)
-    \item[\contTime{v}] is a continuous parameter describing the age of node $v$. This is only used at the end of the doc when we discuss importance sampling.
+    \item[$\contTime{v}$] is a continuous parameter describing the age of node $v$. This is only used at the end of the doc when we discuss importance sampling.
     \item[\parent{v}] is the parent node of node $v$
 \begin{equation}
     \duration{v} \equiv \age{\parent{v}} - \age{v}
@@ -139,7 +139,7 @@ HillClimbing & likelihood & 0 & $\ratevec\times\timevec$ optimization dashed red
 \hline
 HillClimbing & posterior ratio & 0  & if you do not include $\ratevec$ and $\timevec$ in parameters, but just use $\edgeLen{}$ parameters, this is the $l$-method. dashed blue in Figure 2 \\
 \hline
-HillClimbing & likelihood & 0.001 & combined method targetting likelihood dotted green in figure 2 \\
+HillClimbing & likelihood & 0.001 & combined method targeting likelihood dotted green in figure 2 \\
 \hline
 \end{tabular}
 \end{table}
@@ -149,7 +149,7 @@ HillClimbing & likelihood & 0.001 & combined method targetting likelihood dotted
     \REQUIRE $\boldsymbol{\theta}$, the starting values for all parameters
     \REQUIRE $p$, the probability of conducing a FactorRT proposal in any iteration
     \REQUIRE $O$, a function to calculation the target density (posterior or just the ``data probability'').
-    \REQUIRE \textsc{AcceptMove}, a funciton that takes the proposed target density, the current target density, and the Hastings ratio for the proposal
+    \REQUIRE \textsc{AcceptMove}, a function that takes the proposed target density, the current target density, and the Hastings ratio for the proposal
 \STATE  $\boldsymbol{\theta^{(0)}} \leftarrow \boldsymbol{\theta}$
 \STATE  $z^{(0)} \leftarrow O(\boldsymbol{\theta})$
 \FOR{$i \in \left[1, 2,\ldots \infty \right) $}
@@ -249,7 +249,7 @@ do not require recalculation of the likelihood.\\
 \end{algorithm}
 
 Note that the only calculation in the inner loop of \textsc{PruneFactorRT} that needs both $i$ and $j$ is the prior density of the tree.
-So many of the caculations (e.g. the calculation of $m_w^{\ast} \leftarrow \ratePriorDensity(r_w^{\ast})$)
+So many of the calculations (e.g. the calculation of $m_w^{\ast} \leftarrow \ratePriorDensity(r_w^{\ast})$)
 could be done in a separate loop rather than a nested loop.
 
 For some sets of prior on divergence times, the priors on the branch durations is 
@@ -341,7 +341,7 @@ Thus the
     \ImpPr(D \mid \timeBinRealizationVec) & := & \Pr(D \mid \hat{\edgeLenVec})f(\hat{\edgeLenVec} \mid \timeBinRealizationVec)
 \end{eqnarray}
 
-Crucially, we should be able to factor $\ImpPr$ into parts that depend on subtrees, as in the DP alogrithm for finding the MAP.
+Crucially, we should be able to factor $\ImpPr$ into parts that depend on subtrees, as in the DP algorithm for finding the MAP.
 The normalization constant $\norm$ could be approximated by summing over the full depth of the table.
 Thus we should be able to calculate an importance density and sample from it by:
 \begin{compactenum}
@@ -382,10 +382,10 @@ If we tolerate some abuse of notation to indicate the idea of
 \rightThreeDTable{u}{d}{d_w} & = & \subtreeAgeSum{w}{d_v} \ratePriorDensity(\edgeLen{w} \mid d, d_w) \timePriorDensity(d\mid d_w)
 \end{eqnarray}
 Where $\subtreeAgeSum{u}{d}$ is filled in by sweeping over the tree for values of $u$ from tip to root (postorder).
-The time for tip $x$ is known to be $\timeBin{x}$. 
-If all of the tips are extant then $\timeBin{x}=0$ of each tip.
-The base case of the recursion is, for any tip $x$, $\subtreeAgeSum{x}{\timeBin{x}} = 1$ and $\subtreeAgeSum{x}{y} = 1$
-where $y\neq\timeBin{x}$.
+The time for tip $x$ is known to be $\timeBinRealization{x}$. 
+If all of the tips are extant then $\timeBinRealization{x}=0$ of each tip.
+The base case of the recursion is, for any tip $x$, $\subtreeAgeSum{x}{\timeBinRealization{x}} = 1$ and $\subtreeAgeSum{x}{y} = 0$
+where $y\neq\timeBinRealization{x}$.
 
 After sweeping to the root we have:
 \begin{eqnarray}
@@ -431,7 +431,7 @@ Thus, a realization can be quickly sampled by:
     \end{compactenum}
 \end{compactenum}
 
-Then $\contTime{u}$ would be drawn from the selected bin fo times for each node $u$.
+Then $\contTime{u}$ would be drawn from the selected bin for times for each node $u$.
 
 \newpage
 
