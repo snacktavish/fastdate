@@ -419,7 +419,7 @@ So:
     \postProbCache{u}{v\rightarrow d_v}{z} & = & \frac{
     \leftThreeDTable{u}{z}{d_v}}{\leftSubtreeAgeSum{u}{z}}.\label{lcherryProb}\\
     \postProbCache{u}{w\rightarrow d_w}{z} & = & \frac{
-    \rightThreeDTable{u}{z}{d_v}}{\rightSubtreeAgeSum{u}{z}}.\label{rcherryProb}
+    \rightThreeDTable{u}{z}{d_w}}{\rightSubtreeAgeSum{u}{z}}.\label{rcherryProb}
 \end{eqnarray}
 
 Thus, a realization can be quickly sampled by:
@@ -433,6 +433,16 @@ Thus, a realization can be quickly sampled by:
 
 Then $\contTime{u}$ would be drawn from the selected bin for times for each node $u$.
 
+\section{Interval estimation}
+The previous section discusses drawing realizations from an approximation to the joint posterior distribution on node ages.
+This imply that one should also be able to use the same approximation for an approximate 95\%-HPD or some other
+    form or Bayesian interval estimate.
+
+Suppose that we want to calculate the marginal posterior probabilities of each node's age.
+First, we note that we have already encountered the posterior probability distrubution for the age
+    of the root (in discrete time) in equation (\ref{rootProb}).
+
+For non-root nodes, we can 
 \newpage
 
 \begin{algorithm} \caption{\textsc{PruneNodeAges}}\label{pruneNodeAges}
