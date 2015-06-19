@@ -21,18 +21,68 @@
 
 \titlerunning{Speed dating}
 
-\author{Tom\'{a}\v{s} Flouri1\inst{1}}
+\author{Tom\'{a}\v{s} Flouri\inst{1}, Emily Jane McTavish\inst{1}, Author, Author, Author}
 \authorrunning{Tom\'{a}\v{s} Flouri et al.} % abbreviated author list
 \institute{Heidelberg Institute of Theoretical Studies\\
 \email{Tomas.Flouri@h-its.org}}
 
 \maketitle
-
-\begin{abstract}
-An explanation of the dynamic programming algorithm used in \cite{Akerborg2008}.
+%%for the moment writing up as targeted for sys bio software paper
+\begin{abstract} We present a dynamic programming algorithm to rapidly
+ultrametricize even very large phylogenies, implemented in the open source software package FastDate. 
+This software is \ejmcomment{(will be)} capable of using node or tip dating information to scale trees to absolute time,
+or estimate relative time information.
+We have implemented recent developments in probabilities of trees accounting for both incomplete 
+sampling of species in the present day, and the sampling in the past due to the fossilization and recovery processes.
+FastDate is \ejmcomment{(will be)} available on our webserver and on github.
 \end{abstract}
 
-\section{Preliminaries}
+
+\section{Introduction}
+As it is becoming possible to reconstruct very large phylogenies, 
+researchers are interested in using these phylogenies for downstream analyses.
+However, most phylogenetic analysis software provides trees with branch lengths in units of expected number of substitutions per site,
+whereas downstream analyses may divergence times in years.
+For many questions, such as comparisons of rates of speciation in different groups, it is necessary to have an ultrametric tree.
+Phylogeographic or paleontological questions estimates in absolute time,
+in order to associate evolutionary events with historical ones.
+
+TODO Paragraph on utility of dated trees.
+
+TODO Explanation of Akerborg GSR and other previous approaches
+ \cite{Akerborg2008}
+
+TODO Better background on branch rate distributions\\
+Setting dates on a tree requires factorizing the branch lengths of an input topology
+from estimates of evolutionary distances into rates and times. 
+An appropriate expectation for the variation in these branch rates is difficult to select.
+A common approximation is to treat branch rates as gamma distributed (REF NEEDED)
+
+BD process background:\\
+Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process (Kendall,
+1948).
+The tree shape is parameterized using simply a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
+$\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
+Recent work by Gernhard (2008) and Stadler (2009, 2010) has expanded on Kendall's basic 
+formulation of the probabilities of birth\textendash death trees to incorporate several important aspects of sampling:
+the effect on branch lengths of truncating the process by sampling tips at the present (Gernhard 2008),
+the effect of incomplete sampling of tips at the present day (Stadler 2009), and the effect of the sampling
+of fossils on recovery of ancestral taxa (Stadler 2010).
+Stadler (2010, theorem 3.11) gives probability of a dated topology with $n$ leaves,
+under the birth\textendash death process, with some proportion of currently sampled tips ($\rho$), a rate of recovery of taxa in the past ($\psi$),
+and the standard birth and death rate parameters.
+
+
+\section{Algorithm}
+FastDate is based on an dynamic programming adapted from that of Akerborg \cite{Akerborg2008},.
+The granularity of the dating approach can be determined by the user choosing the number of time intervals to which 
+nodes can be assigned.
+In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010} 's probability of sampled trees with defined node heights,
+by building up a table of node height values which maximize the likelihood of the node height ($\lambda p_1(t)$), 
+and the likelihood of branch lengths in the tree having a given rate based on the gamma distribution $g(r)$.
+
+The full procedure is described in depth below.
+
 
 \subsection{Basic definitions}
 
@@ -46,7 +96,7 @@ Further, we denote with $T_u$ the subtree of $T$ rooted at node $u$.  A {\em
 rooted binary tree} $T$ is a {\em directed} tree with all nodes having
 in-degree 1 and out-degree 1 ({\em inner} nodes), or in-degree 1 and out-degree
 0 ({\em leaves}). Furthermore, one node has in-degree 0 and out-degree 2 ({\em
-root}).  In the rest of the text we implicitely assume under the term tree a
+root}).  In the rest of the text we implicitly assume under the term tree a
 binary rooted tree.  We denote the set of leaves of tree $T$ as $L(T)$.  The
 cardinality of a set $X$ is denoted as $|X|$. The {\em height} $h(u)$ of a node
 $u$ of $T$ is defined as 
@@ -56,9 +106,9 @@ $u$ of $T$ is defined as
 1                    & \quad : \quad u    \in L(T)\\
 \end{array}\right. \] 
 The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
-implicitely use the notation $r$ for specifying the root of a tree, and
-$\ell_{u,v}$ for the length of edge $(u,v)$.
+implicitly use the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 
+\subsection{Branch rate distribution}
 \subsection{Gamma function, Gamma distribution}
 
 The {\em Gamma function} is an extension to the factorial function to handle
@@ -75,6 +125,43 @@ where $\beta = \bar{r} / \sigma$ and $\alpha = \bar{r} \beta$.
 Its natural logarithm can be computed as
 $$ \ln g(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
 
+\subsection{Birth-death process}
+From 3.11 in Stadler 2010 \textit{The probability density of a sampled tree T with n
+extant sampled leaves, m extinct sampled leaves, $n+m > 0$, and $k \geq 0$
+sampled individuals with sampled descendants, conditioned on
+sampling n present day individuals is,}
+
+$$F[T|n] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler say that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
+
+\begin{enumerate}
+\item[$\lambda$]  is the per lineage birth (speciation) rate
+\item[$\mu$]  is the per lineage death (extinction) rate
+\item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
+\item[$\rho$ ] is the proportion of total extant descendants $N$ which are sampled $n$.
+\item[$n$] is the number of extant (current) sampled descendants of a node.
+\item[$m$] is the number of extinct (fossil) sampled descendants of a node.
+\item[$c_1,c_2$]  are useful constants.
+$$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
+$$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
+\end{enumerate}
+
+$p_1(t)$ is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendants and no sampled extinct descendants.
+$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
+%And with no sampled fossils ($\psi=0$)
+%$$f[T|t_{mrca}=x_1,n] = n(\lambda - \mu) \frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}\frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_1}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1})^2}$$\\
+
+For convenience in the algorithm we refer to the first part of $F[T|n]$ as $s(t,n)$.
+$$s(t,n) = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}$$
+
+and the second part as $p_c(v)$.
+$$p_{c}(v) = \prod_{i=1}^{L(v)-1}\lambda p_1(x_i)$$
+This is convenient, as we can build up the partial products of the second part of the birth death
+probability density can be built up as nodes are traversed by
+the dynamic programming algorithm, and stored for the calculation of $F[T|n]$ at each node.
+
+\ejmcomment{Still need to ensure that this is actually how this simplifies out when psi=0}
+
 \section{Dynamic programming algorithm}
 
 We are given an integer $N \geq h(T)$ which we use to construct a grid of lines
@@ -82,15 +169,17 @@ over the height of a tree (numbered 1 to $N$), such that the (uniform) distance 
 adjacent lines is $h(T) / N$.  Our goal is to project each node of $T$ onto one
 of the $N$ using a mapping $\phi : V \mapsto \{1,\ldots,N\}$ such that the
 following properties are maintained.
+
 \begin{enumerate}
 \item $\forall u,v,w \in V : (u,v), (u,w) \in E \Rightarrow \phi(u) > \phi(v) \wedge \phi(u) > \phi(w)$,
 \item $\phi(u) = 1, \forall u \in L(T)$,
-\item $\phi(r) = N$
 \end{enumerate}
 
 Property 1 ensures that no node $v$ in the subtree rooted at $u$ is placed on
 line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves to the first line (line 1).
-Property 3 maps the root to the highest line (line $N$).
+\ejmcomment{Not true in case of tip dating, but still currently true. 
+Also - we have some inconsistency on whether they are mapped to line 0 or 1.
+In the code it is 1 currently.}
 
 The mapping is computed by maximizing a function, which defines a
 dynamic programming algorithm.  We briefly explain the algorithm informally.
@@ -101,7 +190,7 @@ placed on, along with all the lines that its two children are allowed to placed
 on. This maximal value is then stored in a table along with the positions (lines) its
 two children were placed on. 
 
-We first need to set the interval of lines (discretizations) that a specific
+We first need to set the interval of lines (discretization) that a specific
 node can be placed on.  This interval (denoted $d(u)$) for node $u$ is defined
 as $$ d(u) = \{ x\ |\  h(u) \leq x \leq N - (h(r) - h(u))\}.$$  This is
 justified by the fact that the farthest {\em path} leading from node $u$ to a
@@ -112,11 +201,42 @@ placed on is line $h(u)$.
 
 Next, we define the maximization function $f$ that is computed for each node $u \in
 V\setminus L(T)$ and for each discretization line $t_u$:  
-$$ f(u,t_u) = b(t_u,|L(T_u)|) \ln g(\ell_{u,v} / (t_u - t_v)) \ln g(\ell_{u,w} / (t_u -
-t_w)) f(v,t_v) f(w,t_w) $$ where $t_u \in d(u)$, $t_v \in d(v)$, $t_w \in
-d(w)$ and $b(t_u,|L(T_u)|)$ is the birth-death process function {\bf TODO:
-finish description} which is based on the placement of $u$ and the number of
-leaves the subtree rooted at $u$ has.
+$$f(u,t_u) = \lambda p_1(t_u) \hat{f}_v \hat{f}_w $$\\ 
+where $t_u \in d(u)$, $t_v \in d(v)$, $t_w \in
+d(w)$.
+$\hat{f}_v$ is the maximum product of $g(r_{u,w})$ and $p_c(w,t_w)$
+over the possible positions of node v given the placement of u.
+
+Therefore the full value being maximized at each discretization line for the node $u$
+is 
+$$f(u,t_u) = \lambda p_1(t_u) p_c(v,t_v) g(r_{u,v}) p_c(w,t_w) g(r_{u,w})$$
+rearranged
+$$f(u,t_u) = \lambda p_1(t_u) p_c(v,t_v)  p_c(w,t_w) g(r_{u,v}) g(r_{u,w})$$
+simplified
+$$f(u,t_u) = p_c(t_u) g(r_{u,v}) g(r_{u,w})$$
+
+To calculate the position of the root (node $r$) it is necessary to maximize the
+full birth death process probabilities the branch rate probabilities.
+$$f(r,t_r) \leftarrow s(r,n) p_c(t_{r}) \hat g(r_{r,v}) \hat g(r_{r,w})$$
+
+\ejmcomment{and that last term is already maximized - proof to come}
+
+To incorporate priors on node times (e.g. from fossil calibrations)
+requires only adding a term to $f(u,t_u)$ that weights the prior probability of 
+node $u$ being placed on line $t_u$, $Pr(u,t_u)$
+
+With node priors:
+$$f(u,t_u) = p_c(t_u) g(r_{u,v}) g(r_{u,w}) Pr(u,t_u)$$
+
+Tip dating changes the assignments of node heights, and therefore 
+the set of potential discretization lines on which nodes can be placed,
+but does not otherwise affect the algorithm.
+
+Once the optimal position of the root has been determined,
+then backtracking through maximal values stored for the 
+left and right children will give a fully specified dated tree.
+
+
 Fig.~\ref{fig:dp} describes the algorithm in detail.
 
 
@@ -128,126 +248,70 @@ Fig.~\ref{fig:dp} describes the algorithm in detail.
 \multicolumn{2}{|l|}{\textsc{DP}$(T, N, u)$}\\
 \ninstr & $v \leftarrow$ left child of $u$\\
 \ninstr & $w \leftarrow$ right child of $u$\\
+\ninstr & $r \leftarrow$ the root of $T$\\
+\ninstr & $p_1(t)$ probability that a tip at time t has 1 extant descendant from Stadler 2010  \\
 \ninstr & \textbf{if} $v \in L(T)$ \textbf{then}\\
 \ninstr & \qquad $M(v,1) \leftarrow 1$\\
+\ninstr & \qquad $p_c(v,t_v) \leftarrow 1$\\ 
 \ninstr & \qquad \textbf{return}\\
 \ninstr & \textsc{DP}(T,N,v)\\        
 \ninstr & \textbf{if} $w \in L(T)$ \textbf{then}\\
 \ninstr & \qquad $M(w,1) \leftarrow 1$\\
+\ninstr & \qquad $p_c(w,t_w) \leftarrow 1$\\ 
 \ninstr & \qquad \textbf{return}\\
 \ninstr & \textsc{DP}(T,N,w)\\        
 \ninstr & \textbf{for} $t_u \leftarrow \min d(u)$ \textbf{to} $\max d(u)$ \\
 \ninstr & \qquad $\hat{f}_u \leftarrow 0, \hat{t}_v \leftarrow 0, \hat{t}_w \leftarrow 0$\\
 \ninstr & \qquad \textbf{for} $t_v \leftarrow \min d(v)$ \textbf{to} $\min\{\max d(v), t_u\}$ \\
-\ninstr & \qquad \qquad \textbf{for} $t_w \leftarrow d(w)$ \textbf{to} $\min\{\max d(w), t_u\}$ \\
-\ninstr & \qquad \qquad \qquad $r_{u,v} \leftarrow \ell_{u,v}/(t_u - t_v)$ \\
-\ninstr & \qquad \qquad \qquad $r_{u,w} \leftarrow \ell_{u,w}/(t_u - t_w)$ \\
-\ninstr & \qquad \qquad \qquad $f(u,t_u) \leftarrow b(t_u,|L(T_u)|) \ln g(r_{u,v}) \ln g(r_{u,w}) f(v,t_v) f(w,t_w)$\\
-\ninstr & \qquad \qquad \qquad \textbf{if} $f(u,t_u) > \hat{f}_u$ \textbf{then} \\
-\ninstr & \qquad \qquad \qquad \qquad $\hat{f}_u \leftarrow f(u,t_u), \hat{t}_v \leftarrow t_v, \hat{t}_w \leftarrow t_w$\\
+\ninstr & \qquad \qquad  $r_{u,v} \leftarrow \ell_{u,v}/(t_u - t_v)$ \\
+\ninstr & \qquad \qquad  \textbf{if} $g(r_{u,v})  p_c(v,t_v) > \hat{f}_v$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad $\hat{f}_v \leftarrow g(r_{u,v})  p_c(v,t_v)$\\
+\ninstr & \qquad \qquad \qquad $\hat{g}_v \leftarrow g(r_{u,v})$\\
+\ninstr & \qquad \qquad \qquad $\hat t_v \leftarrow t_v$\\
+\ninstr & \qquad \qquad \qquad $\hat p_{cv} \leftarrow p_c(v,t_v)$\\
+\ninstr & \qquad \textbf{for} $t_w \leftarrow \min d(w)$ \textbf{to} $\min\{\max d(w), t_u\}$ \\
+\ninstr & \qquad \qquad  $r_{u,w} \leftarrow \ell_{u,w}/(t_u - t_w)$\\
+\ninstr & \qquad \qquad  \textbf{if} $g(r_{u,w})  p_c(v,t_w) > \hat{f}_w$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad $\hat{f}_w \leftarrow g(r_{u,w})  p_c(w,t_w)$\\
+\ninstr & \qquad \qquad \qquad $\hat{g}_w \leftarrow g(r_{u,w})$\\
+\ninstr & \qquad \qquad \qquad $\hat t_w \leftarrow t_w$\\
+\ninstr & \qquad \qquad \qquad $\hat p_{cw} \leftarrow p_c(w,t_w)$\\
+\ninstr & \qquad $p_{c}(u,t_u) \leftarrow \hat p_{cv} \hat p_{cw} \lambda p_1(t_u)$  \\
+\ninstr & \qquad \textbf{if} $u == r$  \textbf{then}\\
+\ninstr & \qquad \qquad $f(u,t_u) \leftarrow s(u,n_{u}) p_c(t_{u}) \hat g(r_{u,v}) \hat g(r_{u,w})$ \\
+\ninstr & \qquad \textbf{else} \\
+\ninstr & \qquad \qquad $f(u,t_u) \leftarrow p_c(t_{u}) \hat g(r_{u,v}) \hat g(r_{u,w})$ \\
+\ninstr & \qquad \textbf{if} $f(u,t_u) > \hat{f}_u$ \textbf{then} \\
+\ninstr & \qquad \qquad $\hat{f}_u \leftarrow f(u,t)$\\
 \ninstr & \qquad $M(u,t_u) \leftarrow \hat{f}_u, M^l(u,t_u) \leftarrow \hat{t}_v, M^r(u,t_u) \leftarrow \hat{t}_w$  \\
+
+
+
 \hline  
 \end{tabular}
 \end{center}
 \caption{The DP algorithm for computing relative divergence times. The
 algorithm starts by passing the tree ($T$), number of discretization lines
-(($N$) and the root of $T$ ($u$). It recursively traverses the tree in
-postorder and thne computes the best placement for every node $u$.}
+($N$) and the root of $T$ ($u$). It recursively traverses the tree in
+postorder and then computes the best placement for every node $u$.}
 \label{fig:dp}
 \end{figure}
 
-
-\section{Sampled Birth Death from Stadler 2010 \cite{Stadler2010}}
-
-
-\begin{enumerate}
-\item[$\lambda$]  is the per lineage birth (speciation) rate
-\item[$\mu$]  is the per lineage death (extinction) rate
-\item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
-\item[$\rho$ ] is the proportion of total extant descendents $N$ which are sampled $n$.
-\item[$n$] is the number of extant (current) sampled descendents of a node.
-\item[$m$] is the number of extinct (fossil) sampled descendents of a node.
-\item[$c_1,c_2$]  are useful constants.
-$$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
-$$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
-\item[$\hat{c_1},\hat{c_2}$]  are $c_1,c_2$ when $\psi=0$
-$$\hat{c_1}=c_1(\psi=0) = |\sqrt{(\lambda-\mu)^2}|$$
-$$\hat{c_2}=c_2(\psi=0) = \frac{\lambda-\mu-2\lambda\rho}{\hat{c_1}}$$
-\item[$p_0(t)$]  is the probability that an individual alive at time $t$ before today has no sampled descendents (extinct or extant).
-$$p_0(t) = \frac{\lambda+\mu+\psi+c_1\frac{e^{-c_1t}(1-c_2)-(1+c_2)}{e^{-c_1t}(1-c_2)+(1+c_2)}}{2\lambda}$$
-\item[$p_1(t)$]  is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents and no sampled extinct descendents.
-$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
-\item[$\hat{p_1}(t)$]  is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendents. When no extinct taxa have been sampled $\psi = 0$.
-$$\hat{p_1}(t) = p_1(t|\psi=0)$$
-$$\hat{p_1}(t) = \frac{4\rho}{2(1-\hat{c_2}^2)+e^{-\hat{c_1}t}(1-\hat{c_2})^2+e^{\hat{c_1}t}(1+\hat{c_2})^2}$$
-\item[$x_1$]  is the node time of interest ($t_{mrca}=x_1$).
-\item[$x_i$]  is the estimated node time for each child node (there are $n+m-1$).
-
-\end{enumerate}
+\section{Description of software}
+FastDate requires as input a fully bifurcating rooted phylogeny with branch lengths,
+and user defined estimates of birth rate ($\lambda$), death rate ($\mu$), 
+and proportion of descendants of the most recent common ancestor of the taxa found in the tree
+which were sampled in the tree ($\rho$).
+Optional parameters include $\psi$ the rate of recovery of fossils per lineage.
 
 
-\subsubsection{Corollary 3.9} The probability density of a sampled tree $T$ with $n>1$ extant sampled leaves, $m\geq0$ extinct sampled leaves and $k\geq0$ sampled individuals with sampled descendents, 
-conditioned on the time of the mrca being $x_1$. \ejmcomment{EJM needs to re-check against Stadler 2010}
 
-$$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+m+2}\psi^{k+m}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
-p_1(x_1)\prod_{i=1}^{n+m-1}p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+\section{Example}
+\subsection{Node dating example from 1 KITE}
 
+\subsection{Tip dating example from Stadler and Yang}
 
-with no sampled fossils ($\psi=0$, $m=0$, $k=0$) this simplifies to:
-$$f[T|t_{mrca}=x_1,n] = \frac{\lambda^{n+2}}{(n-1)\hat{p_1}(x_1)^2}\left(\frac{\lambda\rho+(\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}{\rho\lambda(1-e^{-(\lambda-\mu)x_1})}\right)^{n-2}
-\hat{p_1}(x_1)\prod_{i=1}^{n-1}\hat{p_1}(x_i)$$
-
-Requires node times for all nodes in subtree $x_1 ... x_n-1$.\\
-\ejmcomment{Do we keep those? I'm not clear on how to incorporate this into the DP algorithm}
-
-\subsubsection{Theorem 3.11} The probability density of a sampled tree $T$ with $n$ extant sampled leaves, $m$ extinct sampled leaves, $n+m>0$, and $k\geq0$ sampled individuals with sampled descendents, 
-conditioned on the time of the mrca being $x_1$. \ejmcomment{EJM needs to re-check against Stadler 2010}
-
-$$f[T|n] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
-N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler pers comm agree that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
-\\
-with no sampled fossils ($\psi=0$, $m=0$, $k=0$) this simplifies to:
-$$f[T|n] = \frac{4n\rho\lambda}{\hat{c_1}(\hat{c_2}+1)(1-\hat{c_2}+(1+\hat{c_2})e^{\hat{c_1}x_1})}\prod_{i=1}^{n-1}\lambda \hat{p_1}(x_i)$$
-
-
-\textbf{This is what we should use for  $b(t_u, n)$ in the DP algorithm with no fossils.}\\
-We can scale that by some other probability density on times for nodes that we have some dating (fossil or otherwise) information for.
-
-\subsubsection{BD process from Kendall 1949 from Gernhard 2008\\}
-
-$p_0(t)=\frac{\mu(1-e^{-(\lambda-\mu)t}}{\lambda-\mu e^{-(\lambda-\mu)t}}$\\
-$p_1(t)=\frac{(\lambda-\mu)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}$\\
-$p_n(t)=(\frac{\lambda}{\mu})^2p_1(t)(p_0(t))^{n-1}$\\
-$p_n(t)=(\frac{\lambda}{\mu})^2\frac{(\lambda-\mu)^2e^{-(\lambda-\mu)t}}{(\lambda-\mu e^{-(\lambda-\mu)t})^2}(\frac{\mu(1-e^{-(\lambda-\mu)t}}{\lambda-\mu e^{-(\lambda-\mu)t}})^{n-1}$\\
-%$log(p_n(t))= 2(log(\lambda)-log(\mu)$
-
-\subsubsection{BD process from Prime GSR\\}
-
-dbdiff $= \mu - \lambda$\\
-$u_t =\frac{\lambda(1-e^{-(\lambda-\mu)t})}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ From calcPt\_Ut, in the case that $\lambda != \mu$. \ejmcomment{$t$ may or may not always be 1 in $u_t$?}\\
-$P_t = \frac{-(\lambda-\mu)}{\lambda-(\mu e^{-(\lambda - \mu)t})}$ from partialEdgeTimeProb\\
-$E=e^{-(\lambda-\mu)t}$\\
-factor $= (n-1)\frac{\lambda}{u_t}$ from partialEdgeTimeProb, because BDvar[y]=$u_t$ from calcBirthDeathProbs\_recursive. 
-\ejmcomment{is this in order to scale the relative time probabilities to the assumption that the root is at $t=1$?}\\
-partialEdgeTimeProb = factor $*P_t^2 *E$\\
-partialEdgeTimeProb = $(n-1)\frac{\lambda}{u_t} * ( \frac{-(\lambda-\mu)}{\lambda-(\mu e^{-(\lambda - \mu)t})})^2 * e^{-(\lambda-\mu)t}$\ejmcomment{But I'm not sure which of these are logged already...}\\
-
-\subsection{Corrrelated rates \cite{Kishino2001}}\ejmcomment{This section is still just notes}
-Treats each node as having a rate.
-The rate for each edge is the mean of the rates at the two nodes.
-Given log  of the rate at the beginning of the branch $u$, the log of the rate at the end of the branch $v$ should be normally distributed with a mean of that value.
-Variance, $\sigma$, is the branch length $l$ (in substitutions per site NOT TIME) multiplied by some parameter $\nu$
-$\nu$ determines the extent of rate-autocorrelation. High $\nu$ implies low autocorrelation. 
-
-Force one branch from root to have no change.
-
-
-Would be easy to implement in DP using:\\
-Consider the rate at a node $u$ to be the rate for the edge from $p$ (the parent of $u$) to $u$.\\
-Correlated gamma rates prior, $g_c(r)$, requires altering $\bar{r}$ of the prior for the rates $r_{u,v}, r_{u,w}$.\\
-For $r_{u,v}$ and $r_{u,w}$, mean of $g_c(r)$, $\bar{r}$ = $r_{p,u}$.\\
-\cite{Kishino2001} use log-normal distributions.\\
-
+\section{Discussion}
 
 
 \bibliographystyle{splncs03}
