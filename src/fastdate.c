@@ -27,43 +27,44 @@ static char * cmdline;
 
 /* number of mandatory options for the user to input */
 static const char mandatory_options_count = 2;
-static const char * mandatory_options_list = " --tree-file --out-file";
+static const char * mandatory_options_list = "  --tree_file\n  --out_file\n";
 
 /* options */
 char * opt_treefile;
 char * opt_outfile;
-double opt_birth_rate;
-double opt_death_rate;
-double opt_edgerate_mean;
-double opt_edgerate_var;
+double opt_lambda;
+double opt_mu;
+double opt_rho;
+double opt_psi;
+double opt_rate_mean;
+double opt_rate_var;
 int opt_quiet;
-int opt_exhaustive_bd;
-int opt_outformat;
+int opt_outform;
 long opt_threads;
 long opt_grid_intervals;
 long opt_help;
 long opt_version;
-long opt_divtimes;
-long opt_show_tree;
+long opt_method_sampled;
+long opt_showtree;
 
 
 static struct option long_options[] =
 {
   {"help",               no_argument,       0, 0 },  /*  0 */
   {"version",            no_argument,       0, 0 },  /*  1 */
-  {"tree-file",          required_argument, 0, 0 },  /*  2 */
-  {"show-tree",          no_argument,       0, 0 },  /*  3 */
-  {"out-file",           required_argument, 0, 0 },  /*  4 */
-  {"grid-intervals",     required_argument, 0, 0 },  /*  5 */
-  {"birth-rate",         required_argument, 0, 0 },  /*  6 */      
-  {"death-rate",         required_argument, 0, 0 },  /*  7 */
-  {"edge-rate-mean",     required_argument, 0, 0 },  /*  8 */
-  {"edge-rate-variance", required_argument, 0, 0 },  /*  9 */
-  {"divtimes",           no_argument,       0, 0 },  /* 10 */
-  {"quiet",              no_argument,       0, 0 },  /* 11 */
-  {"threads",            required_argument, 0, 0 },  /* 12 */
-  {"exhaustive-bd",      no_argument,       0, 0 },  /* 13 */
-  {"output-form",        required_argument, 0, 0 },  /* 14 */
+  {"tree_file",          required_argument, 0, 0 },  /*  2 */
+  {"show_tree",          no_argument,       0, 0 },  /*  3 */
+  {"out_file",           required_argument, 0, 0 },  /*  4 */
+  {"grid",               required_argument, 0, 0 },  /*  5 */
+  {"bd_lambda",          required_argument, 0, 0 },  /*  6 */      
+  {"bd_mu",              required_argument, 0, 0 },  /*  7 */
+  {"bd_rho",             required_argument, 0, 0 },  /*  8 */
+  {"rate_mean",          required_argument, 0, 0 },  /*  9 */
+  {"rate_variance",      required_argument, 0, 0 },  /* 10 */
+  {"method_sampled",     no_argument,       0, 0 },  /* 11 */
+  {"quiet",              no_argument,       0, 0 },  /* 12 */
+  {"threads",            required_argument, 0, 0 },  /* 13 */
+  {"out_form",           required_argument, 0, 0 },  /* 14 */
   { 0, 0, 0, 0 }
 };
 
@@ -79,19 +80,20 @@ void args_init(int argc, char ** argv)
 
   opt_help = 0;
   opt_version = 0;
-  opt_divtimes = 0;
-  opt_show_tree = 0;
+  opt_method_sampled = 0;
+  opt_showtree = 0;
   opt_treefile = NULL;
   opt_outfile = NULL;
-  opt_grid_intervals = 0;
-  opt_birth_rate = 0;
-  opt_death_rate = 0;
-  opt_edgerate_mean = 0;
-  opt_edgerate_var = 0;
+  opt_grid_intervals = 1000;
+  opt_lambda = 2;
+  opt_mu = 0;
+  opt_rho = 0.5;
+  opt_psi = 0;
+  opt_rate_mean = 5;
+  opt_rate_var = 1;
   opt_quiet = 0;
-  opt_exhaustive_bd = 0;
   opt_threads = 0;
-  opt_outformat = OUTPUT_DATED;
+  opt_outform = OUTPUT_ULTRAMETRIC;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -111,7 +113,7 @@ void args_init(int argc, char ** argv)
         break;
 
       case 3:
-        opt_show_tree = 1;
+        opt_showtree = 1;
         break;
 
       case 4:
@@ -121,45 +123,53 @@ void args_init(int argc, char ** argv)
       
       case 5:
         opt_grid_intervals = atol(optarg);
+        if (opt_grid_intervals < 0)
+          fatal("  --grid must be a positive value");
         break;
 
       case 6:
-        opt_birth_rate = atof(optarg);
+        opt_lambda = atof(optarg);
+        if (opt_lambda < 0)
+          fatal("  --bd_lambda must be a positive value");
         break;
 
       case 7:
-        opt_death_rate = atof(optarg);
-        break;
-      
-      case 8:
-        opt_edgerate_mean = atof(optarg);
+        opt_mu = atof(optarg);
+        if (opt_mu < 0)
+          fatal("  --bd_mu must be a positive value");
         break;
 
+      case 8:
+        opt_rho = atof(optarg);
+        if (opt_rho < 0 || opt_rho > 1)
+          fatal("  --bd_rho is a probability and must be between <0,1>");
+        break;
+      
       case 9:
-        opt_edgerate_var  = atof(optarg);
+        opt_rate_mean = atof(optarg);
         break;
 
       case 10:
-        opt_divtimes = 1;
+        opt_rate_var  = atof(optarg);
         break;
 
       case 11:
+        opt_method_sampled = 1;
+        break;
+
+      case 12:
         opt_quiet = 1;
         break;
       
-      case 12:
+      case 13:
         opt_threads = atol(optarg);
         break;
 
-      case 13:
-        opt_exhaustive_bd = 1;
-        break; 
-
       case 14:
         if (strcasecmp(optarg, "ultrametric") == 0)
-          opt_outformat = OUTPUT_ULTRAMETRIC;
+          opt_outform = OUTPUT_ULTRAMETRIC;
         else if (strcasecmp(optarg, "dated") == 0)
-          opt_outformat = OUTPUT_DATED;
+          opt_outform = OUTPUT_DATED;
         else
           fatal("Unrecognized argument for --output-form");
         break;
@@ -174,14 +184,14 @@ void args_init(int argc, char ** argv)
 
   int commands  = 0;
 
-  /* check for --divtimes mandatory options */
+  /* check for mandatory options */
   if (opt_treefile)
     mand_options++;
   if (opt_outfile)
     mand_options++;
 
   /* check for number of independent commands selected */
-  if (opt_divtimes)
+  if (opt_method_sampled)
     commands++;
   if (opt_version)
     commands++;
@@ -192,11 +202,16 @@ void args_init(int argc, char ** argv)
   if (commands > 1)
     fatal("More than one command specified");
   
-  /* if --divtimes check for mandatory options */
-  if (opt_divtimes)
+  /* if --method_sampled check for mandatory options */
+  if (opt_method_sampled)
+  {
     if (mand_options != mandatory_options_count)
-        fatal("Mandatory options for --divtimes are:\n\n%s", 
-              mandatory_options_list);
+      fatal("Mandatory options for --method_sampled are:\n\n%s", 
+            mandatory_options_list);
+    if (opt_lambda <= opt_mu)
+      fatal("  --bd_lambda must be greater than --bd_mu");
+  }
+
 
 
   /* if no command specified, turn on --help */
@@ -219,21 +234,22 @@ void cmd_help()
           "General options:\n"
           "  --help                         display help information.\n"
           "  --version                      display version information.\n"
-          "  --show-tree                    display an ASCII version of the tree.\n"
-          "  --divtimes                     perform divergence time estimations.\n"
+          "  --show_tree                    display an ASCII version of the computed tree.\n"
+          "  --method_sampled               perform divergence time estimations using incomplete sampling .\n"
           "  --quiet                        only output warnings and fatal errors to stderr.\n"
           "  --threads INT                  number of threads to use, zero for all cores (default: 0).\n"
-          "  --grid-intervals INT           number of grid intervals to use.\n"
+          "  --grid INT                     number of grid intervals to use (default: 1000).\n"
           "Input and output options:\n"
-          "  --tree-file FILENAME           tree file in newick format.\n"
-          "  --out-file FILENAME            output file name.\n"
-          "  --output-form STRING           format of the output tree. Can be either 'dated' or"
+          "  --tree_file FILENAME           tree file in newick format.\n"
+          "  --out_file FILENAME            output file name.\n"
+          "  --out_form STRING              format of the output tree. Can be either 'dated' or"
                                             "'ultrametric' (default: 'ultrametric').\n"
           "Model parameters:\n"
-          "  --birth-rate REAL              birth rate for Birth/Death model.\n"
-          "  --death-rate REAL              death rate for Birth/Death model.\n"
-          "  --edge-rate-mean REAL          Mean value of edge rate model.\n"
-          "  --edge-rate-variance REAL      Variance value for edge rate model.\n"
+          "  --bd_lambda REAL               birth rate for Birth/Death model (default: 2).\n"
+          "  --bd_mu REAL                   death rate for Birth/Death model (default: 0).\n"
+          "  --bd_rho REAL                  probability of sampling individuals. (default: 0.5)\n"
+          "  --rate_mean REAL               mean value of edge rate model (default: 5).\n"
+          "  --rate_variance REAL           variance value for edge rate model (default: 1).\n"
          );
 }
 
@@ -248,8 +264,9 @@ void cmd_divtimes()
 
 
   dp(tree);
+  printf("tree->interval_line %d\n", tree->interval_line);
 
-  if (opt_show_tree)
+  if (opt_showtree)
     show_ascii_tree(tree);
 
   if (!opt_quiet)
@@ -259,7 +276,6 @@ void cmd_divtimes()
     fprintf(stdout, "Done\n");
 
   yy_dealloc_tree(tree);
-
 }
 
 
@@ -310,7 +326,7 @@ int main (int argc, char * argv[])
   {
     cmd_help();
   }
-  else if (opt_divtimes)
+  else if (opt_method_sampled)
   {
     cmd_divtimes();
   }

@@ -58,6 +58,7 @@ typedef struct tree_noderec
   double length;
   struct tree_noderec * left;
   struct tree_noderec * right;
+  struct tree_noderec * parent;
   int height;
   int leaves;
 
@@ -86,20 +87,21 @@ typedef struct tree_noderec
 /* options */
 
 extern int opt_quiet;
-extern int opt_exhaustive_bd;
-extern int opt_outformat;
+extern int opt_outform;
 extern char * opt_treefile;
 extern char * opt_outfile;
 extern long opt_grid_intervals;
 extern long opt_help;
 extern long opt_version;
-extern long opt_divtimes;
-extern long opt_show_tree;
+extern long opt_method_sampled;
+extern long opt_showtree;
 extern long opt_threads;
-extern double opt_birth_rate;
-extern double opt_death_rate;
-extern double opt_edgerate_mean;
-extern double opt_edgerate_var;
+extern double opt_lambda;
+extern double opt_mu;
+extern double opt_rho;
+extern double opt_psi;
+extern double opt_rate_mean;
+extern double opt_rate_var;
 
 /* matrices */
 
@@ -157,13 +159,14 @@ void dp(tree_node_t * tree);
 
 /* functions in gamma.c */
 
-void gamma_dist_init(double mean, double variance);
+void gamma_dist_init();
 double gamma_dist_logpdf(double x);
 
 /* functions in bd.c */
 
-void bd_init(double birth_rate, double death_rate);
-double bd_prob(int leaves, double t);
+void bd_init(void);
+double bd_nofossil_prod(double t);
+double bd_nofossil_root(int leaves, double t);
 
 /* functions in newick.y */
 

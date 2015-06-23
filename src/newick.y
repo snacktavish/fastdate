@@ -25,11 +25,6 @@ extern int yylex();
 extern FILE * yyin;
 extern void yylex_destroy();
 
-int yywrap() 
-{ 
-  return 1;
-}
-
 void yyerror(tree_node_t * tree, const char * s) 
 {
   fprintf(stderr, "%s.\n", s);
@@ -69,6 +64,16 @@ input: OPAR subtree COMMA subtree CPAR optional_label optional_length SEMICOLON
   tree->label  = $6;
   tree->length = $7 ? atof($7) : 0;
   tree->leaves = $2->leaves + $4->leaves;
+  tree->height = ($2->height > $4->height) ? $2->height + 1 : $4->height + 1;
+  tree->parent = NULL;
+
+  tree->matrix_left  = NULL;
+  tree->matrix_right = NULL;
+  tree->matrix       = NULL;
+
+  $2->parent = tree;
+  $4->parent = tree;
+
   free($7);
 };
 
@@ -80,6 +85,15 @@ subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
   $$->label  = $6;
   $$->length = $7 ? atof($7) : 0;
   $$->leaves = $2->leaves + $4->leaves;
+  $$->height = ($2->height > $4->height) ? $2->height + 1 : $4->height + 1;
+
+  $$->matrix_left  = NULL;
+  $$->matrix_right = NULL;
+  $$->matrix       = NULL;
+  
+  $2->parent = $$;
+  $4->parent = $$;
+
   free($7);
 }
        | label optional_length
@@ -90,6 +104,12 @@ subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
   $$->left   = NULL;
   $$->right  = NULL;
   $$->leaves = 1;
+  $$->height = 0;
+
+  $$->matrix_left  = NULL;
+  $$->matrix_right = NULL;
+  $$->matrix       = NULL;
+
   free($2);
 };
 

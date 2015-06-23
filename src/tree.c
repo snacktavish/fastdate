@@ -40,6 +40,9 @@ void yy_dealloc_tree(tree_node_t * tree)
   if (!tree) return;
 
   free(tree->label);
+  free(tree->matrix);
+  free(tree->matrix_left);
+  free(tree->matrix_right);
   yy_dealloc_tree(tree->left);
   yy_dealloc_tree(tree->right);
   free(tree);
@@ -171,9 +174,9 @@ void write_newick_tree(tree_node_t * node)
   if (!fp_out)
     fatal("Unable to open output file for writing");
 
-  if (opt_outformat == OUTPUT_ULTRAMETRIC)
+  if (opt_outform == OUTPUT_ULTRAMETRIC)
     output_um_tree_recursive(node, fp_out, opt_grid_intervals);
-  else if (opt_outformat == OUTPUT_DATED)
+  else if (opt_outform == OUTPUT_DATED)
     output_dated_tree_recursive(node, fp_out);
   else
     fatal("Internal error while selecting output format");

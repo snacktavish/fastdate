@@ -21,71 +21,50 @@
 
 #include "fastdate.h"
 
-static double * matrix;
-static int * matrix_left;
-static int * matrix_right;
-static int inner_node_entries;
-static int matrix_entries;
+static long inner_entries = 0;
 
-
-static int set_matrix_chunks(tree_node_t * node, int start_offset)
+static void alloc_node_entries(tree_node_t * node)
 {
-  int offset;
+  int entries;
 
-  if (!node) return start_offset;
-  if (!node->left || !node->right)
+  if (!node) return;
+
+  /* tip case */
+  if (!node->left)
   {
-    node->matrix = matrix + start_offset;
-    node->matrix_left = matrix_left + start_offset;
-    node->matrix_right = matrix_right + start_offset;
-    node->entries = 1;
-
-    return start_offset+1;
+    /* tips are always placed on the first grid line */
+    node->entries      = 1;
+    node->matrix       = (double *)xmalloc(sizeof(double));
+    node->matrix_left  = (int *)xmalloc(sizeof(int));
+    node->matrix_right = (int *)xmalloc(sizeof(int));
+    return;
   }
-  
-  offset = set_matrix_chunks(node->right, 
-                               set_matrix_chunks(node->left, start_offset));
 
-  node->matrix       = matrix       + offset;
-  node->matrix_left  = matrix_left  + offset;
-  node->matrix_right = matrix_right + offset;
-  node->entries = inner_node_entries;
+  if (!node->parent)
+    entries = opt_grid_intervals - node->height;
+  else
+    entries = node->parent->entries + node->parent->height - node->height - 1;
 
-  return (offset + inner_node_entries);
-}
+  /* allocate storage space for placement information at each node */
+  node->entries      = entries;
+  node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
+  node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
+  node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
 
-static void dp_init(tree_node_t * root)
-{
-  int inner_nodes = (root->leaves - 2);
-  set_node_heights(root);
+  inner_entries += entries;
 
-  inner_node_entries = (opt_grid_intervals - root->height + 1);
-  matrix_entries = inner_node_entries*inner_nodes + root->leaves + 1;
+  /* allocate the space for its two subtrees */
+  alloc_node_entries(node->left);
+  alloc_node_entries(node->right);
 
-
-  /* allocate matrix space */
-  matrix = (double *)xmalloc((size_t)matrix_entries * sizeof(double));
-  matrix_left = (int *)xmalloc((size_t)matrix_entries * sizeof(int));
-  matrix_right = (int *)xmalloc((size_t)matrix_entries * sizeof(int));
-
-  /* another tree traversal to set the matrix portions per node */
-  set_matrix_chunks(root,0);
-  root->entries = 1;
-}
-
-static void dp_kill(void)
-{
-  free(matrix);
-  free(matrix_left);
-  free(matrix_right);
 }
 
 void dp_recurse(tree_node_t * node, int root_height)
 {
   static long sum_entries = 0;
+
   int i,j,k;
   int jmax, kmax;
-
   unsigned int low;
   unsigned int left_low;
   unsigned int right_low;
@@ -93,21 +72,20 @@ void dp_recurse(tree_node_t * node, int root_height)
   tree_node_t * left;
   tree_node_t * right;
 
-  double prob_rate_left;
-  double prob_rate_right;
-  double prob_node_time;
-
-  double itime, jtime, ktime;
+  double rel_age_parent, rel_age_left, rel_age_right, age_diff;
+  double prob_rate_left, prob_rate_right;
+  double score;
 
   if (!node) return;
 
   /* leaves case */
-  if (!(node->left) || !(node->right))
+  if (!node->left)
   {
-    node->matrix[0] = 1.0;
+    /* this should be 0 not 1, because of the log-scale */
+    node->matrix[0] = 0.0;
     return;
   }
-
+  
   /* inner nodes case */
   left  = node->left;
   right = node->right;
@@ -115,31 +93,44 @@ void dp_recurse(tree_node_t * node, int root_height)
   dp_recurse(left,  root_height);
   dp_recurse(right, root_height);
 
-  /* initialize discretization domain for the three nodes */
-  if (node->height == root_height)
-    low = opt_grid_intervals;
-  else
-    low = node->height - 1;
+  low = node->height;
+  left_low = left->height;
+  right_low = right->height;
 
-  left_low = left->height - 1;
-  right_low = right->height - 1;
-
-  
   /* run DP */
+
+  /*
+         
+                        o  (rel_age_parent)
+                       / \
+                      /   \
+      (rel_age_left) o     \
+                            o (rel_age_right)
+                    
+  */
+
   for (i = 0; i < node->entries; ++i)
   {
-    node->matrix[i] = -__DBL_MAX__;
-    itime = (1.0 / opt_grid_intervals) * (low+i);
+    rel_age_parent = (1.0 / opt_grid_intervals) * (low+i);
+
+    /* check the ages of the left child */
+    if (!left->left)
+      jmax = 1;
+    else
+      jmax = (node->height + i - left->height);
     
-    jmax = (node->height == root_height) ? 
-           left->entries : MIN(i+1,left->entries);
-    
+    assert(jmax <= left->entries);
+
     int jbest = -1;
     double jbest_sum = -__DBL_MAX__;
     for (j = 0; j < jmax; ++j)
     {
-      jtime = (1.0 / opt_grid_intervals) * (left_low+j);
-      prob_rate_left = gamma_dist_logpdf(left->length / (itime - jtime));
+      assert(j+left->height < node->height + i);
+      rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
+
+      prob_rate_left = gamma_dist_logpdf(left->length / 
+                                         (rel_age_parent - rel_age_left));
+
       if (left->matrix[j] + prob_rate_left > jbest_sum)
       {
         jbest = j;
@@ -147,14 +138,24 @@ void dp_recurse(tree_node_t * node, int root_height)
       }
     }
 
-    kmax = (node->height == root_height) ? 
-           right->entries : MIN(i+1,right->entries);
+    /* check the ages of right child */
+    if (!right->left)
+      kmax = 1;
+    else
+      kmax = (node->height + i - right->height);
+
+    assert(kmax <= right->entries);
+
     int kbest = -1;
     double kbest_sum = -__DBL_MAX__;
     for (k = 0; k < kmax; ++k)
     {
-      ktime = (1.0 / opt_grid_intervals) * (right_low+k);
-      prob_rate_right = gamma_dist_logpdf(right->length / (itime - ktime));
+      assert(k+right->height < node->height + i);
+      rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
+
+      age_diff = rel_age_parent - rel_age_right;
+      prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
+
       if (right->matrix[k] + prob_rate_right > kbest_sum)
       {
         kbest = k;
@@ -165,21 +166,24 @@ void dp_recurse(tree_node_t * node, int root_height)
     assert(jbest > -1);
     assert(kbest > -1);
 
-    prob_node_time = bd_prob(node->leaves, itime) + jbest_sum + kbest_sum;
-    
+    double node_term = bd_nofossil_prod(rel_age_parent);
+    score = node_term + jbest_sum + kbest_sum;
+
+    /* if it's the root add one more term */
+    if (node->height == root_height)
+      score += bd_nofossil_root(node->leaves, 
+                                rel_age_parent);
+
     /* store best placement of children and likelihood for interval line i */
-    if (prob_node_time > node->matrix[i])
-    {
-      node->matrix[i] = prob_node_time;
-      node->matrix_left[i] = jbest;
-      node->matrix_right[i] = kbest;
-    }
+    node->matrix[i] = score;
+    node->matrix_left[i] = jbest;
+    node->matrix_right[i] = kbest;
   }
   sum_entries += node->entries;
   progress_update(sum_entries);
 }
 
-static void dp_backtrack(tree_node_t * node, int best_entry)
+static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
 {
   if (!node) return;
   if (!node->left || !node->right)
@@ -188,30 +192,50 @@ static void dp_backtrack(tree_node_t * node, int best_entry)
   }
   else
   {
-    node->interval_line = node->height - 1 + best_entry;
-    dp_backtrack(node->left, node->matrix_left[best_entry]);
-    dp_backtrack(node->right, node->matrix_right[best_entry]);
+    node->interval_line = node->height + best_entry;
+    dp_backtrack_recursive(node->left, node->matrix_left[best_entry]);
+    dp_backtrack_recursive(node->right, node->matrix_right[best_entry]);
   }
+}
+
+static void dp_backtrack(tree_node_t * root)
+{
+  int i;
+  int best_entry = 0;
+  double max_score = -__DBL_MAX__;
+  double score;
+
+  for (i = 0; i < root->entries; ++i)
+  {
+    score = root->matrix[i];
+
+    if (score > max_score)
+    {
+      max_score = score;
+      best_entry = i;
+    }
+  }
+  root->interval_line = root->height + best_entry;
+
+  dp_backtrack_recursive(root, best_entry);
 }
 
 void dp(tree_node_t * tree)
 {
   assert(opt_grid_intervals > tree->height);
 
-  gamma_dist_init(opt_edgerate_mean, opt_edgerate_var);
-  bd_init(opt_birth_rate,opt_death_rate);
+  gamma_dist_init();
+  bd_init();
 
-  /* init */
-  dp_init(tree);
+  /* allocate space for node entries */
+  alloc_node_entries(tree);
   
-  progress_init("Running DP...", matrix_entries);
+  progress_init("Running DP...", inner_entries);
   dp_recurse(tree,tree->height);
   progress_done();
 
   if (!opt_quiet)
     printf ("Backtracking...\n");
-  dp_backtrack(tree,0);
-  tree->interval_line = opt_grid_intervals;
 
-  dp_kill();
+  dp_backtrack(tree);
 }

@@ -25,10 +25,10 @@ static double alpha = 0;
 static double beta = 0;
 static double constant = 0;
 
-void gamma_dist_init(double mean, double variance)
+void gamma_dist_init()
 {
-  beta  = mean/variance;
-  alpha = mean*beta;
+  beta  = opt_rate_mean/opt_rate_var;
+  alpha = opt_rate_mean*beta;
 
   constant = alpha*log(beta) - lgamma(alpha);
 }

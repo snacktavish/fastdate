@@ -21,59 +21,32 @@
 
 #include "fastdate.h"
 
-static double ut;
-
-static double birth_rate;
-static double death_rate;
 static double diff;
 
-void bd_init(double br, double dr)
+void bd_init(void)
 {
-  birth_rate = br;
-  death_rate = dr;
-
-  diff = death_rate - birth_rate;
-
-  /* compute ut */
-
-  if (death_rate == birth_rate)
-  {
-    assert ( death_rate > 0);
-    //ut = death_rate / (1 + death_rate);
-    ut = log(death_rate) - log(1 + death_rate);
-  }
-  else if (death_rate == 0)
-  {
-    assert((1 - exp(-birth_rate)) > 0);
-    ut = log(1 - exp(-birth_rate));
-  }
-  else
-  {
-    assert(  birth_rate*(1 - exp(diff)) / (birth_rate - (death_rate * exp(diff))) > 0);
-    ut = log( birth_rate*(1 - exp(diff)) / (birth_rate - (death_rate * exp(diff))) );
-  }
+  diff = opt_mu - opt_lambda;
 }
 
-double bd_prob(int leaves, double t)
+/* Computes the first part (before the products) of the special case of
+ * Equation (9) from (Stadler 2010) for which no fossil information is
+ * available */
+double bd_nofossil_root(int leaves, double t)
 {
-  double pt;
-  double e;
+  double terma = leaves * (opt_lambda - opt_mu) * exp(diff * t);
+  double termb = opt_rho*opt_lambda + (opt_lambda*(1 - opt_rho) - opt_mu) *
+                                                                exp(diff*t);
 
-  assert(t != 0);
+  return log(terma / termb);
+}
 
-  double factor = (leaves-1) * birth_rate;
-  assert(factor > 0);
-  factor = log(factor);
-  factor -= ut;
-   
-  if (diff == 0)
-  {
-    //return factor / ((1 + death_rate*t)*(1 + death_rate*t));
-    return factor - log((1 + death_rate*t)*(1 + death_rate*t));
-  }
-  
-  e = exp(diff*t);
-  pt = -diff / (birth_rate - death_rate * e);
-  assert(pt > 0);
-  return factor + log(pt * pt * e);
+/* Computes the second part (products) of the special case of Equation (9)
+ * from (Stadler 2010) for which no fossil information is available */
+double bd_nofossil_prod(double t)
+{
+  double terma = (opt_lambda * opt_rho * diff * diff * exp(diff*t));
+  double termb = (opt_rho*opt_lambda + (opt_lambda*(1 - opt_rho) - opt_mu) * 
+                                                                exp(diff*t));
+
+  return log(terma / (termb * termb));
 }

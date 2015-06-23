@@ -34,6 +34,7 @@ static char * append(size_t * current_len, const char * s2, size_t append_len)
 }
 
 %}
+%option noyywrap
 %option nounput
 %option noinput
 %s apos
