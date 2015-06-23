@@ -2,19 +2,20 @@
 
 ## Introduction
 
-The aim of this project is to implement a fast divergence times estimation algorithm, based on the dynamic
-programming algorithm by &Ouml;rjan  &Aring;kerborg (2008). The new tool should:
+The aim of this project is to implement a fast divergence times estimation
+algorithm, based on the dynamic programming algorithm by &Ouml;rjan
+&Aring;kerborg (2008). The new tool should:
 
 * have an open source code with an appropriate open source license.
-* 64-bit multi-threaded design that handles very large datasets
+* 64-bit multi-threaded design that handles very large datasets.
 * be as accurate or more accurate than current bayesian methods.
-* implement a variety of fossil calibration methods, such as tip dating, node dating and possibly, the fossilized birth-death process (Heath et al. 2014).
+* implement a variety of fossil calibration methods, such as tip dating and node dating based on (Stadler 2010).
 
 Currently, FASTDATE implements a faster version of the dynamic programming
-approach running in quadratic time instead of the original cubic-time
-algorithm. Another difference is that the original paper by &Aring;kerborg uses
-equations 1 and 2 from  (Nee et al. 1994) to model the birth-death process,
-while FASTDATE incorporates equations from (Gernhard 2008) and (Stadler 2010).
+approach running in quadratic time instead of the original cubic-time in
+(&Aring;kerborg et al. 2008), and instead computes the optimal probability
+density of a sampled tree with _n_ extant sampled leaves as shown in (Stadler
+2009).
 
 
 ## Compilation instructions
@@ -29,38 +30,42 @@ General options:
 
 * `--help`
 * `--version`
-* `--show-tree`
-* `--divtimes`
+* `--show_tree`
+* `--method_sampled`
 * `--quiet`
 * `--threads`
-* `--grid-intervals`
+* `--grid`
 
 Input and output options:
 
-* `--tree-file`
-* `--out-file`
-* `--output-form`
+* `--tree_file`
+* `--out_file`
+* `--out_form`
 
 Model parameters:
 
-* `--birth-rate`
-* `--death-rate`
-* `--edge-rate-mean`
-* `--edge-rate-variance`
+* `--bd_lambda`
+* `--bd_mu`
+* `--bd_rho`
+* `--rate_mean`
+* `--rate_variance`
 
 ## Usage example
 
-In the example below, we estimate the divergence times (`--divtimes`) of a
-dataset using FASTDATE by discretizing time into 100 equally long intervals
-(`--grid-intervals`). We use a birth-death process with birth rate
-(`--birth-rate`) 2 and death rate (`--death-rate`) 1. The prior for the edge
-rates is a gamma distribution with mean (`--edge-rate-mean`) 1 and variance
-(`edge-rate-variance`) 1. We output a diagram of the tree with time estimates
-on screen (`--show-tree`) and write the annotated file in newick format in a
-file (`--out-file`). Instead of producing a dated tree, we choose as output an
-ultrametric tree (`--output-form`).
+In the example below, we demonstrate the usage of FASTDATE for estimating
+divergence times of a tree file in newick format (`--tree_file`) using the
+sampling through time birth death process (`--method_sampled`) defined in
+(Stadler 2009).
+First, we discretize time into 1000 equally long intervals (`--grid`). We use a
+birth-death process with birth rate (`--bd_lambda`) 2, death rate (`--bd_mu`)
+1, and rate of sampled extant individuals 0.5 (`--bd_rho`). The prior for the
+edge rates is a gamma distribution with mean (`--rate_mean`) 1 and variance
+(`--rate_variance`) 1. We output a diagram of the tree with time estimates on
+screen (`--show_tree`) and write newick format of the annotated tree in a file
+(`--out_file`). Instead of producing a dated tree, we choose as output an
+ultrametric tree (`--out_form`).
 
-`./fastdate --divtimes --show-tree --grid-intervals 100 --birth-rate 2 --death-rate 1 --edge-rate-mean 1 --edge-rate-variance 1 --tree-file tree.newick --out-file output.newick --output-form ultrametric`
+`./fastdate --method_sampled --show_tree --grid 1000 --bd_lambda 2 --bd_mu 1 --bd_rho 0.5 --rate_mean 2 --rate_variance 1 --tree_file tree.newick --out_file output.newick --out_form ultrametric`
 
 ## FASTDATE license and third party licenses
 
@@ -107,11 +112,6 @@ The following people have contributed to FASTDATE. In alphabetic order:
 *BMC evolutionary biology*, 8(1): 77.
 doi:[10.1186/1471-2148-8-77](http://dx.doi.org/10.1186/1471-2148-8-77)
 
-* Heath T., Huelsenbeck JP, Stadler T. (2014)
-**The fossilized birth–death process for coherent calibration of divergence-time estimates.**
-*Proceedings of the National Academy of Sciences*, 111(29): 2957-2966.
-doi:[10.1073/pnas.1319091111](http://dx.doi.org/10.1073/pnas.1319091111)
-
 * Nee S., May RM, Harvey PH. (1994)
 **The reconstructed evolutionary process.**
 *Philosophical Transactions of the Royal Society of London B: Biological Sciences*, 344(1309): 305-311.
@@ -121,6 +121,11 @@ doi:[10.1098/rstb.1994.0068](http://dx.doi.org/10.1098/rstb.1994.0068)
 **The conditioned reconstructed process.**
 *Journal of Theoretical Biology*, 253(4): 769-778.
 doi:[10.1016/j.jtbi.2008.04.005](http://dx.doi.org/10.1016/j.jtbi.2008.04.005)
+
+* Stadler T. (2009)
+**On incomplete sampling under birth-death models and connections to the sampling-based coalescent.**
+*Jounral of Theoretical Biology*, 261(1): 58-66.
+doi:[10.1016/j.jtbi.2009.07.018](http://dx.doi.org/10.1016/j.jtbi.2009.07.018)
 
 * Stadler T. (2010)
 **Sampling-through-time in birth-death trees.**
