@@ -7,13 +7,14 @@
 %
 \usepackage{amsmath}
 \usepackage{amssymb}
-
+\usepackage[normalem]{ulem} % for \sout to strikethrough text
 \newcounter{instr}
 \newcommand{\ninstr}{\refstepcounter{instr}\theinstr.}
 
 \newcommand{\ejmcomment}[1]{{\color{green} #1}}
 
 \newcommand{\mthcomment}[1]{{[\color{red}MTH comment: #1]}}
+\newcommand{\mthstrike}[1]{{\color{red}\sout{#1}}}
 \usepackage{hyperref}
 \hypersetup{backref,  linkcolor=blue, citecolor=red, colorlinks=true, hyperindex=true}
 
@@ -142,8 +143,8 @@ N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadle
 \item[$\mu$]  is the per lineage death (extinction) rate
 \item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
 \item[$\rho$ ] is the proportion of total extant descendants $N$ which are sampled $n$.
-\item[$n$] is the number of extant (current) sampled descendants of a node.
-\item[$m$] is the number of extinct (fossil) sampled descendants of a node.
+\item[$n$] is the number of extant (current) sampled descendants \mthstrike{of a node}.
+\item[$m$] is the number of extinct (fossil) sampled descendants \mthstrike{of a node}.
 \item[$c_1,c_2$]  are useful constants.
 $$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
 $$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
