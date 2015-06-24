@@ -12,6 +12,8 @@
 \newcommand{\ninstr}{\refstepcounter{instr}\theinstr.}
 
 \newcommand{\ejmcomment}[1]{{\color{green} #1}}
+
+\newcommand{\mthcomment}[1]{{[\color{red}MTH comment: #1]}}
 \usepackage{hyperref}
 \hypersetup{backref,  linkcolor=blue, citecolor=red, colorlinks=true, hyperindex=true}
 
@@ -116,10 +118,11 @@ any real or complex number as argument. For point $t$ it is defined as
 $$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
 
 The {\em probability density function} in the shape-rate parameterization of a
-{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma$ is
+{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma$ \mthcomment{By convention, $\sigma$ should 
+mean the square root of the variance} is
 $$ g(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
 
-where $\beta = \bar{r} / \sigma$ and $\alpha = \bar{r} \beta$.
+where $\beta = \bar{r} / \sigma$ \mthcomment{The formula for $\beta$ is missing a square root over the LHS} and $\alpha = \bar{r} \beta$.
 \ejmcomment{I re-labeled this with $\bar{r}$ for the mean of the gamma prior to avoid confusion with $\mu$ for birth rate.}
 
 Its natural logarithm can be computed as

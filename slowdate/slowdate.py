@@ -99,9 +99,18 @@ if __name__ == '__main__':
         nd.min_grid_idx = 0
       else:
         nd.min_grid_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
-
     if tree.seed_node.min_grid_idx >= args.grid:
       raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
+    # fill in min_height leaves at 0 (contemporaneous leaves assumption)
+    for nd in tree.preorder_node_iter():
+      if nd.is_leaf():
+        nd.min_grid_idx = 0
+      else:
+        if nd is tree.seed_node:
+          nd.max_grid_idx = args.grid - 1
+        else:
+          nd.max_grid_idx = nd.parent_node.max_grid_idx - 1
+        assert nd.max_grid_idx >= nd.min_grid_idx
 
   except Exception as x:
     fatal('An error occurred when validating the constraints on the command line options.\n' \
