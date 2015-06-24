@@ -67,11 +67,19 @@ class StadlerFactors(object):
     # store coeff of second term of denom of p1
     t = 1 + self._c2
     self._dt = t*t
-  def ln_root_factor(self):
-    if self.m == 0 and self.k == 0:
-      return 0.0
-    assert False
+    assert self.m == 0 and self.k == 0
+    _root_ln_numerator = math.log(4*self.n * bd_rho * bd_lambda)
+    _root_ln_denom_const = math.log(self._c1*(1.0 + self._c2))
+    self._root_ln_const = _root_ln_numerator - _root_ln_denom_const
+  def ln_root_factor(self, t):
+    '''Calculates the log of the factor associated with the root being at time `t`
+    assumes that the root has already been treated like an internal node.
+    '''
+    ln_var = math.log(1 - self._c2 + (1 + self._c2)*math.exp(self._c1*t))
+    return self._root_ln_const - ln_var
   def ln_internal_node_factor(self, t):
+    '''Calculates the log of the factor associated with an internal node begin at time t
+    '''
     return self._ln_lambda + self._ln_p1(t)
   def _ln_p1(self, t):
     emag = self._c1 * t
