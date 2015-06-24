@@ -86,6 +86,18 @@ class StadlerFactors(object):
     denominator = self._df + self._ds * math.exp(-emag) + self._dt * math.exp(emag)
     return self._ln_4rho - math.log(denominator)
 
+class LnRelUncorrelatedGammaRatePrior(object):
+  '''Functor for the log of the relative prob density at a time.'''
+  def __init__(self, mean, variance):
+    assert mean > 0.0
+    assert variance > 0.0
+    self.beta = mean / variance
+    self.alpha = mean * self.beta
+  def __call__(self, r):
+    assert(r > 0.0)
+    return (self.alpha - 1)*math.log(r) - (self.beta * r)
+
+
 def main(args):
   global VERBOSE, QUIET
   if args.quiet:
@@ -133,6 +145,7 @@ def main(args):
                             args.bd_mu,
                             args.bd_rho,
                             args.bd_psi)
+  rate_priot = LnRelUncorrelatedGammaRatePrior(mean=args.rate_mean, variance=args.variance)
 
 if __name__ == '__main__':
   import argparse
