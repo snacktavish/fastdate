@@ -36,8 +36,9 @@ def fatal(msg):
 #     where `traceback` is the pair daughter indices that yielded the 
 #     highest density for this node+height combination, or None in the case
 #     of leaves.
+#    map_idx 
 # The tree gets an new attr:
-#   root_map_est which is a tuple (relative_ln_posterior_density, root_bin__index)
+#   root_map_est which is a tuple (relative_ln_posterior_density, root_bin_index)
 
 def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_calc, grid):
   highest_ln_density_idx = None
@@ -91,6 +92,17 @@ def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
       highest_ln_density_idx = i_r
   assert highest_ln_density_idx is not None
   tree.root_map_est = (highest_ln_density, highest_ln_density_idx)
+  tree.seed_node.map_idx = tree.root_map_est[1]
+  tree.seed_node.map_age = grid.to_abs_age(tree.seed_node.map_idx)
+  for node in tree.preorder_internal_node_iter():
+    dp_node = node.idx2DP[node.map_idx]
+    traceback = dp_node[1]
+    assert(dp_node is not None)
+    v, w = node.child_nodes()
+    v.map_idx = traceback[0]
+    v.map_age = grid.to_abs_age(v.map_idx)
+    w.map_idx = traceback[1]
+    w.map_age = grid.to_abs_age(w.map_idx)
 
 
 
@@ -252,6 +264,8 @@ def main(args):
                              age_prior_calc=bd_prior,
                              rate_prior_calc=rate_prior_calc,
                              grid=grid)
+
+
 if __name__ == '__main__':
   import argparse
   parser = argparse.ArgumentParser(NAME, description=DESCRIPTION)
