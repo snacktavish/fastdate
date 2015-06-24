@@ -107,6 +107,8 @@ def calc_stadler_constants(bd_lambda, bd_mu, bd_rho, bd_psi):
   debug('STADLER_C2 = {s}'.format(s=STADLER_C2))
   return STADLER_C1, STADLER_C2
 
+
+_E_200 = math.exp(200)
 class StadlerFactors(object):
   def __init__(self,
                num_leaves_sampled,
@@ -142,7 +144,16 @@ class StadlerFactors(object):
     '''Calculates the log of the factor associated with the root being at time `t`
     assumes that the root has already been treated like an internal node.
     '''
-    ln_var = math.log(1 - self._c2 + (1 + self._c2)*math.exp(self._c1*t))
+    emag = self._c1*t
+    f = 1 - self._c2
+    offset = 0.0
+    #debug('   emag = {e} {f} {s} {t}'.format(e=emag, f=self._df, s=self._ds, t=self._dt))
+    if emag > 200:
+      while emag > 200:
+        f = f / _E_200
+        emag -= 200
+        offset += 200
+    ln_var =offset + math.log(f + (1 + self._c2)*math.exp(emag))
     return self._root_ln_const - ln_var
   def ln_internal_node_factor(self, t):
     '''Calculates the log of the factor associated with an internal node begin at time t
@@ -150,9 +161,21 @@ class StadlerFactors(object):
     return self._ln_lambda + self._ln_p1(t)
   def _ln_p1(self, t):
     emag = self._c1 * t
-    #debug('   emag = {}'.format(emag))
-    denominator = self._df + self._ds * math.exp(-emag) + self._dt * math.exp(emag)
-    return self._ln_4rho - math.log(denominator)
+    #debug('   emag = {e} {f} {s} {t}'.format(e=emag, f=self._df, s=self._ds, t=self._dt))
+    if emag > 200:
+      f = self._df / _E_200
+      emag -= 200
+      offset = 200
+      while emag > 200:
+        f = f / _E_200
+        emag -= 200
+        offset += 200
+      ln_denom = offset + math.log(f + self._dt*math.exp(emag))
+    else:
+      assert emag > 0
+      denominator = self._df + self._ds * math.exp(-emag) + self._dt * math.exp(emag)
+      ln_denom = math.log(denominator)
+    return self._ln_4rho - ln_denom
 
 class LnRelUncorrelatedGammaRatePrior(object):
   '''Functor for the log of the relative prob density at a time.'''
