@@ -1,11 +1,16 @@
 #!/usr/bin/env python
-import dendropy
 import sys
+try:
+  import dendropy
+except ImportError:
+  sys.exit('dendropy 4 is required. Read the file that is helpfully called "README.md"\n')
+
 ERR = sys.stderr
 OUT = sys.stdout
 VERSION = '0.0.0'
 NAME = 'slowdate'
 DESCRIPTION = 'testing implementation of speed dating'
+
 def error(msg):
   ERR.write('{n}: {m}\n'.format(n=NAME, m=msg))
 
@@ -28,7 +33,7 @@ if __name__ == '__main__':
                       default=False,
                       action='store_true',
                       help='consider the sampling to be incomplete')
-  parser.add_argument('--quite',
+  parser.add_argument('--quiet',
                       default=False,
                       action='store_true',
                       help='only emit warnings and fatal errors')
@@ -47,15 +52,15 @@ if __name__ == '__main__':
                     help='format of the outputree tree file. The default is ultrametric.')
   parser.add_argument('--grid',
                     type=int,
-                    default=100,
+                    default=1000,
                     help='number of discrete time bins in the approximation')
   parser.add_argument('--bd_lambda',
                     type=float,
-                    default=1.0,
+                    default=2.0,
                     help='birth rate of the birth/death prior')
   parser.add_argument('--bd_mu',
                     type=float,
-                    default=0.5,
+                    default=0.0,
                     help='death rate of the birth/death prior')
   parser.add_argument('--bd_rho',
                     type=float,
@@ -63,7 +68,7 @@ if __name__ == '__main__':
                     help='the sampling rate (probability) for extant tips')
   parser.add_argument('--rate_mean',
                     type=float,
-                    default=1.0,
+                    default=5.0,
                     help='the mean of the gamma distribution used as the prior on the rate of character evolution')
   parser.add_argument('--rate_variance',
                     type=float,
@@ -75,3 +80,29 @@ if __name__ == '__main__':
     sys.exit(0)
   if args.tree_file is None:
     fatal('an input tree file is required.')
+  try:
+    assert args.grid > 0, 'number of grid points must be positive'
+    assert args.bd_lambda > 0.0, 'bd_lambda must be positive'
+    assert args.bd_mu >= 0.0, 'bd_mu must be non-negative'
+    assert args.bd_lambda > args.bd_mu, 'bd_lambda must be greater that bd_mu'
+    assert args.bd_rho > 0.0, 'bd_rho must be positive'
+    assert args.bd_rho <= 1.0, 'bd_rho cannot be greater than 1'
+    assert args.rate_mean > 0.0, 'rate_mean must be positive'
+    assert args.rate_variance >= 0.0, 'rate_variance must be non-negative'
+    tree = dendropy.Tree.get(path=args.tree_file, schema='newick', rooting='force-rooted')
+    for edge in tree.inorder_edge_iter():
+      if (edge.tail_node is not None) and (edge.length is None):
+        raise ValueError('Every branch in the input tree must have a branch length')
+    # fill in min_height leaves at 0 (contemporaneous leaves assumption)
+    for nd in tree.postorder_node_iter():
+      if nd.is_leaf():
+        nd.min_grid_idx = 0
+      else:
+        nd.min_grid_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
+
+    if tree.seed_node.min_grid_idx >= args.grid:
+      raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
+
+  except Exception as x:
+    fatal('An error occurred when validating the constraints on the command line options.\n' \
+          'The exception raised should give you some hints about what went wrong:\n' + str(x))
