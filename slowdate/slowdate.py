@@ -16,7 +16,9 @@ VERBOSE = False
 QUIET = False
 
 def error(msg):
-  ERR.write('{n}: {m}\n'.format(n=NAME, m=msg))
+  ERR.write('{n} ERROR: {m}\n'.format(n=NAME, m=msg))
+def warn(msg):
+  ERR.write('{n} WARNING: {m}\n'.format(n=NAME, m=msg))
 
 def debug(msg):
   if VERBOSE:
@@ -65,24 +67,34 @@ def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_ca
   assert highest_ln_density_idx is not None
   return highest_ln_density, highest_ln_density_idx
 
-
 def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
   '''Uses a dynamic programming approach to approximate a MAP estimate
   for the grid_idx for each non-leaf node.
   '''
-  for u in tree.postorder_internal_node_iter():
+  for u in tree.postorder_node_iter():
     debug('node u = {n}'.format(n=u._as_newick_string()))
-    v, w = u.child_nodes()
-    for i_u in xrange(u.min_grid_idx, 1 + u.max_grid_idx):
-      assert u.idx2DP[i_u] is None
-      t_u = grid.to_abs_age(i_u)
-      d_v, i_v = _max_relative_date_map_for_des(t_u, i_u, v, rate_prior_calc, grid)
-      d_w, i_w = _max_relative_date_map_for_des(t_u, i_u, w, rate_prior_calc, grid)
-      ln_age_factor = age_prior_calc.ln_internal_node_factor(t_u)
-      d_u = d_v + d_w + ln_age_factor
-      if u is tree.seed_node:
-        d_u += age_prior_calc.ln_root_factor(t_u)
-      u.idx2DP[i_u] = (d_u, (i_v, i_w)) # store density and traceback info
+    if u.is_leaf():
+      if u.calibrations:
+        for i_u in xrange(u.min_grid_idx, 1 + u.max_grid_idx):
+          t_u = grid.to_abs_age(i_u)
+          ln_age_factor = 0.0
+          for calib_dist in u.calibrations:
+            ln_age_factor += calib_dist.ln_calibration_density(t_u)
+          u.idx2DP[i_u] = (ln_age_factor, None) # store density and traceback info
+    else:
+      v, w = u.child_nodes()
+      for i_u in xrange(u.min_grid_idx, 1 + u.max_grid_idx):
+        assert u.idx2DP[i_u] is None
+        t_u = grid.to_abs_age(i_u)
+        d_v, i_v = _max_relative_date_map_for_des(t_u, i_u, v, rate_prior_calc, grid)
+        d_w, i_w = _max_relative_date_map_for_des(t_u, i_u, w, rate_prior_calc, grid)
+        ln_age_factor = age_prior_calc.ln_internal_node_factor(t_u)
+        for calib_dist in u.calibrations:
+          ln_age_factor += calib_dist.ln_calibration_density(t_u)
+        d_u = d_v + d_w + ln_age_factor
+        if u is tree.seed_node:
+          d_u += age_prior_calc.ln_root_factor(t_u)
+        u.idx2DP[i_u] = (d_u, (i_v, i_w)) # store density and traceback info
   root = tree.seed_node
   highest_ln_density = float('-inf')
   highest_ln_density_idx = None
@@ -105,8 +117,6 @@ def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
     w.map_idx = traceback[1]
     w.map_age = grid.to_abs_age(w.map_idx)
 
-
-
 def calc_stadler_c1(bd_lambda, bd_mu, bd_psi):
   f = bd_lambda - bd_mu - bd_psi
   s = 4.0 * bd_lambda * bd_psi
@@ -119,7 +129,6 @@ def calc_stadler_constants(bd_lambda, bd_mu, bd_rho, bd_psi):
   STADLER_C2 = c2_numerator / STADLER_C1
   debug('STADLER_C2 = {s}'.format(s=STADLER_C2))
   return STADLER_C1, STADLER_C2
-
 
 _E_200 = math.exp(200)
 class StadlerFactors(object):
@@ -215,7 +224,72 @@ class Grid(object):
     assert b < self.num_bins 
     return b
 
+class OffsetDistribution(object):
+  def __init__(self, mean, offset):
+    self.mean = mean
+    assert mean > 0.0
+    self.offset = offset
+    assert offset >= 0.0
+  def ln_calibration_density(self, t):
+    '''Return the log density for time t'''
+    variate = t - self.offset
+    if variate < 0.0:
+      return float('-inf')
+    return self.ln_density_from_offset(variate)
+
+class OffsetLogNormalDistribution(OffsetDistribution):
+  def __init__(self, mean, variance, offset):
+    OffsetDistribution.__init__(self, mean , offset)
+    self.variance = variance
+    assert variance > 0.0
+    self.constants = -0.5 * math.log(self.variance*2.0 * math.pi)
+    self.coefficient = -1.0/(2*variance)
+
+  def ln_density_from_offset(self, v):
+    try:
+      lv = math.log(v)
+      d = lv - self.mean
+      ln_density =  -lv + self.constants + self.coefficient * d * d
+      info(' ln v={v} ln_density = {d}'.format(v=v, d=ln_density))
+      return ln_density
+    except:
+      warn('underflow at v = {}'.format(v))
+      return float('-inf')
+
+class OffsetExponentialDistribution(OffsetDistribution):
+  def __init__(self, mean, offset):
+    OffsetDistribution.__init__(self, mean , offset)
+    self.hazard = 1.0/mean
+    self.constant = math.log(self.hazard)
+  def ln_density_from_offset(self, v):
+    return self.constant + self.hazard * v
+
 _CALIBRATION_PAT = re.compile(r'^\s*(.+)\t([-0-9.eE]+)\t(.*)$')
+_DIST_PAT = re.compile(r'^(\S.+)\s*[(](.*)[)]$')
+def distribution_string_to_distribution(dist_str, min_age):
+  v = {}
+  dist_name_to_type = {
+    'ln': OffsetLogNormalDistribution,
+    'exp': OffsetExponentialDistribution
+  }
+  try:
+    m = _DIST_PAT.match(dist_str)
+    dn = m.group(1).lower().strip()
+    args = [i.strip() for i in m.group(2).split(',')]
+    for t in args:
+      x = [i.strip() for i in t.split('=')]
+      assert len(x) == 2
+      v[x[0].lower()] = float(x[1])
+    dc = dist_name_to_type[dn]
+    if dn == 'ln':
+      d = dc(v['mean'], v['variance'], min_age)
+    else:
+      d = dc(v['mean'], min_age)
+  except Exception as x:
+    error(str(x))
+    raise RuntimeError('Could not parse the distribution string "{}"'.format(dist_str))
+  return d
+
 def parse_node_calibration_line(line):
   chunks = _CALIBRATION_PAT.match(line)
   if not chunks:
@@ -229,9 +303,11 @@ def parse_node_calibration_line(line):
     min_age = float(age_str)
   except:
     raise RuntimeError('Expecting minimum age to be a floating point number; found "{}" \n'.format(age_str))
+  distribution = distribution_string_to_distribution(dist_str, min_age)
+  
   return {'mrca_of': mrca_of,
           'min_age': min_age,
-          'distribution': dist_str}
+          'distribution': distribution}
 
 def parse_node_calibrations(fn):
   if fn is None:
@@ -301,7 +377,7 @@ def main(args):
     raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
   # fill in min_height leaves at 0 (contemporaneous leaves assumption)
   for nd in tree.preorder_node_iter():
-    if nd.is_leaf():
+    if nd.is_leaf() and (not nd.calibrations):
       nd.max_grid_idx = 0
       nd.idx2DP = [(1.0, None)]
     else:
