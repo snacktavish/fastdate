@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import math
 import sys
+import re
 try:
   import dendropy
 except ImportError:
@@ -63,7 +64,7 @@ def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_ca
       highest_ln_density_idx = i_d
   assert highest_ln_density_idx is not None
   return highest_ln_density, highest_ln_density_idx
- 
+
 
 def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
   '''Uses a dynamic programming approach to approximate a MAP estimate
@@ -201,12 +202,42 @@ class LnRelUncorrelatedGammaRatePrior(object):
     return (self.alpha - 1)*math.log(r) - (self.beta * r)
 
 class Grid(object):
-  def __init__(self, num_bins, years_per_bin):
-    self.years_per_bin = float(years_per_bin)
+  def __init__(self, num_bins, max_age):
+    self.years_per_bin = float(max_age)/num_bins
     self.num_bins = num_bins
   def to_abs_age(self, bin_index):
     assert bin_index < self.num_bins
     return bin_index * self.years_per_bin
+
+
+_CALIBRATION_PAT = re.compile(r'^\s*(.+)\t([-0-9.eE]+)\t(.*)$')
+def parse_node_calibration_line(line):
+  chunks = _CALIBRATION_PAT.match(line)
+  if not chunks:
+    raise RuntimeError('Expecting calibration format to be: something...\n')
+  dist_str = chunks.group(1)
+  age_str = chunks.group(2)
+  mrca_of = [i.strip() for i in chunks.group(3).strip().split('\t') if i.strip()]
+  if len(mrca_of) == 1:
+    mrca_of = mrca_of[0]
+  try:
+    min_age = float(age_str)
+  except:
+    raise RuntimeError('Expecting minimum age to be a floating point number; found "{}" \n'.format(age_str))
+  return {'mrca_of': mrca_of,
+          'min_age': min_age,
+          'distribution': dist_str}
+
+def parse_node_calibrations(fn):
+  if fn is None:
+    return []
+  calibrations = []
+  with open(fn, 'rU') as inp:
+    for line in inp:
+      ls = line.strip()
+      if ls:
+        calibrations.append(parse_node_calibration_line(ls))
+  return calibrations
 
 def main(args):
   global VERBOSE, QUIET
@@ -234,6 +265,12 @@ def main(args):
       nd.min_grid_idx = 0
     else:
       nd.min_grid_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
+  node_calibrations = parse_node_calibrations(args.calibrations)
+  for nc in node_calibrations:
+    mrca_of = nc['mrca_of']
+    #if isinstance(mrca_of, list):
+    #else:
+
   if tree.seed_node.min_grid_idx >= args.grid:
     raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
   # fill in min_height leaves at 0 (contemporaneous leaves assumption)
@@ -259,7 +296,7 @@ def main(args):
                             args.bd_rho,
                             args.bd_psi)
   rate_prior_calc = LnRelUncorrelatedGammaRatePrior(mean=args.rate_mean, variance=args.rate_variance)
-  grid = Grid(args.grid, years_per_bin=1)
+  grid = Grid(args.grid, max_age=args.max_age)
   calc_relative_date_map_est(tree,
                              age_prior_calc=bd_prior,
                              rate_prior_calc=rate_prior_calc,
@@ -290,46 +327,54 @@ if __name__ == '__main__':
                       action='store_true',
                       help='emit debug level messages')
   parser.add_argument('--tree_file',
-                    type=str,
-                    required=False,
-                    help='filepath to the input newick tree file.')
+                      type=str,
+                      required=False,
+                      help='filepath to the input newick tree file.')
   parser.add_argument('--out_file',
-                    type=str,
-                    required=False,
-                    help='filepath to the output for the annotated newick tree file.')
+                      type=str,
+                      required=False,
+                      help='filepath to the output for the annotated newick tree file.')
   parser.add_argument('--out_form',
-                    type=str,
-                    choices=('dated', 'ultrametric'),
-                    default='ultrametric',
-                    help='format of the outputree tree file. The default is ultrametric.')
+                      type=str,
+                      choices=('dated', 'ultrametric'),
+                      default='ultrametric',
+                      help='format of the outputree tree file. The default is ultrametric.')
   parser.add_argument('--grid',
-                    type=int,
-                    default=1000,
-                    help='number of discrete time bins in the approximation')
+                      type=int,
+                      default=1000,
+                      help='number of discrete time bins in the approximation')
   parser.add_argument('--bd_lambda',
-                    type=float,
-                    default=2.0,
-                    help='birth rate of the birth/death prior')
+                      type=float,
+                      default=2.0,
+                      help='birth rate of the birth/death prior')
   parser.add_argument('--bd_mu',
-                    type=float,
-                    default=0.0,
-                    help='death rate of the birth/death prior')
+                      type=float,
+                      default=0.0,
+                      help='death rate of the birth/death prior')
   parser.add_argument('--bd_rho',
-                    type=float,
-                    default=0.5,
-                    help='the sampling rate (probability) for extant tips')
+                      type=float,
+                      default=0.5,
+                      help='the sampling rate (probability) for extant tips')
   parser.add_argument('--bd_psi',
-                    type=float,
-                    default=0.0,
-                    help='the sampling rate (probability) for extinct tips')
+                      type=float,
+                      default=0.0,
+                      help='the sampling rate (probability) for extinct tips')
   parser.add_argument('--rate_mean',
-                    type=float,
-                    default=5.0,
-                    help='the mean of the gamma distribution used as the prior on the rate of character evolution')
+                      type=float,
+                      default=5.0,
+                      help='the mean of the gamma distribution used as the prior on the rate of character evolution')
   parser.add_argument('--rate_variance',
-                    type=float,
-                    default=1.0,
-                    help='the variance of the gamma distribution used as the prior on the rate of character evolution')
+                      type=float,
+                      default=1.0,
+                      help='the variance of the gamma distribution used as the prior on the rate of character evolution')
+  parser.add_argument('--max_age',
+                      type=float,
+                      default=1.0,
+                      help='the absolute age of the maximum bin of the dynamic programming table.')
+  parser.add_argument('--calibrations',
+                      type=str,
+                      default=None,
+                      help='Filepath to list of node calibrations.')
   args = parser.parse_args()
   if args.version:
     ERR.write('{n} v{v}\n'.format(n=NAME, v=VERSION))
