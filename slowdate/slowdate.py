@@ -203,12 +203,17 @@ class LnRelUncorrelatedGammaRatePrior(object):
 
 class Grid(object):
   def __init__(self, num_bins, max_age):
-    self.years_per_bin = float(max_age)/num_bins
+    self.max_age = max_age
+    self.mill_years_per_bin = float(max_age)/num_bins
     self.num_bins = num_bins
   def to_abs_age(self, bin_index):
     assert bin_index < self.num_bins
-    return bin_index * self.years_per_bin
-
+    return bin_index * self.mill_years_per_bin
+  def min_age_to_min_grid_idx(self, age):
+    assert age < self.max_age
+    b = int(math.ceil(age/self.mill_years_per_bin))
+    assert b < self.num_bins 
+    return b
 
 _CALIBRATION_PAT = re.compile(r'^\s*(.+)\t([-0-9.eE]+)\t(.*)$')
 def parse_node_calibration_line(line):
@@ -258,18 +263,39 @@ def main(args):
   for edge in tree.inorder_edge_iter():
     if (edge.tail_node is not None) and (edge.length is None):
       raise ValueError('Every branch in the input tree must have a branch length')
-  # Initialize tree by adding extra attributes to the nodes.
-  # fill in min_height leaves at 0 (contemporaneous leaves assumption)
-  for nd in tree.postorder_node_iter():
-    if nd.is_leaf():
-      nd.min_grid_idx = 0
-    else:
-      nd.min_grid_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
+  # let's do some node punching...
+  for nd in tree.preorder_node_iter():
+    nd.calibrations = []
+    nd.min_grid_idx = 0
+
+  grid = Grid(args.grid, max_age=args.max_age)
+  # read node calibrations and allow then to adjust min_age
   node_calibrations = parse_node_calibrations(args.calibrations)
+
   for nc in node_calibrations:
     mrca_of = nc['mrca_of']
-    #if isinstance(mrca_of, list):
-    #else:
+    try:
+      mrca = tree.mrca(taxon_labels=mrca_of)
+    except Exception as x:
+      error(str(x))
+      raise RuntimeError('MRCA could not be found for "{}"'.format('", "'.join(mrca_of)))
+    print str(mrca._as_newick_string())
+    min_age = nc['min_age']
+    try:
+      calibration_min_grid_idx = grid.min_age_to_min_grid_idx(min_age)
+    except:
+      raise RuntimeError('Calibration age of {m} exceeds grid max age of {a}'.format(m=min_age, a=args.max_age))
+    mrca.min_grid_idx = max(mrca.min_grid_idx, calibration_min_grid_idx)
+    prob_dist = nc['distribution']
+    try:
+      mrca.calibrations.append(prob_dist)
+    except:
+      mrca.calibrations = [prob_dist]
+
+  for nd in tree.postorder_node_iter():
+    if not nd.is_leaf():
+      child_based_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
+      nd.min_grid_idx = max(nd.min_grid_idx, child_based_idx)
 
   if tree.seed_node.min_grid_idx >= args.grid:
     raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
@@ -283,7 +309,8 @@ def main(args):
         nd.max_grid_idx = args.grid - 1
       else:
         nd.max_grid_idx = nd.parent_node.max_grid_idx - 1
-      assert nd.max_grid_idx >= nd.min_grid_idx
+      if nd.max_grid_idx < nd.min_grid_idx:
+        raise ValueError('Grid too small! (or max_age is too small to comfortably deal with all of the calibrations)')
       nd.idx2DP = [None] * (1 + nd.max_grid_idx)
   num_leaves = len(tree.leaf_nodes())
   num_extinct_leaves_sampled = 0
@@ -296,7 +323,6 @@ def main(args):
                             args.bd_rho,
                             args.bd_psi)
   rate_prior_calc = LnRelUncorrelatedGammaRatePrior(mean=args.rate_mean, variance=args.rate_variance)
-  grid = Grid(args.grid, max_age=args.max_age)
   calc_relative_date_map_est(tree,
                              age_prior_calc=bd_prior,
                              rate_prior_calc=rate_prior_calc,
