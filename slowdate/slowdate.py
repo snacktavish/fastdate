@@ -73,7 +73,7 @@ def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_ca
   assert highest_ln_density_idx is not None
   return highest_ln_density, highest_ln_density_idx
 
-def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
+def calc_date_map_estimate(tree, age_prior_calc, rate_prior_calc, grid):
   '''Uses a dynamic programming approach to approximate a MAP estimate
   for the grid_idx for each non-leaf node.
   '''
@@ -369,7 +369,6 @@ def main(args):
     except Exception as x:
       error(str(x))
       raise RuntimeError('MRCA could not be found for "{}"'.format('", "'.join(mrca_of)))
-    print str(mrca._as_newick_string())
     min_age = nc['min_age']
     prob_dist = nc['distribution']
     try:
@@ -414,10 +413,18 @@ def main(args):
                             args.bd_rho,
                             args.bd_psi)
   rate_prior_calc = LnRelUncorrelatedGammaRatePrior(mean=args.rate_mean, variance=args.rate_variance)
-  calc_relative_date_map_est(tree,
-                             age_prior_calc=bd_prior,
-                             rate_prior_calc=rate_prior_calc,
-                             grid=grid)
+  calc_date_map_estimate(tree,
+                         age_prior_calc=bd_prior,
+                         rate_prior_calc=rate_prior_calc,
+                         grid=grid)
+  for nd in tree.preorder_node_iter():
+    nd.annotations.add_new(name='age', value=nd.map_age)
+  
+  tree.write(file=sys.stdout,
+             schema='newick',
+             suppress_annotations=False,
+             annotations_as_nhx=True)
+
 
 
 if __name__ == '__main__':
