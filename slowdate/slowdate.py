@@ -264,27 +264,25 @@ class OffsetExponentialDistribution(OffsetDistribution):
   def ln_density_from_offset(self, v):
     return self.constant + self.hazard * v
 
-_CALIBRATION_PAT = re.compile(r'^\s*(.+)\t([-0-9.eE]+)\t(.*)$')
+_CALIBRATION_PAT = re.compile(r'^(.*) (.*) [(](.*)[)]$')
 _DIST_PAT = re.compile(r'^(\S.+)\s*[(](.*)[)]$')
-def distribution_string_to_distribution(dist_str, min_age):
+def distribution_string_to_distribution(dist_str, dist_params, min_age):
   v = {}
   dist_name_to_type = {
     'ln': OffsetLogNormalDistribution,
     'exp': OffsetExponentialDistribution
   }
   try:
-    m = _DIST_PAT.match(dist_str)
-    dn = m.group(1).lower().strip()
-    args = [i.strip() for i in m.group(2).split(',')]
-    for t in args:
-      x = [i.strip() for i in t.split('=')]
-      assert len(x) == 2
-      v[x[0].lower()] = float(x[1])
+    dn = dist_str.lower().strip()
     dc = dist_name_to_type[dn]
+    args = list(dist_params)
+    v = [float(i) for i in args]
     if dn == 'ln':
-      d = dc(v['mean'], v['variance'], min_age)
+      assert(len(v) == 2)
+      d = dc(v[0], v[1], min_age)
     else:
-      d = dc(v['mean'], min_age)
+      assert(len(v) == 1)
+      d = dc(v[0], min_age)
   except Exception as x:
     error(str(x))
     raise RuntimeError('Could not parse the distribution string "{}"'.format(dist_str))
@@ -293,17 +291,18 @@ def distribution_string_to_distribution(dist_str, min_age):
 def parse_node_calibration_line(line):
   chunks = _CALIBRATION_PAT.match(line)
   if not chunks:
-    raise RuntimeError('Expecting calibration format to be: something...\n')
-  dist_str = chunks.group(1)
-  age_str = chunks.group(2)
-  mrca_of = [i.strip() for i in chunks.group(3).strip().split('\t') if i.strip()]
+    raise RuntimeError('Expecting calibration format to be:\n<designator> [designator] {exp|ln} (mean,[variance],offset)')
+  dist_str = chunks.group(2)
+  param_str_list = [i for i in chunks.group(3).strip().split(',')]
+  mrca_of = [i.strip() for i in chunks.group(1).strip().split(' ') if i.strip()]
   if len(mrca_of) == 1:
     mrca_of = mrca_of[0]
   try:
-    min_age = float(age_str)
+    min_age = float(param_str_list[-1])
   except:
     raise RuntimeError('Expecting minimum age to be a floating point number; found "{}" \n'.format(age_str))
-  distribution = distribution_string_to_distribution(dist_str, min_age)
+  dist_params = param_str_list[:-1]
+  distribution = distribution_string_to_distribution(dist_str, dist_params, min_age)
   
   return {'mrca_of': mrca_of,
           'min_age': min_age,
@@ -346,7 +345,9 @@ def main(args):
 
   grid = Grid(args.grid, max_age=args.max_age)
   # read node calibrations and allow then to adjust min_age
-  node_calibrations = parse_node_calibrations(args.calibrations)
+  node_calibrations = parse_node_calibrations(args.prior_file)
+  tip_calibrations = parse_node_calibrations(args.age_file)
+  node_calibrations.extend(tip_calibrations)
 
   for nc in node_calibrations:
     mrca_of = nc['mrca_of']
@@ -416,10 +417,10 @@ if __name__ == '__main__':
                       default=False,
                       action='store_true',
                       help='write an ASCII version of the tree and time estimates to standard output')
-  parser.add_argument('--method_sampled',
+  parser.add_argument('--method_relative',
                       default=False,
                       action='store_true',
-                      help='consider the sampling to be incomplete')
+                      help='produce a MAP estimate of the relative divergence times using the sampled birth-death process (Stadler, 2010)')
   parser.add_argument('--quiet',
                       default=False,
                       action='store_true',
@@ -473,10 +474,14 @@ if __name__ == '__main__':
                       type=float,
                       default=1.0,
                       help='the absolute age of the maximum bin of the dynamic programming table.')
-  parser.add_argument('--calibrations',
+  parser.add_argument('--prior_file',
                       type=str,
                       default=None,
                       help='Filepath to list of node calibrations.')
+  parser.add_argument('--age_file',
+                      type=str,
+                      default=None,
+                      help='Filepath to list of tip calibrations.')
   args = parser.parse_args()
   if args.version:
     ERR.write('{n} v{v}\n'.format(n=NAME, v=VERSION))
