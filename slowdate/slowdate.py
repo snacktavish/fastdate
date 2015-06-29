@@ -14,6 +14,7 @@ NAME = 'slowdate'
 DESCRIPTION = 'testing implementation of speed dating'
 VERBOSE = False
 QUIET = False
+NEG_INF = float('-inf')
 
 def error(msg):
   ERR.write('{n} ERROR: {m}\n'.format(n=NAME, m=msg))
@@ -45,22 +46,27 @@ def fatal(msg):
 
 def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_calc, grid):
   highest_ln_density_idx = None
-  highest_ln_density = float('-inf')
+  highest_ln_density = NEG_INF
   #debug('  par_bin_idx = {p} des_node.max_grid_idx = {d}'.format(p=par_bin_idx, d=des_node.max_grid_idx))
   if des_node.is_leaf():
     end_idx = 1
   else:
     assert par_bin_idx <= 1 + des_node.max_grid_idx
     end_idx = par_bin_idx
+  #debug('des_node.min_grid_idx = {}, end_idx = {}'.format(des_node.min_grid_idx, end_idx))
   for i_d in xrange(des_node.min_grid_idx, end_idx):
     t_d = grid.to_abs_age(i_d)
     duration = par_age - t_d
     rate_of_mol_evol = des_node.edge.length / duration
     ln_rate_prior = rate_prior_calc(rate_of_mol_evol)
+    assert (ln_rate_prior > NEG_INF)
     d_dp = des_node.idx2DP[i_d]
-    assert d_dp is not None
+    assert (d_dp is not None)
     dp_ln_d = d_dp[0]
+    if not (dp_ln_d > NEG_INF):
+      fatal('-inf in des idx2DP table for index {}.\n{}'.format(i_d, des_node.idx2DP))
     ln_d = ln_rate_prior + dp_ln_d
+    assert ln_d > NEG_INF
     if ln_d > highest_ln_density:
       highest_ln_density = ln_d
       highest_ln_density_idx = i_d
@@ -80,6 +86,7 @@ def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
           ln_age_factor = 0.0
           for calib_dist in u.calibrations:
             ln_age_factor += calib_dist.ln_calibration_density(t_u)
+          assert ln_age_factor > NEG_INF
           u.idx2DP[i_u] = (ln_age_factor, None) # store density and traceback info
     else:
       v, w = u.child_nodes()
@@ -91,12 +98,15 @@ def calc_relative_date_map_est(tree, age_prior_calc, rate_prior_calc, grid):
         ln_age_factor = age_prior_calc.ln_internal_node_factor(t_u)
         for calib_dist in u.calibrations:
           ln_age_factor += calib_dist.ln_calibration_density(t_u)
-        d_u = d_v + d_w + ln_age_factor
+        d_terms = [d_v, d_w, ln_age_factor]
         if u is tree.seed_node:
-          d_u += age_prior_calc.ln_root_factor(t_u)
+          d_terms.append(age_prior_calc.ln_root_factor(t_u))
+        d_u = sum(d_terms)
+        if not (d_u > NEG_INF):
+          fatal('-inf ln density at {} time={}. terms={}'.format(i_u, t_u, d_terms))
         u.idx2DP[i_u] = (d_u, (i_v, i_w)) # store density and traceback info
   root = tree.seed_node
-  highest_ln_density = float('-inf')
+  highest_ln_density = NEG_INF
   highest_ln_density_idx = None
   for i_r in  xrange(root.min_grid_idx, 1 + root.max_grid_idx):
     ln_density = root.idx2DP[i_r][0]
@@ -218,10 +228,13 @@ class Grid(object):
   def to_abs_age(self, bin_index):
     assert bin_index < self.num_bins
     return bin_index * self.mill_years_per_bin
-  def min_age_to_min_grid_idx(self, age):
+  def min_age_to_min_grid_idx(self, age, calib):
     assert age < self.max_age
     b = int(math.ceil(age/self.mill_years_per_bin))
-    assert b < self.num_bins 
+    assert b < self.num_bins
+    if (self.to_abs_age(b) == age) and (calib.ln_calibration_density(age) == NEG_INF):
+      assert calib.ln_calibration_density(age + self.mill_years_per_bin) > NEG_INF
+      return b + 1 # not all of our priors have
     return b
 
 class OffsetDistribution(object):
@@ -234,7 +247,7 @@ class OffsetDistribution(object):
     '''Return the log density for time t'''
     variate = t - self.offset
     if variate < 0.0:
-      return float('-inf')
+      return NEG_INF
     return self.ln_density_from_offset(variate)
 
 class OffsetLogNormalDistribution(OffsetDistribution):
@@ -254,7 +267,7 @@ class OffsetLogNormalDistribution(OffsetDistribution):
       return ln_density
     except:
       warn('underflow at v = {}'.format(v))
-      return float('-inf')
+      return NEG_INF
 
 class OffsetExponentialDistribution(OffsetDistribution):
   def __init__(self, mean, offset):
@@ -358,12 +371,12 @@ def main(args):
       raise RuntimeError('MRCA could not be found for "{}"'.format('", "'.join(mrca_of)))
     print str(mrca._as_newick_string())
     min_age = nc['min_age']
+    prob_dist = nc['distribution']
     try:
-      calibration_min_grid_idx = grid.min_age_to_min_grid_idx(min_age)
+      calibration_min_grid_idx = grid.min_age_to_min_grid_idx(min_age, prob_dist)
     except:
       raise RuntimeError('Calibration age of {m} exceeds grid max age of {a}'.format(m=min_age, a=args.max_age))
     mrca.min_grid_idx = max(mrca.min_grid_idx, calibration_min_grid_idx)
-    prob_dist = nc['distribution']
     try:
       mrca.calibrations.append(prob_dist)
     except:
@@ -389,6 +402,7 @@ def main(args):
       if nd.max_grid_idx < nd.min_grid_idx:
         raise ValueError('Grid too small! (or max_age is too small to comfortably deal with all of the calibrations)')
       nd.idx2DP = [None] * (1 + nd.max_grid_idx)
+    debug('node {}: min {} max = {}'.format(nd._as_newick_string(), nd.min_grid_idx, nd.max_grid_idx))
   num_leaves = len(tree.leaf_nodes())
   num_extinct_leaves_sampled = 0
   num_extinct_internals_sampled = 0
