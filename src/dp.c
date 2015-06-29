@@ -22,21 +22,77 @@
 #include "fastdate.h"
 
 static long inner_entries = 0;
+static double interval_age = 0;
+static int tree_height = 0;
+
+/* this resets the node heights for method_nodeprior */
+static void reset_node_heights(tree_node_t * node)
+{
+  assert(node);
+  
+  double offset = 0;
+  int min_height = 0;
+
+  /* number of lines required above the new min height which will
+     be selected for the current node */
+  int required_space = tree_height - node->height;
+
+  /* compute minimum possible interval line given a node has calibration info */
+  if (node->prior == NODEPRIOR_EXP)
+    offset = ((exp_params_t *)(node->prior_params))->offset; 
+  else if (node->prior  == NODEPRIOR_LN)
+    offset = ((ln_params_t *)(node->prior_params))->offset;
+
+  min_height = lrint(ceil(offset / interval_age));
+
+  if (!node->left)
+  {
+    node->height = min_height;
+    if (node->height + required_space >= opt_grid_intervals)
+      fatal("Error: Calibration info on line %d of file %s disrupts grid", 
+            node->prior_lineno, opt_priorfile);
+    return;
+  }
+
+  reset_node_heights(node->left);
+  reset_node_heights(node->right);
+
+  node->height = (node->left->height > node->right->height) ? 
+                       node->left->height + 1 : node->right->height + 1;
+
+  if (min_height > node->height)
+    node->height = min_height;
+  
+  if (node->height + required_space >= opt_grid_intervals)
+    fatal("Error: Calibration info on line %d of file %s disrupts grid",
+          node->prior_lineno, opt_priorfile);
+}
 
 static void alloc_node_entries(tree_node_t * node)
 {
   int entries;
 
-  if (!node) return;
+  assert(node);
 
   /* tip case */
   if (!node->left)
   {
-    /* tips are always placed on the first grid line */
-    node->entries      = 1;
-    node->matrix       = (double *)xmalloc(sizeof(double));
-    node->matrix_left  = (int *)xmalloc(sizeof(int));
-    node->matrix_right = (int *)xmalloc(sizeof(int));
+    if (!node->prior)
+    {
+      /* tips are always placed on the first grid line */
+      node->entries      = 1;
+      node->matrix       = (double *)xmalloc(sizeof(double));
+      node->matrix_left  = (int *)xmalloc(sizeof(int));
+      node->matrix_right = (int *)xmalloc(sizeof(int));
+    }
+    else
+    {
+      entries = node->parent->entries + node->parent->height - node->height - 1;
+      node->entries      = entries;
+      node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
+      node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
+      node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
+    }
     return;
   }
 
@@ -51,6 +107,7 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
   node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
 
+  /* for progress bar indication */
   inner_entries += entries;
 
   /* allocate the space for its two subtrees */
@@ -72,8 +129,9 @@ void dp_recurse(tree_node_t * node, int root_height)
   tree_node_t * left;
   tree_node_t * right;
 
-  double rel_age_parent, rel_age_left, rel_age_right, age_diff;
+  double rel_age_node, rel_age_left, rel_age_right, age_diff, abs_age_node;
   double prob_rate_left, prob_rate_right;
+  double dist_logprob;
   double score;
 
   if (!node) return;
@@ -81,8 +139,37 @@ void dp_recurse(tree_node_t * node, int root_height)
   /* leaves case */
   if (!node->left)
   {
-    /* this should be 0 not 1, because of the log-scale */
-    node->matrix[0] = 0.0;
+    if (!node->prior)
+    {
+      node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
+      return;
+    }
+
+    /* tip fossil case */
+    for (i = 0; i < node->entries; ++i)
+    {
+      rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
+      abs_age_node = (node->height+i)*interval_age;
+      /* if estimating absolute ages check for node priors and compute PDF */
+      dist_logprob = 0;
+      if (node->prior == NODEPRIOR_EXP)
+      {
+        exp_params_t * params = (exp_params_t *)(node->prior_params);
+        dist_logprob = exp_dist_logpdf(1/params->mean, 
+                                       abs_age_node - params->offset);
+      }
+      else if (node->prior == NODEPRIOR_LN)
+      {
+        ln_params_t * params = (ln_params_t *)(node->prior_params);
+        dist_logprob = ln_dist_logpdf(params->mean,
+                                      params->stdev,
+                                      abs_age_node - params->offset);
+      }
+      else assert(0);
+
+      node->matrix[i] = dist_logprob + bd_nodeprior_prod_tip(rel_age_node);
+    }
+
     return;
   }
   
@@ -101,7 +188,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
   /*
          
-                        o  (rel_age_parent)
+                        o  (rel_age_node)
                        / \
                       /   \
       (rel_age_left) o     \
@@ -111,7 +198,8 @@ void dp_recurse(tree_node_t * node, int root_height)
 
   for (i = 0; i < node->entries; ++i)
   {
-    rel_age_parent = (1.0 / opt_grid_intervals) * (low+i);
+    rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
+    abs_age_node = (low+i)*interval_age;
 
     /* check the ages of the left child */
     if (!left->left)
@@ -122,19 +210,19 @@ void dp_recurse(tree_node_t * node, int root_height)
     assert(jmax <= left->entries);
 
     int jbest = -1;
-    double jbest_sum = -__DBL_MAX__;
+    double jbest_score = -__DBL_MAX__;
     for (j = 0; j < jmax; ++j)
     {
       assert(j+left->height < node->height + i);
       rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
 
       prob_rate_left = gamma_dist_logpdf(left->length / 
-                                         (rel_age_parent - rel_age_left));
+                                         (rel_age_node - rel_age_left));
 
-      if (left->matrix[j] + prob_rate_left > jbest_sum)
+      if (left->matrix[j] + prob_rate_left > jbest_score)
       {
         jbest = j;
-        jbest_sum = left->matrix[j] + prob_rate_left;
+        jbest_score = left->matrix[j] + prob_rate_left;
       }
     }
 
@@ -147,32 +235,64 @@ void dp_recurse(tree_node_t * node, int root_height)
     assert(kmax <= right->entries);
 
     int kbest = -1;
-    double kbest_sum = -__DBL_MAX__;
+    double kbest_score = -__DBL_MAX__;
     for (k = 0; k < kmax; ++k)
     {
       assert(k+right->height < node->height + i);
       rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
 
-      age_diff = rel_age_parent - rel_age_right;
+      age_diff = rel_age_node - rel_age_right;
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
 
-      if (right->matrix[k] + prob_rate_right > kbest_sum)
+      score = right->matrix[k] + prob_rate_right;
+      if (score > kbest_score)
       {
         kbest = k;
-        kbest_sum = right->matrix[k] + prob_rate_right;
+        kbest_score = score;
       }
     }
 
     assert(jbest > -1);
     assert(kbest > -1);
 
-    double node_term = bd_nofossil_prod(rel_age_parent);
-    score = node_term + jbest_sum + kbest_sum;
+    double bd_term = 0;
+    if (opt_method_relative)
+      bd_term = bd_relative_prod(rel_age_node);
+    else if (opt_method_nodeprior)
+      bd_term = bd_nodeprior_prod_inner(rel_age_node);
+    else assert(0);
+
+
+    /* if estimating absolute ages check for node priors and compute PDF */
+    dist_logprob = 0;
+    if (node->prior == NODEPRIOR_EXP)
+    {
+      exp_params_t * params = (exp_params_t *)(node->prior_params);
+      dist_logprob = exp_dist_logpdf(1/params->mean, 
+                                     abs_age_node - params->offset);
+    }
+    else if (node->prior == NODEPRIOR_LN)
+    {
+      ln_params_t * params = (ln_params_t *)(node->prior_params);
+      dist_logprob = ln_dist_logpdf(params->mean,
+                                    params->stdev,
+                                    abs_age_node - params->offset);
+    }
+    else if (node->prior) assert(0);
+
+    score = bd_term + jbest_score + kbest_score + dist_logprob;
 
     /* if it's the root add one more term */
     if (node->height == root_height)
-      score += bd_nofossil_root(node->leaves, 
-                                rel_age_parent);
+    {
+      if (opt_method_relative)
+        score += bd_relative_root(node->leaves,
+                                  rel_age_node);
+      else if (opt_method_nodeprior)
+        score += bd_nodeprior_root(node->leaves,
+                                   rel_age_node);
+      else assert(0);
+    }
 
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
@@ -186,13 +306,10 @@ void dp_recurse(tree_node_t * node, int root_height)
 static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
 {
   if (!node) return;
-  if (!node->left || !node->right)
+  node->interval_line = node->height + best_entry;
+
+  if (node->left)
   {
-    node->interval_line = 0;
-  }
-  else
-  {
-    node->interval_line = node->height + best_entry;
     dp_backtrack_recursive(node->left, node->matrix_left[best_entry]);
     dp_backtrack_recursive(node->right, node->matrix_right[best_entry]);
   }
@@ -224,12 +341,22 @@ void dp(tree_node_t * tree)
 {
   assert(opt_grid_intervals > tree->height);
 
+  tree_height = tree->height;
+
   gamma_dist_init();
-  bd_init();
+  bd_init(0,0);
+
+  /* compute the absolute age of an interval line */
+  if (opt_method_nodeprior)
+    interval_age = opt_max_age / (opt_grid_intervals - 1);
+  
+  /* reset node heights according to calibrations if nodeprior method is used */
+  if (opt_method_nodeprior)
+    reset_node_heights(tree);
 
   /* allocate space for node entries */
   alloc_node_entries(tree);
-  
+
   progress_init("Running DP...", inner_entries);
   dp_recurse(tree,tree->height);
   progress_done();

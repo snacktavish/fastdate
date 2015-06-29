@@ -26,12 +26,15 @@ static char progheader[80];
 static char * cmdline;
 
 /* number of mandatory options for the user to input */
-static const char mandatory_options_count = 2;
-static const char * mandatory_options_list = "  --tree_file\n  --out_file\n";
+static const char mand_options_count = 2;
+static const char * mand_options_list = "  --tree_file\n  --out_file\n";
 
 /* options */
 char * opt_treefile;
 char * opt_outfile;
+char * opt_priorfile;
+char * opt_agefile;
+double opt_max_age;
 double opt_lambda;
 double opt_mu;
 double opt_rho;
@@ -44,7 +47,9 @@ long opt_threads;
 long opt_grid_intervals;
 long opt_help;
 long opt_version;
-long opt_method_sampled;
+long opt_method_relative;
+long opt_method_nodeprior;
+long opt_method_tipdates;
 long opt_showtree;
 
 
@@ -55,16 +60,22 @@ static struct option long_options[] =
   {"tree_file",          required_argument, 0, 0 },  /*  2 */
   {"show_tree",          no_argument,       0, 0 },  /*  3 */
   {"out_file",           required_argument, 0, 0 },  /*  4 */
-  {"grid",               required_argument, 0, 0 },  /*  5 */
-  {"bd_lambda",          required_argument, 0, 0 },  /*  6 */      
-  {"bd_mu",              required_argument, 0, 0 },  /*  7 */
-  {"bd_rho",             required_argument, 0, 0 },  /*  8 */
-  {"rate_mean",          required_argument, 0, 0 },  /*  9 */
-  {"rate_variance",      required_argument, 0, 0 },  /* 10 */
-  {"method_sampled",     no_argument,       0, 0 },  /* 11 */
-  {"quiet",              no_argument,       0, 0 },  /* 12 */
-  {"threads",            required_argument, 0, 0 },  /* 13 */
-  {"out_form",           required_argument, 0, 0 },  /* 14 */
+  {"out_form",           required_argument, 0, 0 },  /*  5 */
+  {"grid",               required_argument, 0, 0 },  /*  6 */
+  {"bd_lambda",          required_argument, 0, 0 },  /*  7 */      
+  {"bd_mu",              required_argument, 0, 0 },  /*  8 */
+  {"bd_rho",             required_argument, 0, 0 },  /*  9 */
+  {"bd_psi",             required_argument, 0, 0 },  /* 10 */
+  {"rate_mean",          required_argument, 0, 0 },  /* 11 */
+  {"rate_variance",      required_argument, 0, 0 },  /* 12 */
+  {"max_age",            required_argument, 0, 0 },  /* 13 */
+  {"method_relative",    no_argument,       0, 0 },  /* 14 */
+  {"method_nodeprior",   no_argument,       0, 0 },  /* 15 */
+  {"method_tipdates",    no_argument,       0, 0 },  /* 16 */
+  {"prior_file",         required_argument, 0, 0 },  /* 17 */
+  {"age_file",           required_argument, 0, 0 },  /* 18 */
+  {"quiet",              no_argument,       0, 0 },  /* 19 */
+  {"threads",            required_argument, 0, 0 },  /* 20 */
   { 0, 0, 0, 0 }
 };
 
@@ -80,10 +91,12 @@ void args_init(int argc, char ** argv)
 
   opt_help = 0;
   opt_version = 0;
-  opt_method_sampled = 0;
+  opt_method_relative = 0;
   opt_showtree = 0;
   opt_treefile = NULL;
   opt_outfile = NULL;
+  opt_priorfile = NULL;
+  opt_agefile = NULL;
   opt_grid_intervals = 1000;
   opt_lambda = 2;
   opt_mu = 0;
@@ -92,8 +105,9 @@ void args_init(int argc, char ** argv)
   opt_rate_mean = 5;
   opt_rate_var = 1;
   opt_quiet = 0;
+  opt_max_age = 0;
   opt_threads = 0;
-  opt_outform = OUTPUT_ULTRAMETRIC;
+  opt_outform = OUTPUT_DATED;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -120,58 +134,84 @@ void args_init(int argc, char ** argv)
         free(opt_outfile);
         opt_outfile = optarg;
         break;
-      
+
       case 5:
-        opt_grid_intervals = atol(optarg);
-        if (opt_grid_intervals < 0)
-          fatal("  --grid must be a positive value");
-        break;
-
-      case 6:
-        opt_lambda = atof(optarg);
-        if (opt_lambda < 0)
-          fatal("  --bd_lambda must be a positive value");
-        break;
-
-      case 7:
-        opt_mu = atof(optarg);
-        if (opt_mu < 0)
-          fatal("  --bd_mu must be a positive value");
-        break;
-
-      case 8:
-        opt_rho = atof(optarg);
-        if (opt_rho < 0 || opt_rho > 1)
-          fatal("  --bd_rho is a probability and must be between <0,1>");
-        break;
-      
-      case 9:
-        opt_rate_mean = atof(optarg);
-        break;
-
-      case 10:
-        opt_rate_var  = atof(optarg);
-        break;
-
-      case 11:
-        opt_method_sampled = 1;
-        break;
-
-      case 12:
-        opt_quiet = 1;
-        break;
-      
-      case 13:
-        opt_threads = atol(optarg);
-        break;
-
-      case 14:
         if (strcasecmp(optarg, "ultrametric") == 0)
           opt_outform = OUTPUT_ULTRAMETRIC;
         else if (strcasecmp(optarg, "dated") == 0)
           opt_outform = OUTPUT_DATED;
         else
           fatal("Unrecognized argument for --output-form");
+        break;
+
+      
+      case 6:
+        opt_grid_intervals = atol(optarg);
+        if (opt_grid_intervals < 0)
+          fatal("  --grid must be a positive value");
+        break;
+
+      case 7:
+        opt_lambda = atof(optarg);
+        if (opt_lambda < 0)
+          fatal("  --bd_lambda must be a positive value");
+        break;
+
+      case 8:
+        opt_mu = atof(optarg);
+        if (opt_mu < 0)
+          fatal("  --bd_mu must be a positive value");
+        break;
+
+      case 9:
+        opt_rho = atof(optarg);
+        if (opt_rho < 0 || opt_rho > 1)
+          fatal("  --bd_rho is a probability and must be between <0,1>");
+        break;
+
+      case 10:
+        opt_psi = atof(optarg);
+        if (opt_psi <= 0)
+          fatal("  --bd_psi must be a positive value");
+        break;
+      
+      case 11:
+        opt_rate_mean = atof(optarg);
+        break;
+
+      case 12:
+        opt_rate_var  = atof(optarg);
+        break;
+      case 13:
+        opt_max_age = atof(optarg);
+        break;
+
+      case 14:
+        opt_method_relative = 1;
+        break;
+
+      case 15:
+        opt_method_nodeprior = 1;
+        break;
+
+      case 16:
+        opt_method_tipdates = 1;
+        break;
+
+      case 17:
+        opt_priorfile = optarg;
+        break;
+
+      case 18:
+        opt_agefile = optarg;
+        break;
+
+      case 19:
+        opt_quiet = 1;
+        break;
+      
+      case 20:
+        opt_threads = atol(optarg);
         break;
 
       default:
@@ -191,7 +231,11 @@ void args_init(int argc, char ** argv)
     mand_options++;
 
   /* check for number of independent commands selected */
-  if (opt_method_sampled)
+  if (opt_method_relative)
+    commands++;
+  if (opt_method_nodeprior)
+    commands++;
+  if (opt_method_tipdates)
     commands++;
   if (opt_version)
     commands++;
@@ -201,18 +245,68 @@ void args_init(int argc, char ** argv)
   /* if more than one independent command, fail */
   if (commands > 1)
     fatal("More than one command specified");
-  
-  /* if --method_sampled check for mandatory options */
-  if (opt_method_sampled)
+
+  /* all method specific checks */
+  if (opt_method_relative || opt_method_nodeprior || opt_method_tipdates)
   {
-    if (mand_options != mandatory_options_count)
+    /* check for mandatory options */
+    if (mand_options < mand_options_count)
       fatal("Mandatory options for --method_sampled are:\n\n%s", 
-            mandatory_options_list);
+            mand_options_list);
+
+    if (opt_lambda <= 0)
+      fatal("  --bd_lambda must be a positive value");
+    if (opt_mu <= 0)
+      fatal("  --bd_mu must be a positive value");
     if (opt_lambda <= opt_mu)
       fatal("  --bd_lambda must be greater than --bd_mu");
+    if (opt_rho <= 0 || opt_rho > 1)
+      fatal("  --bd_rho must be a value between 0 and 1");
   }
 
+  /* --method_relative specific checks */
+  if (opt_method_relative)
+  {
+    if (opt_priorfile)
+      fatal("Option --prior_file can only be used with --method_nodeprior");
+    if (opt_agefile)
+      fatal("Option --age_file can only be used with --method_tipdates");
+    if (opt_max_age)
+      fatal("Option --max_age can only be used with --method_nodeprior "
+            "and --method_tipdates");
+  }
 
+  /* --method_nodepior and --method_tipdates specific checks */
+  if (opt_method_nodeprior || opt_method_tipdates)
+  {
+    if (opt_psi == 0)
+      fatal("Use method --method_relative when estimating divergence times "
+            "without fossil information (psi = 0)");
+    if (opt_psi < 0)
+      fatal(" Option --bd_psi must be a positive value");
+  }
+
+  if (opt_method_nodeprior)
+  {
+    if (!opt_priorfile)
+      fatal("Method --method_nodeprior requires a file with node prior "
+            "information to be specified with the --prior_file switch");
+    if (!opt_max_age)
+      fatal("Method --method_nodeprior requires that --max_age is defined");
+    if (opt_outform == OUTPUT_ULTRAMETRIC)
+      fatal("Method --method_nodeprior cannot generate ultrametric trees");
+  }
+
+  if (opt_method_tipdates)
+  {
+    if (!opt_agefile)
+      fatal("Method --method_tipdates requires a file with the ages of some "
+            "tips to be specified with the --age_file switch");
+    if (!opt_max_age)
+      fatal("Method --method_tipdates requires that --max_age is defined");
+    if (opt_outform == OUTPUT_ULTRAMETRIC)
+      fatal("Method --method_tipdates cannot generate ultrametric trees");
+  }
 
   /* if no command specified, turn on --help */
   if (!commands) opt_help = 1; 
@@ -235,12 +329,16 @@ void cmd_help()
           "  --help                         display help information.\n"
           "  --version                      display version information.\n"
           "  --show_tree                    display an ASCII version of the computed tree.\n"
-          "  --method_sampled               perform divergence time estimations using incomplete sampling .\n"
+          "  --method_relative              perform divergence time estimations given no fossil information is available.\n"
+          "  --method_nodeprior             perform divergence time estimations given fossil information is available for certain nodes (node dating and tip dating).\n"
+          "  --method_tipdates              perform divergence time estimation given the absolute ages of certain tips.\n"
           "  --quiet                        only output warnings and fatal errors to stderr.\n"
           "  --threads INT                  number of threads to use, zero for all cores (default: 0).\n"
           "  --grid INT                     number of grid intervals to use (default: 1000).\n"
           "Input and output options:\n"
           "  --tree_file FILENAME           tree file in newick format.\n"
+          "  --prior_file FILENAME          file containing node priors (for --method_nodeprior).\n"
+          "  --age_file FILENAME            file containing tip dates (for --method_tipdates).\n"
           "  --out_file FILENAME            output file name.\n"
           "  --out_form STRING              format of the output tree. Can be either 'dated' or"
                                             "'ultrametric' (default: 'ultrametric').\n"
@@ -248,12 +346,14 @@ void cmd_help()
           "  --bd_lambda REAL               birth rate for Birth/Death model (default: 2).\n"
           "  --bd_mu REAL                   death rate for Birth/Death model (default: 0).\n"
           "  --bd_rho REAL                  probability of sampling individuals. (default: 0.5)\n"
+          "  --bd_psi REAL                  fossil sample rate\n"
           "  --rate_mean REAL               mean value of edge rate model (default: 5).\n"
           "  --rate_variance REAL           variance value for edge rate model (default: 1).\n"
+          "  --max_age                      max age of the grid when using methods --method_nodeprior or --method_tipdates.\n"
          );
 }
 
-void cmd_divtimes()
+void cmd_method_relative()
 {
   /* parse tree */
   if (!opt_quiet)
@@ -264,7 +364,6 @@ void cmd_divtimes()
 
 
   dp(tree);
-  printf("tree->interval_line %d\n", tree->interval_line);
 
   if (opt_showtree)
     show_ascii_tree(tree);
@@ -278,6 +377,40 @@ void cmd_divtimes()
   yy_dealloc_tree(tree);
 }
 
+void cmd_method_nodeprior()
+{
+  long fossils_count, extinct_leaves_count;
+
+  /* parse tree */
+  if (!opt_quiet)
+    fprintf(stdout, "Parsing tree file...\n");
+  tree_node_t * tree = yy_parse_tree(opt_treefile);
+  if (!tree)
+    fatal("Tree is probably not binary.\n");
+
+  /* set node priors */
+  if (!opt_quiet)
+    fprintf(stdout, "Setting node priors...\n");
+  set_node_priors(tree, &fossils_count, &extinct_leaves_count);
+
+  dp(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
+
+  if (!opt_quiet)
+    fprintf(stdout, "Writing tree file...\n");
+  write_newick_tree(tree);
+  if (!opt_quiet)
+    fprintf(stdout, "Done\n");
+
+  yy_dealloc_tree(tree);
+}
+
+void cmd_method_tipdates()
+{
+  fatal("Not implemented yet");
+}
 
 void getentirecommandline(int argc, char * argv[])
 {
@@ -326,9 +459,17 @@ int main (int argc, char * argv[])
   {
     cmd_help();
   }
-  else if (opt_method_sampled)
+  else if (opt_method_relative)
   {
-    cmd_divtimes();
+    cmd_method_relative();
+  }
+  else if (opt_method_nodeprior)
+  {
+    cmd_method_nodeprior();
+  }
+  else if (opt_method_tipdates)
+  {
+    cmd_method_tipdates();
   }
 
   free(cmdline);

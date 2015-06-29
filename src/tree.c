@@ -38,11 +38,11 @@ tree_node_t * yy_create_tree()
 void yy_dealloc_tree(tree_node_t * tree)
 {
   if (!tree) return;
-
   free(tree->label);
   free(tree->matrix);
   free(tree->matrix_left);
   free(tree->matrix_right);
+  free(tree->prior_params);
   yy_dealloc_tree(tree->left);
   yy_dealloc_tree(tree->right);
   free(tree);
@@ -166,6 +166,30 @@ static void output_um_tree_recursive(tree_node_t * node,
     fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
             (prev_age - node->interval_line) / (double)opt_grid_intervals);
   }
+}
+
+static void traverse_iterative(tree_node_t * node, int * index, tree_node_t ** outbuffer)
+{
+  if (!node->left)
+  {
+    outbuffer[*index] = node;
+    *index = *index + 1;
+    return;
+  }
+
+  traverse_iterative(node->left,  index, outbuffer);
+  traverse_iterative(node->right, index, outbuffer);
+
+  outbuffer[*index] = node;
+  *index = *index + 1;
+}
+
+int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer)
+{
+  int index = 0;
+
+  traverse_iterative(root, &index, outbuffer);
+  return index;
 }
 
 void write_newick_tree(tree_node_t * node)

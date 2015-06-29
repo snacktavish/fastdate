@@ -25,7 +25,9 @@
 #include <string.h>
 #include <pthread.h>
 #include <getopt.h>
+#include <regex.h>
 #include <x86intrin.h>
+#include <search.h>
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
@@ -52,6 +54,21 @@ typedef unsigned int UINT32;
 typedef unsigned short WORD;
 typedef unsigned char BYTE;
 
+/* parameters of exponential distribution node prior */
+typedef struct
+{
+  double mean;
+  double offset;
+} exp_params_t;
+
+/* parameters of lognormal distribution node prior */
+typedef struct
+{
+  double mean;
+  double stdev;
+  double offset;
+} ln_params_t;
+
 typedef struct tree_noderec
 {
   char * label;
@@ -71,13 +88,22 @@ typedef struct tree_noderec
   /* age specific */
   int interval_line;
 
-  void * data;
+  /* prior specific */
+  int prior;
+  int prior_lineno;
+  void * prior_params;
+
+
 } tree_node_t;
 
 /* definitions */
 
 #define OUTPUT_ULTRAMETRIC      0
 #define OUTPUT_DATED            1
+
+#define NODEPRIOR_NONE  0
+#define NODEPRIOR_EXP   1
+#define NODEPRIOR_LN    2
 
 /* macros */
 
@@ -90,12 +116,17 @@ extern int opt_quiet;
 extern int opt_outform;
 extern char * opt_treefile;
 extern char * opt_outfile;
+extern char * opt_priorfile;
+extern char * opt_agefile;
 extern long opt_grid_intervals;
 extern long opt_help;
 extern long opt_version;
-extern long opt_method_sampled;
+extern long opt_method_relative;
+extern long opt_method_nodeprior;
+extern long opt_method_tipdates;
 extern long opt_showtree;
 extern long opt_threads;
+extern double opt_max_age;
 extern double opt_lambda;
 extern double opt_mu;
 extern double opt_rho;
@@ -143,7 +174,7 @@ void cmd_help();
 void getentirecommandline(int argc, char * argv[]);
 void fillheader();
 void show_header();
-void cmd_divtimes();
+void cmd_method_relative();
 
 /* functions in tree.c */
 
@@ -152,6 +183,7 @@ void yy_dealloc_tree(tree_node_t * tree);
 void show_ascii_tree(tree_node_t * tree);
 int set_node_heights(tree_node_t * root);
 void write_newick_tree(tree_node_t * node);
+int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer);
 
 /* functions in dp.c */
 
@@ -164,9 +196,12 @@ double gamma_dist_logpdf(double x);
 
 /* functions in bd.c */
 
-void bd_init(void);
-double bd_nofossil_prod(double t);
-double bd_nofossil_root(int leaves, double t);
+void bd_init(long fossils_count, long extinct_leaves_count);
+double bd_relative_prod(double t);
+double bd_relative_root(int leaves, double t);
+double bd_nodeprior_root(int leaves, double t);
+double bd_nodeprior_prod_inner(double t);
+double bd_nodeprior_prod_tip(double t);
 
 /* functions in newick.y */
 
@@ -176,3 +211,26 @@ tree_node_t * yy_parse_tree(const char * filename);
 
 unsigned long arch_get_memused();
 unsigned long arch_get_memtotal();
+
+/* functions in exp.c */
+
+double exp_dist_pdf(double lambda, double x);
+double exp_dist_logpdf(double lambda, double x);
+
+/* functions in ln.c */
+
+double ln_dist_pdf(double mean, double variance, double x);
+double ln_dist_logpdf(double mean, double variance, double x);
+
+/* functions in nodeprior.c */
+
+void set_node_priors(tree_node_t * root,
+                     long * fossils_count,
+                     long * extinct_leaves_count);
+
+/* functions in lca.c */
+
+void lca_init(tree_node_t * root);
+tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
+void lca_destroy();
+

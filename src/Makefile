@@ -36,7 +36,7 @@ PROG=fastdate
 
 all: $(PROG)
 
-OBJS=util.o maps.o fastdate.o tree.o dp.o gamma.o bd.o newick.o lex.o arch.o
+OBJS=util.o maps.o fastdate.o tree.o dp.o gamma.o bd.o newick.o lex.o arch.o exp.o ln.o nodeprior.o lca.o
 
 $(PROG): $(OBJS)
 	$(CC) -Wall $(LINKFLAGS) $+ -o $@ $(LIBS)

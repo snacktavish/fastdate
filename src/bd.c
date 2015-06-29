@@ -22,16 +22,24 @@
 #include "fastdate.h"
 
 static double diff;
+static double c1;
+static double c2;
+static long k,m;
 
-void bd_init(void)
+void bd_init(long fossils_count, long extinct_leaves_count)
 {
   diff = opt_mu - opt_lambda;
+  c1 = sqrt( pow((opt_lambda - opt_mu - opt_psi),2) + 4*opt_lambda*opt_psi);
+  c2 = - (opt_lambda - opt_mu - 2*opt_lambda*opt_rho - opt_psi) / c1;
+  
+  k = fossils_count;
+  m = extinct_leaves_count;
 }
 
 /* Computes the first part (before the products) of the special case of
  * Equation (9) from (Stadler 2010) for which no fossil information is
  * available */
-double bd_nofossil_root(int leaves, double t)
+double bd_relative_root(int leaves, double t)
 {
   double terma = leaves * (opt_lambda - opt_mu) * exp(diff * t);
   double termb = opt_rho*opt_lambda + (opt_lambda*(1 - opt_rho) - opt_mu) *
@@ -42,11 +50,46 @@ double bd_nofossil_root(int leaves, double t)
 
 /* Computes the second part (products) of the special case of Equation (9)
  * from (Stadler 2010) for which no fossil information is available */
-double bd_nofossil_prod(double t)
+double bd_relative_prod(double t)
 {
   double terma = (opt_lambda * opt_rho * diff * diff * exp(diff*t));
   double termb = (opt_rho*opt_lambda + (opt_lambda*(1 - opt_rho) - opt_mu) * 
                                                                 exp(diff*t));
 
   return log(terma / (termb * termb));
+}
+
+double bd_nodeprior_prod_inner(double t)
+{
+  double term;
+
+  term = (2*(1 - c2*c2) + exp(-c1*t)*(1-c2)*(1-c2) + exp(c1*t)*(1+c2)*(1+c2));
+
+  
+  double p1 = 4*opt_rho / term;
+
+  return log(opt_lambda * p1);
+}
+
+double bd_nodeprior_prod_tip(double t)
+{
+  double term;
+
+  term = (opt_lambda + opt_mu + opt_psi) + c1* (exp(-c1*t)*(1-c2)-(1+c2)) /
+                                               (exp(-c1*t)*(1-c2)+(1+c2));
+  
+  double p0 = term / (2*opt_lambda);
+
+  term = (2*(1 - c2*c2) + exp(-c1*t)*(1-c2)*(1-c2) + exp(c1*t)*(1+c2)*(1+c2));
+  double p1 = 4*opt_rho / term;
+  
+  return log(p0/p1);
+}
+
+double bd_nodeprior_root(int leaves, double t)
+{
+  double terma = log(4 * leaves * opt_rho) + (k+m)*log(opt_psi);
+  double termb = log(c1*(c2+1)*(1 - c2 + (1+c2)*exp(c1*t)));
+  
+  return terma - termb;
 }
