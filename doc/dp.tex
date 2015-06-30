@@ -3,10 +3,11 @@
 % for Lecture Notes in Computer Science,
 % version 2.4 for LaTeX2e as of 16. April 2010
 %
-\documentclass{llncs}
+\documentclass[12pt,letterpaper]{article}
 %
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{natbib}
 \usepackage[normalem]{ulem} % for \sout to strikethrough text
 \newcounter{instr}
 \newcommand{\ninstr}{\refstepcounter{instr}\theinstr.}
@@ -16,76 +17,212 @@
 \newcommand{\mthcomment}[1]{{[\color{red}MTH comment: #1]}}
 \newcommand{\mthstrike}[1]{{\color{red}\sout{#1}}}
 \usepackage{hyperref}
-\hypersetup{backref,  linkcolor=blue, citecolor=red, colorlinks=true, hyperindex=true}
+\hypersetup{linkcolor=blue, citecolor=red, colorlinks=true}
+
+
+\linespread{1.66}
+% All text should be double-spaced
+% with occasional exceptions for tables. 
+\raggedright
+\setlength{\parindent}{0.5in}
+
+\setcounter{secnumdepth}{0}
+% Our sections are not numbered and our papers do not have
+% Tables of Contents. We don't 
+% present a list of figures or list of tables, either.
+
+% Any common font is fine.
+% (A common sans-serif font should be used on figures, but figures should be
+% separate from the LaTeX document.)
+
+\pagestyle{empty}
+
+\renewcommand{\section}[1]{%
+\bigskip
+\begin{center}
+\begin{Large}
+\normalfont\scshape #1
+\medskip
+\end{Large}
+\end{center}}
+
+\renewcommand{\subsection}[1]{%
+\bigskip
+\begin{center}
+\begin{large}
+\normalfont\itshape #1
+\end{large}
+\end{center}}
+
+\renewcommand{\subsubsection}[1]{%
+\vspace{2ex}
+\noindent
+\textit{#1.}---}
+
+\renewcommand{\tableofcontents}{}
+
+\bibpunct{(}{)}{;}{a}{}{,}  % this is a citation format command for natbib
+%%for the moment writing up as targeted for sys bio software paper
+%Software for Systematics and Evolution Articles
+%Submissions should describe new or original software or tools that provide new analytical capabilities to the end user. 
+%Submissions may also be considered that describe new versions of existing software, 
+%provided that the new version makes significant changes to function or performance 
+%(for example, a version that implements new and important methods in addition 
+%to those previously provided in a software package might be considered for publication). 
+%Publication will be determined largely based on the software or tool itself, 
+%so working links to a functional copy must be provided at the time of submission.
+%Additional requirements: 
+%The software or tool must well documented and easy to use for the typical user. 
+%The manuscript itself must be readable by the general Systematic Biology readership. 
+%If relevant, the manuscript must include benchmark data, 
+%or refer to Supplemental Material that includes such data. 
+%If appropriate, such benchmarking should include real biological data and a comparison with related tools. 
+%If appropriate, the submission must include working sample data files. 
+%Any software must be open source, web-distributed and free to non-commercial users. 
+%In addition, the authors must certify that they will provide support 
+%for the software or tools for a minimum of two years from the date of publication. 
+%Systematic Biology encourages the use of GPL-like licenses and the use of open repositories, such as SourceForge or Google Code.
+%Software for Systematics and Evolution papers should include an abstract. 
+%In general, papers will be limited to 4 printed journal pages (less than 12 double-spaced manuscript pages), 
+%but exceptions can be made when warranted. We will not enforce any specific organization of the text, 
+%but the following suggestions might help in organizing a submission: an introduction that describes the motivation; 
+%a Description section; a Benchmark section; a Biological Examples section (if applicable); a statement regarding Availability. 
+%However the manuscript is organized, please pay careful attention to the normal formatting 
+%for section headings, references, and other aspects of the journal’s style.
 
 \begin{document}
+\begin{flushright}
+Version dated: \today
+\end{flushright}
+\bigskip
+\noindent RH: Speed dating
 
-\title{A dynamic programming approach for speed-dating}
 
-\titlerunning{Speed dating}
+\bigskip
+\medskip
+\begin{center}
 
-\author{Tom\'{a}\v{s} Flouri\inst{1}, Emily Jane McTavish\inst{1}, Author, Author, Author}
-\authorrunning{Tom\'{a}\v{s} Flouri et al.} % abbreviated author list
-\institute{Heidelberg Institute of Theoretical Studies\\
-\email{Tomas.Flouri@h-its.org}}
+% Insert your title:
+\noindent{\Large \bf A dynamic programming approach for speed-dating}
+\bigskip
 
-\maketitle
-%%for the moment writing up as targeted for sys bio software paper
-\begin{abstract} We present a dynamic programming algorithm to rapidly
-ultrametricize even very large phylogenies, implemented in the open source software package FastDate. 
-This software is \ejmcomment{(will be)} capable of using node or tip dating information to scale trees to absolute time,
-or estimate relative time information.
-We have implemented recent developments in probabilities of trees accounting for both incomplete 
+% We don't use a special title page; the author information is entered 
+% like any other text.
+
+% FOOTNOTES: We don't allow them in the manuscript, except in
+% tables. Don't include any footnotes in the text.
+
+
+\noindent {\normalsize \sc Tom\'{a}\v{s} Flouri$^1$, Emily Jane McTavish$^{1,2}$, Author, Author, Author}\\
+\noindent {\small \it 
+$^1$Heidelberg Institute for Theoretical Studies, Heidelberg, 69118, Germany\\
+$^2$Ecology and Evolutionary Biology, University of Kansas, Lawrence, KS, 66045, USA}\\
+\end{center}
+\medskip
+\noindent{\bf Corresponding author:} Tom\'{a}\v{s} Flouri, 
+Heidelberg Institute for Theoretical Studies; Heidelberg, 69118, Germany, E-mail: Tomas.Flouri@h-its.org.\\
+
+% Of course the specific format of addresses may vary according to
+% country or other factors. Also, that was just an example email format.
+%It's acceptable to add email addresses for authors in addition to the
+%corresponding author. These would be placed after "Country."
+
+\vspace{1in}
+
+\subsubsection{Abstract} We present a dynamic programming algorithm to rapidly
+date even very large phylogenies, implemented in the open source software package FastDate. 
+This software is capable of using node or tip dating information to scale trees to absolute time,
+or estimate relative times for nodes.
+We have implemented recent developments in calculating probabilities of trees accounting for both incomplete 
 sampling of species in the present day, and the sampling in the past due to the fossilization and recovery processes.
-FastDate is \ejmcomment{(will be)} available on our webserver and on github.
-\end{abstract}
+FastDate is \ejmcomment{(will be)} available on our webserver and source code is on GitHub.\\
+\noindent (Keywords: )\\
 
+\vspace{1.5in}
 
-\section{Introduction}
 As it is becoming possible to reconstruct very large phylogenies, 
 researchers are interested in using these phylogenies for downstream analyses.
-However, most phylogenetic analysis software provides trees with branch lengths in units of expected number of substitutions per site,
-whereas downstream analyses may divergence times in years.
-For many questions, such as comparisons of rates of speciation in different groups, it is necessary to have an ultrametric tree.
-Phylogeographic or paleontological questions estimates in absolute time,
+However, most phylogenetic analysis generates trees with branch lengths in units of expected number of substitutions per site,
+whereas downstream analyses may require ultrametric trees or divergence times in years.
+For many questions, such as comparisons of rates of speciation in different groups, it is necessary to have a time scaled tree.
+Phylogeographic and paleontological analyses depend upon node dates in absolute time,
 in order to associate evolutionary events with historical ones.
+\ejmcomment{More on why of dating trees?}
 
-TODO Paragraph on utility of dated trees.
+\subsection{Previous approaches}
+The most straightforward approach to dating trees assuming that the rate of nucleotide 
+substitutions is constant through time, a molecular clock model \cite{zuckerkandl1962}.
+However, due to both stochastic variation in observed mutations and 
+biological variation in rates of mutation fixation across different lineages,
+using a strict molecular clock does not directly generate an ultrametric tree.
+There have been many alternative approaches developed to estimate
+ultrametric trees using an realxed clock or correlated rates models (REFS).
+IN order to scale estimates to actual time researchers apply claibration dates. 
+There are two main approaches to calibrating phylogenies with known dates:
+priors on node ages or tip dates.
+Node priors use a prior distribution for an estimate of the age of a node.
+These estimates of node age are often generated from fossils,
+but can also be inferred from geological, biogeographical or other information (REF).
+Tip dating approaches are usually applied to serially sampled data, i.e. data where some tips were sampled in the past, and have known dates.
+While tip-date information is most commonly known for bacterial or viral phylogenies,
+where samples have been taken at known times,
+it is also possible to have use fossil taxa as tips.
+These tip dates can either be prior distributions or fixed dates, depending on the sampling and the certainty.
+\citet{Heath2014} developed the fossilized-birth-death model which 
+integrates across potential tip placements of fossils
+to apply information multiple fossils to better infer node dates.
 
-TODO Explanation of Akerborg GSR and other previous approaches
- \cite{Akerborg2008}
+Regardless of the form of dating information or priors on the tree,
+reconciling these dates with branch lengths across the tree is a complex problem.
+Several Bayesian methods have been developed which use Markov Chain Monte Carlo (MCMC) methods
+to infer dated phylogenies using this prior information, e.g. BEAST (ref)(some various other references)
+While these approaches can be accurate, and integrate over uncertainty about the dated
+phylogeny, for trees with many tips and/or many calibration points, they can be intractably slow. 
+(REF/is this even true?)
 
-TODO Better background on branch rate distributions\\
+Some rapid phylogenetic dating approaches have been developed which do not rely on MCMC.
+R8s uses non parametric rate smoothing to rapidly estimate maximum likelihood calibrated or ultrametric trees \citep{Sanderson2003}
+Least Squares Dating (LSD) (REF Gascuel) 
+\ejmcomment{Need to cite but it isn't publicly available anywhere....}
+uses a least squares approach based on a normal approximation of the molecular clock.
+According to (Gascuel LSD ref) LSD achieves similar results to BEAST, in orders of magnitude shorter times.
+
+\cite{Akerborg2008} describe a dynamic programming approach to 
+rapidly estimate ultrametric phylogenies. 
+However, this algorithm is not available as an open source implementation.
+Our software is an expansion of the ideas they describe, 
+with the addition of using node and tip date calibrations to scale trees to real time,
+and applying recent work on  priors for dates of sampled phylogenies \citep{Stadler2010}.
+
+\subsection{Branch rate priors}
 Setting dates on a tree requires factorizing the branch lengths of an input topology
 from estimates of evolutionary distances into rates and times. 
 An appropriate expectation for the variation in these branch rates is difficult to select.
 A common approximation is to treat branch rates as gamma distributed (REF NEEDED)
 
-BD process background:\\
-Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process (Kendall,
-1948).
+\subsection{Birth death process}
+Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process \cite{Kendall1948}.
 The tree shape is parameterized using simply a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
 $\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
-Recent work by Gernhard (2008) and Stadler (2009, 2010) has expanded on Kendall's basic 
+Recent work by \citet{Gernhard2008} and \citet{Stadler2009, Stadler2010} has expanded on Kendall's basic 
 formulation of the probabilities of birth\textendash death trees to incorporate several important aspects of sampling:
-the effect on branch lengths of truncating the process by sampling tips at the present (Gernhard 2008),
-the effect of incomplete sampling of tips at the present day (Stadler 2009), and the effect of the sampling
-of fossils on recovery of ancestral taxa (Stadler 2010).
-Stadler (2010, theorem 3.11) gives probability of a dated topology with $n$ leaves,
+the effect on branch lengths of truncating the process by sampling tips at the present \citep{Gernhard2008},
+the effect of incomplete sampling of tips at the present day \citep{Stadler2009}, and the effect of the sampling
+of fossils on recovery of ancestral taxa \citep{Stadler2010}.
+\citet{Stadler2010} (theorem 3.11) gives probability of a dated topology with $n$ leaves,
 under the birth\textendash death process, with some proportion of currently sampled tips ($\rho$), a rate of recovery of taxa in the past ($\psi$),
 and the standard birth and death rate parameters.
 
 
-\section{Algorithm}
-FastDate is based on an dynamic programming adapted from that of Akerborg \cite{Akerborg2008},.
-The granularity of the dating approach can be determined by the user choosing the number of time intervals to which 
+\section{Methods}
+FastDate is based on an dynamic programming adapted from that of \citet{Akerborg2008}.
+The granularity of the dating approach can be determined by the user's choice of the number of time intervals to which 
 nodes can be assigned.
 In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010} 's probability of sampled trees with defined node heights,
 by building up a table of node height values which maximize the likelihood of the node height ($\lambda p_1(t)$), 
 and the likelihood of branch lengths in the tree having a given rate based on the gamma distribution $g(r)$.
 
 The full procedure is described in depth below.
-
 
 \subsection{Basic definitions}
 
@@ -102,7 +239,7 @@ in-degree 1 and out-degree 1 ({\em inner} nodes), or in-degree 1 and out-degree
 root}).  In the rest of the text we implicitly assume under the term tree a
 binary rooted tree.  We denote the set of leaves of tree $T$ as $L(T)$.  The
 cardinality of a set $X$ is denoted as $|X|$. The {\em height} $h(u)$ of a node
-$u$ of $T$ is defined as 
+$u$ of $T$ is defined as
 %
 \[ h(u) = \left\{ \begin{array}{ll}
 \max(h(v), h(w)) + 1 & \quad : \quad u \notin L(T)\\
@@ -112,15 +249,13 @@ The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
 implicitly use the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 
 \subsection{Branch rate distribution}
-\subsection{Gamma function, Gamma distribution}
 
 The {\em Gamma function} is an extension to the factorial function to handle
 any real or complex number as argument. For point $t$ it is defined as
 $$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
 
 The {\em probability density function} in the shape-rate parameterization of a
-{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma$ \mthcomment{By convention, $\sigma$ should 
-mean the square root of the variance} is
+{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma$
 $$ g(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
 
 where $\beta = \bar{r} / \sigma$ and $\alpha = \bar{r} \beta$.
@@ -129,6 +264,7 @@ where $\beta = \bar{r} / \sigma$ and $\alpha = \bar{r} \beta$.
 Its natural logarithm can be computed as
 $$ \ln g(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
 
+
 \subsection{Birth-death process}
 From 3.11 in Stadler 2010 \textit{The probability density of a sampled tree T with n
 extant sampled leaves, m extinct sampled leaves, $n+m > 0$, and $k \geq 0$
@@ -136,15 +272,15 @@ sampled individuals with sampled descendants, conditioned on
 sampling n present day individuals is,}
 
 $$F[T|n] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
-N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler say that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
+Note - There was a typo in this equation in \cite{Stadler2010} but the correct last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
 
 \begin{enumerate}
 \item[$\lambda$]  is the per lineage birth (speciation) rate
 \item[$\mu$]  is the per lineage death (extinction) rate
 \item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
 \item[$\rho$ ] is the proportion of total extant descendants $N$ which are sampled $n$.
-\item[$n$] is the number of extant (current) sampled descendants \mthstrike{of a node}.
-\item[$m$] is the number of extinct (fossil) sampled descendants \mthstrike{of a node}.
+\item[$n$] is the number of extant (current) sampled descendants.
+\item[$m$] is the number of extinct (fossil) sampled descendants.
 \item[$c_1,c_2$]  are useful constants.
 $$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
 $$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
@@ -194,16 +330,28 @@ placed on, along with all the lines that its two children are allowed to placed
 on. This maximal value is then stored in a table along with the positions (lines) its
 two children were placed on. 
 
+\subsection{Domain}
 We first need to set the interval of lines (discretization) that a specific
 node can be placed on.  This interval (denoted $d(u)$) for node $u$ is defined
-as $$ d(u) = \{ x\ |\  h(u) \leq x \leq N - (h(r) - h(u))\}.$$  This is
-justified by the fact that the farthest {\em path} leading from node $u$ to a
+as $$ d(u) = \{ x\ |\  h(u) \leq x \leq N - (h(r) - h(u))\}.$$
+This is justified by the fact that the farthest {\em path} leading from node $u$ to a
 leaf is of size $h(u)$ and contains exactly $h(u)$ nodes including $v$.
 Therefore, even if all nodes in the distinct height in the subtree rooted at
-$u$ are placed on distinct discretization, the lowest line that $u$ can be
+$u$ are placed on distinct discretization, the lowest (most recent) line that $u$ can be
 placed on is line $h(u)$.
+$h(r) - h(parent(u))$ nodes need to be placed above (earlier than) $u$, so $u$ cannot
+be placed above $N - (h(r) - h(u))$.
 
-Next, we define the maximization function $f$ that is computed for each node $u \in
+\subsection{Discretization under absolute dating}
+In order to scale the intervals to absolute time, 
+it is necessary to fix an absolute maximum time for the algorithm to set the root.
+This maximum should be outside of the range of plausible values for the age of the root.
+It is possible for the user to set this value, or an 
+estimate of a reasonable maximum value will be calculated by the software, 
+based on a strict molecular clock estimate using the user provided calibration dates.
+
+\subsection{Maximization function}
+We define the maximization function $f$ that is computed for each node $u \in
 V\setminus L(T)$ and for each discretization line $t_u$:  
 $$f(u,t_u) = \lambda p_1(t_u) \hat{f}_v \hat{f}_w $$\\ 
 where $t_u \in d(u)$, $t_v \in d(v)$, $t_w \in
@@ -247,13 +395,14 @@ Fig.~\ref{fig:dp} describes the algorithm in detail.
 \setcounter{instr}{0}
 \begin{figure}[t]
 \begin{center}
+\renewcommand*\arraystretch{.55}
 \begin{tabular}{|rl|}
 \hline
 \multicolumn{2}{|l|}{\textsc{DP}$(T, N, u)$}\\
 \ninstr & $v \leftarrow$ left child of $u$\\
 \ninstr & $w \leftarrow$ right child of $u$\\
 \ninstr & $r \leftarrow$ the root of $T$\\
-\ninstr & $p_1(t)$ probability that a tip at time t has 1 extant descendant from Stadler 2010  \\
+\ninstr & $p_1(t)$ probability that a tip at time t has 1 extant descendant \cite{Stadler2010}\\
 \ninstr & \textbf{if} $v \in L(T)$ \textbf{then}\\
 \ninstr & \qquad $M(v,1) \leftarrow 1$\\
 \ninstr & \qquad $p_c(v,t_v) \leftarrow 1$\\ 
@@ -289,8 +438,6 @@ Fig.~\ref{fig:dp} describes the algorithm in detail.
 \ninstr & \qquad \qquad $\hat{f}_u \leftarrow f(u,t)$\\
 \ninstr & \qquad $M(u,t_u) \leftarrow \hat{f}_u, M^l(u,t_u) \leftarrow \hat{t}_v, M^r(u,t_u) \leftarrow \hat{t}_w$  \\
 
-
-
 \hline  
 \end{tabular}
 \end{center}
@@ -306,8 +453,22 @@ FastDate requires as input a fully bifurcating rooted phylogeny with branch leng
 and user defined estimates of birth rate ($\lambda$), death rate ($\mu$), 
 and proportion of descendants of the most recent common ancestor of the taxa found in the tree
 which were sampled in the tree ($\rho$).
-Optional parameters include $\psi$ the rate of recovery of fossils per lineage.
+In addition a rate mean ($\bar{r}$) and a rate variance ($\sigma$) must be provided by the user
+to parameterize the gamma prior on branch rates.
 
+
+\subsection{Relative dating}
+For relative dating estimates (generating an ultrametric tree),
+a number or intervals ($N$) my be provided to control the granularity of 
+the relative age estimates.
+
+
+\subsection{Node dating}
+
+\subsection{Tip dating}
+Optional parameters include $\psi$ the rate of recovery of fossils per lineage, 
+if extinct tips have been sampled.
+In addition
 
 
 \section{Example}
@@ -315,9 +476,14 @@ Optional parameters include $\psi$ the rate of recovery of fossils per lineage.
 
 \subsection{Tip dating example from Stadler and Yang}
 
+\subsection{Other test data from LSD?}
+
 \section{Discussion}
 
+TODO Compare to Gascuel `LSD' and other rapid approaches
 
-\bibliographystyle{splncs03}
+
+
+\bibliographystyle{sysbio}
 \bibliography{dating}
 \end{document}
