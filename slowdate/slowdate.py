@@ -153,6 +153,7 @@ class StadlerFactors(object):
     self.n = num_leaves_sampled
     self.m = num_extinct_leaves_sampled
     self.k = num_extinct_internals_sampled
+    debug('StadlerFactors n={} m={} k={}'.format(self.n, self.m, self.k))
     if self.m > 0 or self.k > 0:
       raise NotImplementedError('sampling of extinct species, is not supported yet')
     assert bd_rho > 0.0
@@ -232,7 +233,7 @@ class Grid(object):
     assert age < self.max_age
     b = int(math.ceil(age/self.mill_years_per_bin))
     assert b < self.num_bins
-    if (self.to_abs_age(b) == age) and (calib.ln_calibration_density(age) == NEG_INF):
+    if (self.to_abs_age(b) == age) and calib.has_zero_density_at_zero:
       assert calib.ln_calibration_density(age + self.mill_years_per_bin) > NEG_INF
       return b + 1 # not all of our priors have
     return b
@@ -257,7 +258,7 @@ class OffsetLogNormalDistribution(OffsetDistribution):
     assert variance > 0.0
     self.constants = -0.5 * math.log(self.variance*2.0 * math.pi)
     self.coefficient = -1.0/(2*variance)
-
+    self.has_zero_density_at_zero = True
   def ln_density_from_offset(self, v):
     try:
       lv = math.log(v)
@@ -274,6 +275,7 @@ class OffsetExponentialDistribution(OffsetDistribution):
     OffsetDistribution.__init__(self, mean , offset)
     self.hazard = 1.0/mean
     self.constant = math.log(self.hazard)
+    self.has_zero_density_at_zero = False
   def ln_density_from_offset(self, v):
     return self.constant + self.hazard * v
 
@@ -332,6 +334,27 @@ def parse_node_calibrations(fn):
         calibrations.append(parse_node_calibration_line(ls))
   return calibrations
 
+def add_node_calibrations(tree, grid, node_calibrations):
+  for nc in node_calibrations:
+    mrca_of = nc['mrca_of']
+    try:
+      mrca = tree.mrca(taxon_labels=mrca_of)
+    except Exception as x:
+      error(str(x))
+      raise RuntimeError('MRCA could not be found for "{}"'.format('", "'.join(mrca_of)))
+    debug('Setting node calibration for mrca_of = {}'.format(str(mrca_of)))
+    min_age = nc['min_age']
+    prob_dist = nc['distribution']
+    try:
+      calibration_min_grid_idx = grid.min_age_to_min_grid_idx(min_age, prob_dist)
+    except:
+      raise RuntimeError('Calibration age of {m} exceeds grid max age of {a}'.format(m=min_age, a=args.max_age))
+    mrca.min_grid_idx = max(mrca.min_grid_idx, calibration_min_grid_idx)
+    try:
+      mrca.calibrations.append(prob_dist)
+    except:
+      mrca.calibrations = [prob_dist]
+
 def main(args):
   global VERBOSE, QUIET
   if args.quiet:
@@ -362,24 +385,7 @@ def main(args):
   tip_calibrations = parse_node_calibrations(args.age_file)
   node_calibrations.extend(tip_calibrations)
 
-  for nc in node_calibrations:
-    mrca_of = nc['mrca_of']
-    try:
-      mrca = tree.mrca(taxon_labels=mrca_of)
-    except Exception as x:
-      error(str(x))
-      raise RuntimeError('MRCA could not be found for "{}"'.format('", "'.join(mrca_of)))
-    min_age = nc['min_age']
-    prob_dist = nc['distribution']
-    try:
-      calibration_min_grid_idx = grid.min_age_to_min_grid_idx(min_age, prob_dist)
-    except:
-      raise RuntimeError('Calibration age of {m} exceeds grid max age of {a}'.format(m=min_age, a=args.max_age))
-    mrca.min_grid_idx = max(mrca.min_grid_idx, calibration_min_grid_idx)
-    try:
-      mrca.calibrations.append(prob_dist)
-    except:
-      mrca.calibrations = [prob_dist]
+  add_node_calibrations(tree, grid, node_calibrations)
 
   for nd in tree.postorder_node_iter():
     if not nd.is_leaf():
