@@ -277,7 +277,7 @@ class OffsetExponentialDistribution(OffsetDistribution):
   def ln_density_from_offset(self, v):
     return self.constant + self.hazard * v
 
-_CALIBRATION_PAT = re.compile(r'^(.*) (.*) [(](.*)[)]$')
+_CALIBRATION_PAT = re.compile(r'^(.*) (.*)\s*[(](.*)[)]$')
 _DIST_PAT = re.compile(r'^(\S.+)\s*[(](.*)[)]$')
 def distribution_string_to_distribution(dist_str, dist_params, min_age):
   v = {}
@@ -442,6 +442,10 @@ if __name__ == '__main__':
                       default=False,
                       action='store_true',
                       help='produce a MAP estimate of the relative divergence times using the sampled birth-death process (Stadler, 2010)')
+  parser.add_argument('--method_nodeprior',
+                      default=False,
+                      action='store_true',
+                      help='Expect a --prior_file=FN arg')
   parser.add_argument('--quiet',
                       default=False,
                       action='store_true',
