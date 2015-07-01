@@ -251,7 +251,7 @@ void args_init(int argc, char ** argv)
   {
     /* check for mandatory options */
     if (mand_options < mand_options_count)
-      fatal("Mandatory options for --method_sampled are:\n\n%s", 
+      fatal("Mandatory options are:\n\n%s", 
             mand_options_list);
 
     if (opt_lambda <= 0)
@@ -276,8 +276,8 @@ void args_init(int argc, char ** argv)
             "and --method_tipdates");
   }
 
-  /* --method_nodepior and --method_tipdates specific checks */
-  if (opt_method_nodeprior || opt_method_tipdates)
+  /* method_tipdates specific checks */
+  if (opt_method_tipdates)
   {
     if (opt_psi == 0)
       fatal("Use method --method_relative when estimating divergence times "
