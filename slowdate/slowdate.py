@@ -171,8 +171,8 @@ class StadlerFactors(object):
     self._dt = t*t
     assert self.m == 0 and self.k == 0
     _root_ln_numerator = math.log(4*self.n * bd_rho * bd_lambda)
-    _root_ln_denom_const = math.log(self._c1*(1.0 + self._c2))
-    self._root_ln_const = _root_ln_numerator - _root_ln_denom_const
+    self._root_ln_denom_const_factor = self._c1*(1.0 + self._c2)
+    self._root_ln_const = _root_ln_numerator
   def ln_root_factor(self, t):
     '''Calculates the log of the factor associated with the root being at time `t`
     assumes that the root has already been treated like an internal node.
@@ -186,7 +186,8 @@ class StadlerFactors(object):
         f = f / _E_200
         emag -= 200
         offset += 200
-    ln_var =offset + math.log(f + (1 + self._c2)*math.exp(emag))
+    var_factor = f + (1 + self._c2)*math.exp(emag)
+    ln_var =offset + math.log(var_factor*self._root_ln_denom_const_factor)
     return self._root_ln_const - ln_var
   def ln_internal_node_factor(self, t):
     '''Calculates the log of the factor associated with an internal node begin at time t
