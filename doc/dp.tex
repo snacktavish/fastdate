@@ -153,10 +153,10 @@ relies on accurate estimates of relative speciation times.
 
 \subsection{Previous approaches}
 The most straightforward approach to dating trees assuming that the rate of nucleotide 
-substitutions is constant through time, a molecular clock model \cite{zuckerkandl1962}.
+substitutions is constant through time, a molecular clock model \citep{zuckerkandl1962}.
 However, due to both stochastic variation in observed mutations and 
 biological variation in rates of mutation fixation across different lineages,
-using a strict molecular clock does not directly generate an ultrametric tree.
+using a strict molecular clock does not generate an ultrametric tree.
 There have been many alternative approaches developed to estimate
 ultrametric trees using an relaxed clock or correlated rates models (REFS).
 In order to scale branch length estimates to time researchers, apply calibration dates. 
@@ -181,7 +181,7 @@ reconciling these dates with branch lengths across the tree is a complex problem
 Several Bayesian methods have been developed which use Markov Chain Monte Carlo (MCMC) methods
 to infer dated phylogenies using this prior information, e.g. BEAST (ref)(some various other references)
 While these approaches can be accurate, and integrate over uncertainty about the dated
-phylogeny, for trees with many tips (>?) or many calibration points, they can be intractably slow. 
+phylogeny, for trees with many tips \ejmcomment{(e.g. ?)} or many calibration points, they can be intractably slow. 
 \ejmcomment{(REF/is this even true?)}
 
 Some rapid phylogenetic dating approaches have been developed which do not rely on MCMC.
@@ -193,25 +193,22 @@ According to (Gascuel LSD ref) LSD achieves similar results to BEAST, in orders 
 
 \cite{Akerborg2008} describe a dynamic programming approach to 
 rapidly estimate ultrametric phylogenies. 
-However, this algorithm is not available as an open source implementation.
-Our program, FastDate adapted from their dynamic programming algorithm.
-Fast Date implements a faster version of the dynamic programming approach running 
+This algorithm is not available as an open source implementation.
+
+Our program, FastDate, is adapted from \cite{Akerborg2008}'s algorithm.
+FastDate implements a faster version of the dynamic programming approach running 
 in quadratic time instead of the original cubic-time, and instead computes the 
 optimal probability density of a sampled tree.
 In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010}'s 
 probability of sampled trees with defined node heights,
 by building up a table of node height values which maximize the likelihood of 
-the node height ($\lambda p_1(t)$),  and the likelihood of branch lengths in the tree 
-having a given rate based on the gamma distribution $g(r)$.
+the node height,  and the likelihood of branch lengths in the tree 
+having a given rate based on the gamma distribution.
 In addition it can apply prior information on node dates or \ejmcomment{in future} tip dates to scale the tree to
 absolute time.
 The granularity of the dating approach can be determined by the user's choice of the number of time intervals to which 
 nodes can be assigned and maximum possible root age.
 The full procedure is described in depth below.
-
-
-with the addition of using node and tip date calibrations to scale trees to real time,
-and applying recent work on  priors for dates of sampled phylogenies \citep{Stadler2010}.
 
 \section{Methods}
 
@@ -248,7 +245,7 @@ use implicitly the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 Setting dates on a tree requires factorizing the branch lengths of an input topology
 from estimates of evolutionary distances into rates and times. 
 An appropriate expectation for the variation in these branch rates is difficult to select.
-A common approximation is to treat branch rates as gamma distributed (REF NEEDED)
+A common approximation is to treat branch rates as gamma distributed (REF)
 
 The {\em Gamma function} is an extension to the factorial function to handle
 any real or complex number as argument. For point $t$ it is defined as
@@ -261,8 +258,10 @@ $$ \gamma(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alph
 
 where $\beta = \mu / \sigma^2$ and $\alpha = \bar{r} \beta$.
 
+\ejmcomment{autocorrelated rates possibly to come?}
+
 \subsection{Birth-death process}
-Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process \cite{Kendall1948}.
+Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process \citep{Kendall1948}.
 The tree shape is parameterized using simply a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
 $\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
 Recent work by \citet{Gernhard2008} and \citet{Stadler2009, Stadler2010} has expanded on Kendall's basic 
@@ -270,20 +269,16 @@ formulation of the probabilities of birth\textendash death trees to incorporate 
 the effect on branch lengths of truncating the process by sampling tips at the present \citep{Gernhard2008},
 the effect of incomplete sampling of tips at the present day \citep{Stadler2009}, and the effect of the sampling
 of fossils on recovery of ancestral taxa \citep{Stadler2010}.
-\citet{Stadler2010} (theorem 3.11) gives probability of a dated topology with $n$ leaves,
-under the birth\textendash death process, with some proportion of currently sampled tips 
-($\rho$), a rate of recovery of taxa in the past ($\psi$),
-and the standard birth and death rate parameters.
 We assume two extended types of the {\em constant rate birth-death process}
-\cite{Kendall1948} that take into account individuals sampled through time. The
+that take into account sampling. The
 first one takes into account sampling of only extant individuals
-\cite{Stadler2009} while the second, which is a generalization of the first,
-takes into account extinct individuals \cite{Stadler2010}.
+\citep{Stadler2009} while the second, which is a generalization of the first,
+takes into account extinct individuals \citep{Stadler2010}.
 
 Given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
 $0 \leq \mu < \lambda$. An individual at the present is sampled with
 probability $\rho$.  The probability density of a sampled tree $T$ with $n$
-extant sampled leaves is given by the formula \cite{Stadler2009}
+extant sampled leaves is given by the formula
 %
 %
 $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}
@@ -292,7 +287,7 @@ $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -
 %
 The probability density of a sampled tree $T$ with $n$ extant sampled leaves,
 $m$ extinct sampled leaves, $n+m > 0$, and $k \geq 0$ sampled individuals with
-sampled descendants, conditioned on sampling $n$ present day individuals is \cite{Stadler2010}
+sampled descendants, conditioned on sampling $n$ present day individuals is
 %
 %
 $$f[T|n,m,k] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
