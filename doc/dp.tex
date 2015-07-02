@@ -7,6 +7,8 @@
 %
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{breqn}
+\usepackage{a4wide}
 \usepackage[normalem]{ulem} % for \sout to strikethrough text
 \newcounter{instr}
 \newcommand{\ninstr}{\refstepcounter{instr}\theinstr.}
@@ -77,7 +79,7 @@ and the standard birth and death rate parameters.
 
 
 \section{Algorithm}
-FastDate is based on an dynamic programming adapted from that of Akerborg \cite{Akerborg2008},.
+FastDate is based on an dynamic programming adapted from that of Akerborg \cite{Akerborg2008}.
 The granularity of the dating approach can be determined by the user choosing the number of time intervals to which 
 nodes can be assigned.
 In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010} 's probability of sampled trees with defined node heights,
@@ -87,13 +89,18 @@ and the likelihood of branch lengths in the tree having a given rate based on th
 The full procedure is described in depth below.
 
 
+\section {Preliminaries}
+%
+%
 \subsection{Basic definitions}
-
+%
 A tree $T=(V,E)$ is a connected acyclic graph where $V$ is the set of {\em
 nodes} and $E$ the set of {\em edges}, such that $E = V\times V$. We use the
 notation $(u,v) \in E$ to denote an edge with end-points $u,v \in V$. If $T$ is
-{\em oriented}, then {\em in-degree} (resp. {\em out-degree}) of a node denotes
-the number of incoming (resp. outgoing edges) of $u$. In the opposite case, the
+{\em oriented}, $(u,v) \in E$ indicates that the edge originates at $u$ and leads
+to $v$, in which case $u$ is called the {\em parent} and $v$ the {\em child}.
+Furthermore, {\em in-degree} (resp. {\em out-degree}) of a node denotes the
+number of incoming (resp. outgoing edges) of $u$. In the opposite case, the
 {\em degree} of node $u$ denotes the number of edges $u$ is an end-point of.
 Further, we denote with $T_u$ the subtree of $T$ rooted at node $u$.  A {\em
 rooted binary tree} $T$ is a {\em directed} tree with all nodes having
@@ -109,7 +116,7 @@ $u$ of $T$ is defined as
 1                    & \quad : \quad u    \in L(T)\\
 \end{array}\right. \] 
 The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
-implicitly use the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
+use implicitly the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 
 \subsection{Branch rate distribution}
 \subsection{Gamma function, Gamma distribution}
@@ -119,89 +126,357 @@ any real or complex number as argument. For point $t$ it is defined as
 $$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
 
 The {\em probability density function} in the shape-rate parameterization of a
-{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma$ \mthcomment{By convention, $\sigma$ should 
-mean the square root of the variance} is
-$$ g(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
+{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma^2$ 
+\sout{\mthcomment{By convention, $\sigma$ should mean the square root of the variance}}
+is
+$$ \gamma(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
 
-where $\beta = \bar{r} / \sigma$ and $\alpha = \bar{r} \beta$.
+where $\beta = \bar{r} / \sigma^2$ and $\alpha = \bar{r} \beta$.
 \ejmcomment{I re-labeled this with $\bar{r}$ for the mean of the gamma prior to avoid confusion with $\mu$ for birth rate.}
 
 Its natural logarithm can be computed as
-$$ \ln g(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
+$$ \ln \gamma(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
 
 \subsection{Birth-death process}
-From 3.11 in Stadler 2010 \textit{The probability density of a sampled tree T with n
-extant sampled leaves, m extinct sampled leaves, $n+m > 0$, and $k \geq 0$
-sampled individuals with sampled descendants, conditioned on
-sampling n present day individuals is,}
 
-$$F[T|n] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
-N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler say that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
+We assume two extended types of the {\em constant rate birth-death process}
+\cite{Kendall1948} that take into account individuals sampled through time. The
+first one takes into account sampling of only extant individuals
+\cite{Stadler2009} while the second, which is a generalization of the first,
+takes into account extinct individuals \cite{Stadler2010}.
 
-\begin{enumerate}
-\item[$\lambda$]  is the per lineage birth (speciation) rate
-\item[$\mu$]  is the per lineage death (extinction) rate
-\item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
-\item[$\rho$ ] is the proportion of total extant descendants $N$ which are sampled $n$.
-\item[$n$] is the number of extant (current) sampled descendants \mthstrike{of a node}.
-\item[$m$] is the number of extinct (fossil) sampled descendants \mthstrike{of a node}.
-\item[$c_1,c_2$]  are useful constants.
-$$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
-$$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
-\end{enumerate}
+Given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
+$0 \leq \mu < \lambda$. An individual at the present is sampled with
+probability $\rho$.  The probability density of a sampled tree $T$ with $n$
+extant sampled leaves is given by the formula
+%
+%
+$$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}
+\frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_i}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_i})^2}.$$
+%
+%
+The probability density of a sampled tree $T$ with $n$ extant sampled leaves,
+$m$ extinct sampled leaves, $n+m > 0$, and $k \geq 0$ sampled individuals with
+sampled descendants, conditioned on sampling $n$ present day individuals is
+%
+%
+$$f[T|n,m,k] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
+%
+%N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler say that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
+%
+where $p_0(t)$ is the probability that an individual alive at time $t$ before
+present has no sampled extinct or extant descendants, and $p_1(t)$ is the
+probability that an individual alive at time $t$ before present has precisely
+one sampled extant descendant and no sampled extinct descendant. Those probabilities
+are defined as
+%
+$$p_0(t) = \frac{\lambda+\mu+\psi+c_1\frac{e^{-c_1 t}(1-c_2)-(1+c_2)}{e^{-c_1t}(1-c_2)+(1+c_2)}}{2\lambda}$$
+and
+$$p_1(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
+%
+and the constants $c_1$ and $c_2$ are defined as
+%
+$$c_1 = \sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi} \qquad c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
+%
+For more information see \cite{Stadler2010} (Section 3).
 
-$p_1(t)$ is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendants and no sampled extinct descendants.
-$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
-%And with no sampled fossils ($\psi=0$)
-%$$f[T|t_{mrca}=x_1,n] = n(\lambda - \mu) \frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}\frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_1}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1})^2}$$\\
-
-For convenience in the algorithm we refer to the first part of $F[T|n]$ as $s(t,n)$.
-$$s(t,n) = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}$$
-
-and the second part as $p_c(v)$.
-$$p_{c}(v) = \prod_{i=1}^{L(v)-1}\lambda p_1(x_i)$$
-This is convenient, as we can build up the partial products of the second part of the birth death
-probability density can be built up as nodes are traversed by
-the dynamic programming algorithm, and stored for the calculation of $F[T|n]$ at each node.
-
-\ejmcomment{Still need to ensure that this is actually how this simplifies out when psi=0}
+%%%%% TODO: Move the following to the DP section %%%%%
+%%%%%\begin{enumerate}
+%%%%%\item[$\lambda$]  is the per lineage birth (speciation) rate
+%%%%%\item[$\mu$]  is the per lineage death (extinction) rate
+%%%%%\item[$\psi$]  is the per lineage rate of sampling in the past (e.g. fossils) (in same units as $\lambda$ and $\mu$).
+%%%%%\item[$\rho$ ] is the proportion of total extant descendants $N$ which are sampled $n$.
+%%%%%\item[$n$] is the number of extant (current) sampled descendants \mthstrike{of a node}.
+%%%%%\item[$m$] is the number of extinct (fossil) sampled descendants \mthstrike{of a node}.
+%%%%%\item[$c_1,c_2$]  are useful constants.
+%%%%%$$c_1 = |\sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi}|$$
+%%%%%$$c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
+%%%%%\end{enumerate}
+%%%%%
+%%%%%$p_1(t)$ is the probability that an individual alive at time $t$ before today has precisely 1 sampled extant descendants and no sampled extinct descendants.
+%%%%%$${p_1}(t) = \frac{4\rho}{2(1-c_2^2)+e^{-c_1t}(1-c_2)^2+e^{c_1t}(1+c_2)^2}$$
+%%%%%%And with no sampled fossils ($\psi=0$)
+%%%%%%$$f[T|t_{mrca}=x_1,n] = n(\lambda - \mu) \frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}\frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_1}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_1})^2}$$\\
+%%%%%
+%%%%%For convenience in the algorithm we refer to the first part of $F[T|n]$ as $s(t,n)$.
+%%%%%$$s(t,n) = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}$$
+%%%%%
+%%%%%and the second part as $p_c(v)$.
+%%%%%$$p_{c}(v) = \prod_{i=1}^{L(v)-1}\lambda p_1(x_i)$$
+%%%%%This is convenient, as we can build up the partial products of the second part of the birth death
+%%%%%probability density can be built up as nodes are traversed by
+%%%%%the dynamic programming algorithm, and stored for the calculation of $F[T|n]$ at each node.
+%%%%%
+%%%%%\ejmcomment{Still need to ensure that this is actually how this simplifies out when psi=0}
 
 \section{Dynamic programming algorithm}
 
-We are given an integer $N \geq h(T)$ which we use to construct a grid of lines
-over the height of a tree (numbered 1 to $N$), such that the (uniform) distance between any two
-adjacent lines is $h(T) / N$.  Our goal is to project each node of $T$ onto one
-of the $N$ using a mapping $\phi : V \mapsto \{1,\ldots,N\}$ such that the
-following properties are maintained.
+We present the dynamic programming algorithm for relative dating of a tree
+$T=(V,E)$. This will be extended in the next section to accommodate fossil
+information.
 
+We are given an integer $N \geq h(T)$ which we use to construct a grid of
+time-lines numbered from 1 to $N$, such that the (uniform) distance between any
+two adjacent lines is $1 / (N-1)$ and line $i$ represents time
+$\frac{i-1}{N-1}$ in relative time units. The goal is to project each node of
+$T$ onto one of the $N$ time-lines using a mapping $\phi : V \mapsto
+\{1,\ldots,N\}$ such that a) the score of the formula
+%
+%
+\begin{equation}\label{eq:score}
+\begin{split}
+f(T\ |\ n,\phi) = & n (\lambda-\mu)
+                    \frac {(\lambda\rho)^{n-1} (\lambda-\mu)^{2n-2}
+                           e^{-(\lambda-\mu)\tau_r}}
+                          {\rho\lambda + 
+                           (\lambda(1 -\rho)-\mu)
+                           e^{-(\lambda-\mu)\tau_r}} \times  \\
+                  & \prod_{u\notin L(T)}\frac{e^{-(\lambda-\mu)\tau_u}}
+                                             {(\rho\lambda +
+                                              (\lambda(1-\rho)-\mu)
+                                              e^{-(\lambda-\mu)\tau_u})^2}
+                                        \gamma(\frac{\ell_{u,v}}{\tau_u-\tau_v})
+                                        \gamma(\frac{\ell_{u,w}}{\tau_u-\tau_w}).
+\end{split}
+\end{equation}
+%
+%
+is maximized and b) the following two properties are maintained
+%
+%
 \begin{enumerate}
-\item $\forall u,v,w \in V : (u,v), (u,w) \in E \Rightarrow \phi(u) > \phi(v) \wedge \phi(u) > \phi(w)$,
-\item $\phi(u) = 1, \forall u \in L(T)$,
+\item $\forall u,v,w \in V : (u,v), (u,w) \in E \Rightarrow \phi(u) > \phi(v)%
+                                                     \wedge \phi(u) > \phi(w)$,
+\item $\phi(u) = 1, \forall u \in L(T)$.
 \end{enumerate}
+%
+%
+The term $f(T\ |\ n,\phi)$ is the score of tree $T$ for the mapping $\phi$
+given the parameters of the birth-death process gamma distribution for
+obtaining edge rate probability densities.  The age $\tau_u$ of each inner node
+$u$ is computed as $\tau_v = \frac{\phi(u)-1}{N-1}$ and its two edge rates as
+$\ell_{u,v}/(\tau_u - \tau_v)$ and $\ell_{u,w}/(\tau_u-\tau_w)$, where $v$ and
+$w$ are the two children of $u$.
+%
+The restriction imposed by Property 1 ensures that no node $v$ in subtree $T_u$
+is placed on time-line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves onto
+the first time-line.
+%
+%
+%%%\ejmcomment{Not true in case of tip dating, but still currently true. 
+%%%Also - we have some inconsistency on whether they are mapped to line 0 or 1.
+%%%In the code it is 1 currently.}
+%%% TOMAS: For simplicity, I changed the section to describe relative dating only and then
+%%% extend it in the next section with fossil information. Therefore, I left property 2 intact.
 
-Property 1 ensures that no node $v$ in the subtree rooted at $u$ is placed on
-line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves to the first line (line 1).
-\ejmcomment{Not true in case of tip dating, but still currently true. 
-Also - we have some inconsistency on whether they are mapped to line 0 or 1.
-In the code it is 1 currently.}
+Before describing the algorithm, it is necesary to define the interval of
+discretized time-lines a node can be placed on, such that Property 1 holds. The
+interval $d(r)$ for root $r$ is defined as $$d(r) = \{ i\ |\ h(r) \leq i <
+N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
+d(p); (p,u) \in E\}.$$ This is justified by the fact that the farthest {\em
+path} from node $u$ leading to a leaf is of size $h(u)$ and contains exactly
+$h(u)$ nodes (including $u$).  Therefore, we require at least $h(u)$ time-lines
+for placing each node of the path to a distinct time-line.  Hence, the first
+time-line $u$ can be placed on is $h(u)$. The same applies for the path from
+$u$ leading to the root node $r$.  Each node must be placed on a distinct
+time-line, and as such, the last time-line $u$ may be placed on is one before
+the last time-line its parent node $p$ can be placed on. The intervals for each
+node can be computed by a preorder traversal of the tree. One method to achieve
+maximization of (\ref{eq:score}) is to split $f(T\ |\ n, \phi)$ into two terms
+$f_1(T\ |\ n,\phi(r))$ and $f_2(T\ |\ \phi)$
+%
+%
+\begin{equation}\label{eq:part1} 
+f_1(T\ |\ n,\phi(r)) = n (\lambda-\mu)
+                       \frac{(\lambda\rho)^{n-1}% 
+                             (\lambda-\mu)^{2n-2}% 
+                             e^{-(\lambda-\mu)\tau_r}}%
+                            {\rho\lambda +%
+                             (\lambda(1 -\rho)-\mu)%
+                             e^{-(\lambda-\mu)\tau_r}}
+\end{equation}
+%
+%
+\begin{equation}\label{eq:part2}
+f_2(T\ |\ \phi) = \prod_{u\notin L(T)}
+                  \frac{e^{-(\lambda-\mu)\tau_u}}
+                       {(\rho\lambda + 
+                        (\lambda(1-\rho)-\mu)
+                        e^{-(\lambda-\mu)\tau_u})^2}
+                  \gamma(\frac{\ell_{u,v}}{\tau_u-\tau_v})
+                  \gamma(\frac{\ell_{u,w}}{\tau_u-\tau_w}).
+\end{equation}
+%
+%
+and compute the $|d(r)|$ maximized values of $f_2(T\ |\ \phi_i), h(r) \leq i
+\leq N$, i.e. for each time-line the root may be placed on. Because $f_1(T\ |\
+n,\phi)$ depends only on the root time-line, the optimal mapping $\phi_i$ that
+maximizes \ref{eq:score} (denoted by $\hat\phi$) is the one that leads to the
+highest product $f1_(T\ |\ n,\phi_i)\times f_2(T\ |\ \phi_i)$.%
+Our approach is to maximize term \ref{eq:part2} using a dynamic programming
+algorithm. For that, we slightly modify the structure of \ref{eq:part2} into
+the following equivalent formula, 
+%
+%
+\begin{equation}\label{eq:DP}
+\begin{split}
+s(u\notin L(T),i) = & \overbrace{\frac{e^{-(\lambda-\mu)\tau_u}}
+                                      {(\rho\lambda + 
+                                       (\lambda(1-\rho)-\mu)
+                                       e^{-(\lambda-\mu)\tau_u})^2}
+                      }^{\textrm{birth-death term } b(i)}\times\\
+                    & \underbrace{
+                        \max\{ s(v,j)\gamma(\frac{(N-1)\ell_{u,v}}{i-j})\ |\ 
+                          h(v) \leq j < i\}
+                      }_{\textrm{max score of left child}}\times \\
+                    & \underbrace{
+                        \max\{ s(w,k)\gamma(\frac{(N-1)\ell_{u,w}}{i-k})\ |\ 
+                          h(w) \leq k < i\}
+                      }_{\textrm{max score of right child}}\\
+\end{split}
+\end{equation}
+%
+%
+where $s(u\in L(T),1) = 1$.
+%
+%
+The DP traverses the target tree in postorder and for each inner node $u$, it
+computes $|d(u)|$ maximized values $s(u,i), h(u) \leq i < h(u) + |d(u)|$, one
+for each time-line that node $u$ may be placed on.  The score $s(u,i)$ of a
+particular time-line $i$ of node $u$ is computed by finding the time-lines $j$
+resp. $k$ of its two children $v$ resp. $w$, which maximize the products of
+$s(u,j)$ resp. $s(w,k)$ times the probability densities of the factorized edge
+priors $\gamma(\frac{(N-1)l_{u,v}}{i-j})$ resp.
+$\gamma(\frac{(N-1)l_{u,w}}{i-k})$.  Note that, for a pair of time-lines $i$
+and $j$ resp. $k$, we can factorize the branch length of edge $(u,v)$ resp.
+$(u,w)$ into a product of time (age) and rate.
+%
+%
+This results into ${\cal O}((|d(v)|+|d(w)|)\times|d(u)|)$ computations for
+determining the $|d(u)|$ maximal scores (and mappings) for $T_u$. These maximal
+values for each time-line are then stored in a table together with the
+positions (time-lines) its two direct descendants (children) were placed on.
+This procedure is repeated recurrently for each node in the tree starting from
+the leaves and moving towards the root (postorder).Finally, once the terms
+$s(r,i)$ are computed for each time-line of the root node, they are multiplied
+with the corresponding term $f_1(T\ |\ n, \phi(r))$, and the time-line yielding
+the maximal score is selected.
 
-The mapping is computed by maximizing a function, which defines a
-dynamic programming algorithm.  We briefly explain the algorithm informally.
+At this point, the process of backtracking starts, with the goal of retrieving
+the optimal mapping $\hat\phi$. By selecting the maximal score (and hence the
+time-line of the root) we also obtain the time-lines of its two children, and,
+at each of the two children, the time-lines of their two children. Recursively,
+we can obtain the time-lines of all nodes that maximize term \ref{eq:score}.
+%
+Fig.~\ref{fig:dp} describes the algorithm in detail.
 
-The DP uses a post-order traversal of the target tree. For each node $u$, it
-computes the maximal value $f(u,t)$ for each line $t$ that node $u$ is allowed to be
-placed on, along with all the lines that its two children are allowed to placed
-on. This maximal value is then stored in a table along with the positions (lines) its
-two children were placed on. 
+\setcounter{instr}{0}
+\begin{figure}[t]
+\begin{center}
+\begin{tabular}{|rl|}
+\hline
+\multicolumn{2}{|l|}{\textsc{DP}$(T, N, u)$}\\
+\ninstr & $v \leftarrow$ left child of $u$\\
+\ninstr & $w \leftarrow$ right child of $u$\\
+\ninstr & $r \leftarrow$ the root of $T$\\
+\ninstr & \textbf{if} $v \in L(T)$ \textbf{then}\\
+\ninstr & \qquad $M(v,1) \leftarrow 1$\\
+\ninstr & \qquad \textbf{return}\\
+\ninstr & \textsc{DP}(T,N,v)\\        
+\ninstr & \textbf{if} $w \in L(T)$ \textbf{then}\\
+\ninstr & \qquad $M(w,1) \leftarrow 1$\\
+\ninstr & \qquad \textbf{return}\\
+\ninstr & \textsc{DP}(T,N,w)\\        
+\ninstr & \textbf{for} $i \leftarrow \min d(u)$ \textbf{to} $\max d(u)$ \\
+\ninstr & \qquad $\hat{f}_u \leftarrow 0, \hat{t}_u \leftarrow (i-1)/(N-1)$\\
+\ninstr & \qquad \textbf{for} $j \leftarrow \min d(v)$ \textbf{to} $i-1$ \\
+\ninstr & \qquad \qquad  $\tau_v \leftarrow (j-1)/(N-1), r_{u,v} \leftarrow \ell_{u,v}/(\tau_u - \tau_v)$ \\
+\ninstr & \qquad \qquad  \textbf{if} $\gamma(r_{u,v})  s(v,j) > \hat{f}_v$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad $\hat{f}_v \leftarrow \gamma(r_{u,v})  s(v,j)$\\
+\ninstr & \qquad \qquad \qquad $\hat j \leftarrow j$\\
+\ninstr & \qquad \textbf{for} $k \leftarrow \min d(w)$ \textbf{to} $i-1$ \\
+\ninstr & \qquad \qquad  $\tau_w \leftarrow (k-1)/(N-1), r_{u,w} \leftarrow \ell_{u,w}/(\tau_u - \tau_w)$\\
+\ninstr & \qquad \qquad  \textbf{if} $\gamma(r_{u,w})  s(v,k) > \hat{f}_w$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad $\hat{f}_w \leftarrow \gamma(r_{u,w})  s(w,k)$\\
+\ninstr & \qquad \qquad \qquad $\hat k \leftarrow k$\\
+\ninstr & \qquad $M(u,i) \leftarrow b(i) \times \hat f_{v} \times \hat f_{w}$\\
+\ninstr & \qquad $M^l(u,i) \leftarrow \hat j, M^r(u,i) \leftarrow \hat k$\\
+\ninstr & \qquad \textbf{if} $u = r$  \textbf{then}\\
+\ninstr & \qquad \qquad $M(u,i) \leftarrow M(u,i) \times f_1(T\ |\ n,i)$ \\
 
-We first need to set the interval of lines (discretization) that a specific
-node can be placed on.  This interval (denoted $d(u)$) for node $u$ is defined
-as $$ d(u) = \{ x\ |\  h(u) \leq x \leq N - (h(r) - h(u))\}.$$  This is
-justified by the fact that the farthest {\em path} leading from node $u$ to a
-leaf is of size $h(u)$ and contains exactly $h(u)$ nodes including $v$.
-Therefore, even if all nodes in the distinct height in the subtree rooted at
-$u$ are placed on distinct discretization, the lowest line that $u$ can be
-placed on is line $h(u)$.
+\hline  
+\end{tabular}
+\end{center}
+\caption{The DP algorithm for computing relative divergence times. The
+algorithm starts by passing the tree ($T$), number of discretization lines
+($N$) and the root of $T$ ($u$). It recursively traverses the tree in
+postorder and then computes the best placement for every node $u$.}
+\label{fig:dp}
+\end{figure}
+
+W.l.o.g we prove that the DP algorithm computes the optimal score of
+ref{formula} given the grid size and the values of $\lambda,\mu,\rho,\psi$.
+
+\begin{theorem}[Optimality of DP]
+Given the number of discretization intervals, the values of $\lambda,\mu,\rho$,
+Algorithm DP computes the optimal score of (\ref{eq:score}).
+\end{theorem}
+\begin{proof}
+We show that the score terms $s(r,i), h(r) \leq i \leq N$ the DP computes are
+in fact equal to $f_2(T,\hat\phi_i)$ and hence, finding the product
+$f_2(T,\phi_i)\times f_1(T,\phi_i)$ yields the highest value gives us the
+optiomal solution. We show our proof by strong induction on the height of the
+root node.
+\paragraph{Base case.} Let $u$ be the parent of $v$ and $w$, such that $h(u) =
+1$. Nodes $v$ and $w$ are therefore leaves, which leads us to compute
+$|d(u)|=N-1$ values, of the form
+%
+%
+$$
+s(u,i) = \frac{e^{-(\lambda - \mu)\tau_u}}
+              {(\rho\lambda + (\lambda(1 - \rho) - \mu)
+                e^{-(\lambda-\mu)\tau_u})^2}
+         \gamma(\frac{\ell_{u,v}}{\tau_u})
+         \gamma(\frac{\ell_{u,w}}{\tau_u})\\
+$$
+%
+%
+for each $i \in d(u)$. Since DP selects the score that maximizes the product
+when multiplied with $f_1(T,\phi)$, we obtain the optimal score.
+\paragraph{Inductive step.} Assume the claim holds for each node $u$ of height
+$1 \leq h(u) \leq m$. Our task is to prove that the claim holds for $h(u) =
+m+1$.  According to the definition of height, a node $u$ of height $h(u)=m+1$
+has a child $v$ of height $h(v)=m$ and a child $w$ of height $0 \leq h(w) \leq
+m$.  Since the values $s(v,j), h(v) \leq j \leq \max d(v)$ and $s(w,k), 1 \leq
+k \leq \max d(w)$ are maximized (assumption), we compute $|d(u)|$ values
+%
+%
+\begin{equation*}
+\begin{split}
+s(u,i) = & \frac{e^{-(\lambda-\mu)\tau_u}}
+                           {(\rho\lambda + 
+                            (\lambda(1-\rho)-\mu)
+                            e^{-(\lambda-\mu)\tau_u})^2}\times \\
+         & \max\{ s(v,j)\gamma(\frac{(N-1)\ell_{u,v}}{i-j})\ |\ 
+               h(v) \leq j < i\} \times \\
+         & \max\{ s(w,k)\gamma(\frac{(N-1)\ell_{u,w}}{i-k})\ |\ 
+               h(w) \leq k < i\}
+\end{split}
+\end{equation*}
+%
+%
+and pick the maximal.
+\qed\end{proof}
+
+\section{Extending the DP algorithm with fossil information}
+
+
+{\bf TOMAS: I moved the following text in a new section as a base for integrating fossils}
+
+The score function we compute is placed 
+%
+%
+%
 
 Next, we define the maximization function $f$ that is computed for each node $u \in
 V\setminus L(T)$ and for each discretization line $t_u$:  
@@ -240,66 +515,6 @@ Once the optimal position of the root has been determined,
 then backtracking through maximal values stored for the 
 left and right children will give a fully specified dated tree.
 
-
-Fig.~\ref{fig:dp} describes the algorithm in detail.
-
-
-\setcounter{instr}{0}
-\begin{figure}[t]
-\begin{center}
-\begin{tabular}{|rl|}
-\hline
-\multicolumn{2}{|l|}{\textsc{DP}$(T, N, u)$}\\
-\ninstr & $v \leftarrow$ left child of $u$\\
-\ninstr & $w \leftarrow$ right child of $u$\\
-\ninstr & $r \leftarrow$ the root of $T$\\
-\ninstr & $p_1(t)$ probability that a tip at time t has 1 extant descendant from Stadler 2010  \\
-\ninstr & \textbf{if} $v \in L(T)$ \textbf{then}\\
-\ninstr & \qquad $M(v,1) \leftarrow 1$\\
-\ninstr & \qquad $p_c(v,t_v) \leftarrow 1$\\ 
-\ninstr & \qquad \textbf{return}\\
-\ninstr & \textsc{DP}(T,N,v)\\        
-\ninstr & \textbf{if} $w \in L(T)$ \textbf{then}\\
-\ninstr & \qquad $M(w,1) \leftarrow 1$\\
-\ninstr & \qquad $p_c(w,t_w) \leftarrow 1$\\ 
-\ninstr & \qquad \textbf{return}\\
-\ninstr & \textsc{DP}(T,N,w)\\        
-\ninstr & \textbf{for} $t_u \leftarrow \min d(u)$ \textbf{to} $\max d(u)$ \\
-\ninstr & \qquad $\hat{f}_u \leftarrow 0, \hat{t}_v \leftarrow 0, \hat{t}_w \leftarrow 0$\\
-\ninstr & \qquad \textbf{for} $t_v \leftarrow \min d(v)$ \textbf{to} $\min\{\max d(v), t_u\}$ \\
-\ninstr & \qquad \qquad  $r_{u,v} \leftarrow \ell_{u,v}/(t_u - t_v)$ \\
-\ninstr & \qquad \qquad  \textbf{if} $g(r_{u,v})  p_c(v,t_v) > \hat{f}_v$ \textbf{then} \\
-\ninstr & \qquad \qquad \qquad $\hat{f}_v \leftarrow g(r_{u,v})  p_c(v,t_v)$\\
-\ninstr & \qquad \qquad \qquad $\hat{g}_v \leftarrow g(r_{u,v})$\\
-\ninstr & \qquad \qquad \qquad $\hat t_v \leftarrow t_v$\\
-\ninstr & \qquad \qquad \qquad $\hat p_{cv} \leftarrow p_c(v,t_v)$\\
-\ninstr & \qquad \textbf{for} $t_w \leftarrow \min d(w)$ \textbf{to} $\min\{\max d(w), t_u\}$ \\
-\ninstr & \qquad \qquad  $r_{u,w} \leftarrow \ell_{u,w}/(t_u - t_w)$\\
-\ninstr & \qquad \qquad  \textbf{if} $g(r_{u,w})  p_c(v,t_w) > \hat{f}_w$ \textbf{then} \\
-\ninstr & \qquad \qquad \qquad $\hat{f}_w \leftarrow g(r_{u,w})  p_c(w,t_w)$\\
-\ninstr & \qquad \qquad \qquad $\hat{g}_w \leftarrow g(r_{u,w})$\\
-\ninstr & \qquad \qquad \qquad $\hat t_w \leftarrow t_w$\\
-\ninstr & \qquad \qquad \qquad $\hat p_{cw} \leftarrow p_c(w,t_w)$\\
-\ninstr & \qquad $p_{c}(u,t_u) \leftarrow \hat p_{cv} \hat p_{cw} \lambda p_1(t_u)$  \\
-\ninstr & \qquad \textbf{if} $u == r$  \textbf{then}\\
-\ninstr & \qquad \qquad $f(u,t_u) \leftarrow s(u,n_{u}) p_c(t_{u}) \hat g(r_{u,v}) \hat g(r_{u,w})$ \\
-\ninstr & \qquad \textbf{else} \\
-\ninstr & \qquad \qquad $f(u,t_u) \leftarrow p_c(t_{u}) \hat g(r_{u,v}) \hat g(r_{u,w})$ \\
-\ninstr & \qquad \textbf{if} $f(u,t_u) > \hat{f}_u$ \textbf{then} \\
-\ninstr & \qquad \qquad $\hat{f}_u \leftarrow f(u,t)$\\
-\ninstr & \qquad $M(u,t_u) \leftarrow \hat{f}_u, M^l(u,t_u) \leftarrow \hat{t}_v, M^r(u,t_u) \leftarrow \hat{t}_w$  \\
-
-
-
-\hline  
-\end{tabular}
-\end{center}
-\caption{The DP algorithm for computing relative divergence times. The
-algorithm starts by passing the tree ($T$), number of discretization lines
-($N$) and the root of $T$ ($u$). It recursively traverses the tree in
-postorder and then computes the best placement for every node $u$.}
-\label{fig:dp}
-\end{figure}
 
 \section{Description of software}
 FastDate requires as input a fully bifurcating rooted phylogeny with branch lengths,

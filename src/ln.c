@@ -34,24 +34,24 @@
 
 static double constant = M_SQRTPI * M_SQRT_2;
 
-double ln_dist_pdf(double mean, double variance, double x)
+double ln_dist_pdf(double mean, double stdev, double x)
 {
-  assert(variance > 0);
+  assert(stdev > 0);
   assert(x > 0);
 
-  return (1 / (x * variance * constant)) *
-         exp(-(log(x) - mean)*(log(x) - mean) / (2 * variance * variance));
+  return (1 / (x * stdev * constant)) *
+         exp(-(log(x) - mean)*(log(x) - mean) / (2 * stdev * stdev));
 }
 
-double ln_dist_logpdf(double mean, double variance, double x)
+double ln_dist_logpdf(double mean, double stdev, double x)
 {
-  assert(variance > 0);
+  assert(stdev > 0);
   assert(x >= 0);
 
   if (x == 0) return  -__DBL_MAX__ / 2;
 
-  return (-log(x) - log(variance) - log(constant) -
-         (log(x) - mean)*(log(x) - mean) / (2 * variance * variance));
+  return (-log(x) - log(stdev) - log(constant) -
+         (log(x) - mean)*(log(x) - mean) / (2 * stdev * stdev));
 
 }
 

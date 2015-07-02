@@ -172,7 +172,7 @@ doi:[10.1016/j.jtbi.2009.07.018](http://dx.doi.org/10.1016/j.jtbi.2009.07.018)
 * Stadler T. (2010)
 **Sampling-through-time in birth-death trees.**
 *Journal of Theoretical Biology*, 267(3): 396-404.
-doi:[doi:10.1016/j.jtbi.2010.09.010](http://dx.doi.org/10.1016/j.jtbi.2010.09.010)
+doi:[10.1016/j.jtbi.2010.09.010](http://dx.doi.org/10.1016/j.jtbi.2010.09.010)
 
 * Thorne JL, Kishino H., Painter IS. (1998)
 **Estimating the rate of evolution of the rate of molecular evolution.**
