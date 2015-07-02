@@ -293,8 +293,6 @@ void args_init(int argc, char ** argv)
             "information to be specified with the --prior_file switch");
     if (!opt_max_age)
       fatal("Method --method_nodeprior requires that --max_age is defined");
-    if (opt_outform == OUTPUT_ULTRAMETRIC)
-      fatal("Method --method_nodeprior cannot generate ultrametric trees");
   }
 
   if (opt_method_tipdates)
