@@ -25,7 +25,7 @@
 \linespread{1.66}
 % All text should be double-spaced
 % with occasional exceptions for tables. 
-\raggedright
+%\raggedright
 \setlength{\parindent}{0.5in}
 
 \setcounter{secnumdepth}{0}
@@ -263,14 +263,11 @@ any real or complex number as argument. For point $t$ it is defined as
 $$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
 
 The {\em probability density function} in the shape-rate parameterization of a
-{\em gamma distribution} given the {\em mean} $\bar{r}$ and variance $\sigma^2$ 
+{\em gamma distribution} given the {\em mean} $\mu$ and {\em variance} $\sigma^2$ 
 is
 $$ \gamma(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
 
-where $\beta = \bar{r} / \sigma^2$ and $\alpha = \bar{r} \beta$.
-
-Its natural logarithm can be computed as
-$$ \ln \gamma(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
+where $\beta = \mu / \sigma^2$ and $\alpha = \bar{r} \beta$.
 
 \subsection{Birth-death process}
 
@@ -283,7 +280,7 @@ takes into account extinct individuals \cite{Stadler2010}.
 Given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
 $0 \leq \mu < \lambda$. An individual at the present is sampled with
 probability $\rho$.  The probability density of a sampled tree $T$ with $n$
-extant sampled leaves is given by the formula
+extant sampled leaves is given by the formula \cite{Stadler2009}
 %
 %
 $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}
@@ -292,7 +289,7 @@ $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -
 %
 The probability density of a sampled tree $T$ with $n$ extant sampled leaves,
 $m$ extinct sampled leaves, $n+m > 0$, and $k \geq 0$ sampled individuals with
-sampled descendants, conditioned on sampling $n$ present day individuals is
+sampled descendants, conditioned on sampling $n$ present day individuals is \cite{Stadler2010}
 %
 %
 $$f[T|n,m,k] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
@@ -350,10 +347,10 @@ We present the dynamic programming algorithm for relative dating of a tree
 $T=(V,E)$. This will be extended in the next section to accommodate fossil
 information.
 
-We are given an integer $N \geq h(T)$ which we use to construct a grid of
+We are given an integer $N \geq h(T) > 1$ which we use to construct a grid of
 time-lines numbered from 1 to $N$, such that the (uniform) distance between any
-two adjacent lines is $1 / (N-1)$ and line $i$ represents time
-$\frac{i-1}{N-1}$ in relative time units. The goal is to project each node of
+two adjacent time-lines is $1 / (N-1)$ and time-line $i$ represents time
+$\tau_i = \frac{i-1}{N-1}$ in relative time units. The goal is to project each node of
 $T$ onto one of the $N$ time-lines using a mapping $\phi : V \mapsto
 \{1,\ldots,N\}$ such that a) the score of the formula
 %
@@ -362,16 +359,16 @@ $T$ onto one of the $N$ time-lines using a mapping $\phi : V \mapsto
 \begin{split}
 f(T\ |\ n,\phi) = & n (\lambda-\mu)
                     \frac {(\lambda\rho)^{n-1} (\lambda-\mu)^{2n-2}
-                           e^{-(\lambda-\mu)\tau_r}}
+                           e^{-(\lambda-\mu)\tau_{\phi(r)}}}
                           {\rho\lambda + 
                            (\lambda(1 -\rho)-\mu)
-                           e^{-(\lambda-\mu)\tau_r}} \times  \\
-                  & \prod_{u\notin L(T)}\frac{e^{-(\lambda-\mu)\tau_u}}
+                           e^{-(\lambda-\mu)\tau_{\phi(r)}}} \times  \\
+                  & \prod_{u\notin L(T)}\frac{e^{-(\lambda-\mu)\tau_{\phi(u)}}}
                                              {(\rho\lambda +
                                               (\lambda(1-\rho)-\mu)
-                                              e^{-(\lambda-\mu)\tau_u})^2}
-                                        \gamma(\frac{\ell_{u,v}}{\tau_u-\tau_v})
-                                        \gamma(\frac{\ell_{u,w}}{\tau_u-\tau_w}).
+                                              e^{-(\lambda-\mu)\tau_{\phi(u)}})^2}
+                                        \gamma(\frac{\ell_{u,v}}{\tau_{\phi(u)}-\tau_{\phi(v)}})
+                                        \gamma(\frac{\ell_{u,w}}{\tau_{\phi(u)}-\tau_{\phi(w)}}).
 \end{split}
 \end{equation}
 %
@@ -387,11 +384,12 @@ is maximized and b) the following two properties are maintained
 %
 %
 The term $f(T\ |\ n,\phi)$ is the score of tree $T$ for the mapping $\phi$
-given the parameters of the birth-death process gamma distribution for
-obtaining edge rate probability densities.  The age $\tau_u$ of each inner node
-$u$ is computed as $\tau_v = \frac{\phi(u)-1}{N-1}$ and its two edge rates as
-$\ell_{u,v}/(\tau_u - \tau_v)$ and $\ell_{u,w}/(\tau_u-\tau_w)$, where $v$ and
-$w$ are the two children of $u$.
+given the parameters of the birth-death process, gamma distribution for
+obtaining edge rate probability densities. The factorized edge-rates of node
+$u$ given its two children $v$ and $w$ are $\eta_{u,v} =
+\ell_{u,v}/(\tau_{\phi(u)} - \tau_{\phi(v)})$ and $\eta_{u,v} =
+\ell_{u,w}/(\tau_{\phi(u)}-\tau_{\phi(w)})$, where $v$ and $w$ are the two
+children of $u$.
 %
 The restriction imposed by Property 1 ensures that no node $v$ in subtree $T_u$
 is placed on time-line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves onto
@@ -411,7 +409,7 @@ N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
 d(p); (p,u) \in E\}.$$ This is justified by the fact that the farthest {\em
 path} from node $u$ leading to a leaf is of size $h(u)$ and contains exactly
 $h(u)$ nodes (including $u$).  Therefore, we require at least $h(u)$ time-lines
-for placing each node of the path to a distinct time-line.  Hence, the first
+for placing each node of the path on a distinct time-line.  Hence, the first
 time-line $u$ can be placed on is $h(u)$. The same applies for the path from
 $u$ leading to the root node $r$.  Each node must be placed on a distinct
 time-line, and as such, the last time-line $u$ may be placed on is one before
@@ -425,21 +423,25 @@ $f_1(T\ |\ n,\phi(r))$ and $f_2(T\ |\ \phi)$
 f_1(T\ |\ n,\phi(r)) = n (\lambda-\mu)
                        \frac{(\lambda\rho)^{n-1}% 
                              (\lambda-\mu)^{2n-2}% 
-                             e^{-(\lambda-\mu)\tau_r}}%
+                             e^{-(\lambda-\mu)\tau_{\phi(r)}}}%
                             {\rho\lambda +%
                              (\lambda(1 -\rho)-\mu)%
-                             e^{-(\lambda-\mu)\tau_r}}
+                             e^{-(\lambda-\mu)\tau_{\phi(r)}}}
 \end{equation}
 %
 %
 \begin{equation}\label{eq:part2}
 f_2(T\ |\ \phi) = \prod_{u\notin L(T)}
-                  \frac{e^{-(\lambda-\mu)\tau_u}}
-                       {(\rho\lambda + 
-                        (\lambda(1-\rho)-\mu)
-                        e^{-(\lambda-\mu)\tau_u})^2}
-                  \gamma(\frac{\ell_{u,v}}{\tau_u-\tau_v})
-                  \gamma(\frac{\ell_{u,w}}{\tau_u-\tau_w}).
+                  \underbrace{
+                    \frac{e^{-(\lambda-\mu)\tau_{\phi(u)}}}
+                         {(\rho\lambda + 
+                          (\lambda(1-\rho)-\mu)
+                          e^{-(\lambda-\mu)\tau_{\phi(u)}})^2}
+                  }_{\textrm{birth-death process term } b(\phi(u))}
+                  \underbrace{
+                    \gamma(\frac{\ell_{u,v}}{\tau_{\phi(u)}-\tau_{\phi(v)}})
+                    \gamma(\frac{\ell_{u,w}}{\tau_{\phi(u)}-\tau_{\phi(w)}})
+                  }_{\textrm{edge priors}}
 \end{equation}
 %
 %
@@ -447,7 +449,7 @@ and compute the $|d(r)|$ maximized values of $f_2(T\ |\ \phi_i), h(r) \leq i
 \leq N$, i.e. for each time-line the root may be placed on. Because $f_1(T\ |\
 n,\phi)$ depends only on the root time-line, the optimal mapping $\phi_i$ that
 maximizes \ref{eq:score} (denoted by $\hat\phi$) is the one that leads to the
-highest product $f1_(T\ |\ n,\phi_i)\times f_2(T\ |\ \phi_i)$.%
+highest product $f_1(T\ |\ n,\phi_i)\times f_2(T\ |\ \phi_i)$.%
 Our approach is to maximize term \ref{eq:part2} using a dynamic programming
 algorithm. For that, we slightly modify the structure of \ref{eq:part2} into
 the following equivalent formula, 
@@ -455,25 +457,27 @@ the following equivalent formula,
 %
 \begin{equation}\label{eq:DP}
 \begin{split}
-s(u\notin L(T),i) = & \overbrace{\frac{e^{-(\lambda-\mu)\tau_u}}
-                                      {(\rho\lambda + 
-                                       (\lambda(1-\rho)-\mu)
-                                       e^{-(\lambda-\mu)\tau_u})^2}
-                      }^{\textrm{birth-death term } b(i)}\times\\
-                    & \underbrace{
-                        \max\{ s(v,j)\gamma(\frac{(N-1)\ell_{u,v}}{i-j})\ |\ 
+s(u\notin L(T),i) = %& \overbrace{\frac{e^{-(\lambda-\mu)\tau_i}}
+                    %                  {(\rho\lambda + 
+                    %                   (\lambda(1-\rho)-\mu)
+                    %                   e^{-(\lambda-\mu)\tau_i})^2}
+                    %  }^{\textrm{birth-death term } b(i)}\times\\
+                    b(i)
+                    %& 
+                    \underbrace{
+                        \max\{ s(v,j)\gamma(\frac{\ell_{u,v}}{\tau_i - \tau_j})\ |\ 
                           h(v) \leq j < i\}
-                      }_{\textrm{max score of left child}}\times \\
-                    & \underbrace{
-                        \max\{ s(w,k)\gamma(\frac{(N-1)\ell_{u,w}}{i-k})\ |\ 
+                      }_{\textrm{max score of left child}}
+                    %&
+                    \underbrace{
+                        \max\{ s(w,k)\gamma(\frac{\ell_{u,w}}{\tau_i - \tau_k\vphantom{\tau_j}})\ |\ 
                           h(w) \leq k < i\}
                       }_{\textrm{max score of right child}}\\
 \end{split}
 \end{equation}
 %
 %
-where $s(u\in L(T),1) = 1$.
-%
+where $s(u\in L(T),1) = 1$ for tip nodes.%
 %
 The DP traverses the target tree in postorder and for each inner node $u$, it
 computes $|d(u)|$ maximized values $s(u,i), h(u) \leq i < h(u) + |d(u)|$, one
@@ -524,16 +528,14 @@ Fig.~\ref{fig:dp} describes the algorithm in detail.
 \ninstr & \qquad \textbf{return}\\
 \ninstr & \textsc{DP}(T,N,w)\\        
 \ninstr & \textbf{for} $i \leftarrow \min d(u)$ \textbf{to} $\max d(u)$ \\
-\ninstr & \qquad $\hat{f}_u \leftarrow 0, \hat{t}_u \leftarrow (i-1)/(N-1)$\\
+\ninstr & \qquad $\hat{f}_u \leftarrow 0, \hat{f}_v \leftarrow 0, \hat{f}_w \leftarrow 0$ \\
 \ninstr & \qquad \textbf{for} $j \leftarrow \min d(v)$ \textbf{to} $i-1$ \\
-\ninstr & \qquad \qquad  $\tau_v \leftarrow (j-1)/(N-1), r_{u,v} \leftarrow \ell_{u,v}/(\tau_u - \tau_v)$ \\
-\ninstr & \qquad \qquad  \textbf{if} $\gamma(r_{u,v})  s(v,j) > \hat{f}_v$ \textbf{then} \\
-\ninstr & \qquad \qquad \qquad $\hat{f}_v \leftarrow \gamma(r_{u,v})  s(v,j)$\\
+\ninstr & \qquad \qquad  \textbf{if} $\gamma(\ell_{u,v}/(\tau_i - \tau_j))  s(v,j) > \hat{f}_v$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad $\hat{f}_v \leftarrow \gamma(\ell_{u,v}/(\tau_i - \tau_j))  s(v,j)$\\
 \ninstr & \qquad \qquad \qquad $\hat j \leftarrow j$\\
 \ninstr & \qquad \textbf{for} $k \leftarrow \min d(w)$ \textbf{to} $i-1$ \\
-\ninstr & \qquad \qquad  $\tau_w \leftarrow (k-1)/(N-1), r_{u,w} \leftarrow \ell_{u,w}/(\tau_u - \tau_w)$\\
-\ninstr & \qquad \qquad  \textbf{if} $\gamma(r_{u,w})  s(v,k) > \hat{f}_w$ \textbf{then} \\
-\ninstr & \qquad \qquad \qquad $\hat{f}_w \leftarrow \gamma(r_{u,w})  s(w,k)$\\
+\ninstr & \qquad \qquad  \textbf{if} $\gamma(\ell_{u,w}/(\tau_i-\tau_k))  s(v,k) > \hat{f}_w$ \textbf{then} \\
+\ninstr & \qquad \qquad \qquad $\hat{f}_w \leftarrow \gamma(\ell_{u,w}/(\tau_i-\tau_k))  s(w,k)$\\
 \ninstr & \qquad \qquad \qquad $\hat k \leftarrow k$\\
 \ninstr & \qquad $M(u,i) \leftarrow b(i) \times \hat f_{v} \times \hat f_{w}$\\
 \ninstr & \qquad $M^l(u,i) \leftarrow \hat j, M^r(u,i) \leftarrow \hat k$\\
@@ -551,7 +553,7 @@ postorder and then computes the best placement for every node $u$.}
 \end{figure}
 
 W.l.o.g we prove that the DP algorithm computes the optimal score of
-ref{formula} given the grid size and the values of $\lambda,\mu,\rho,\psi$.
+\ref{eq:part2} given the grid size $N$ and the values of $\lambda,\mu,\rho$.
 
 \begin{theorem}[Optimality of DP]
 Given the number of discretization intervals, the values of $\lambda,\mu,\rho$,
@@ -569,11 +571,9 @@ $|d(u)|=N-1$ values, of the form
 %
 %
 $$
-s(u,i) = \frac{e^{-(\lambda - \mu)\tau_u}}
-              {(\rho\lambda + (\lambda(1 - \rho) - \mu)
-                e^{-(\lambda-\mu)\tau_u})^2}
-         \gamma(\frac{\ell_{u,v}}{\tau_u})
-         \gamma(\frac{\ell_{u,w}}{\tau_u})
+s(u,i) = b(i)
+         \gamma(\frac{\ell_{u,v}}{\tau_i})
+         \gamma(\frac{\ell_{u,w}}{\tau_i})
 $$
 %
 %
@@ -589,13 +589,10 @@ k \leq \max d(w)$ are maximized (assumption), we compute $|d(u)|$ values
 %
 \begin{equation*}
 \begin{split}
-s(u,i) = & \frac{e^{-(\lambda-\mu)\tau_u}}
-                           {(\rho\lambda + 
-                            (\lambda(1-\rho)-\mu)
-                            e^{-(\lambda-\mu)\tau_u})^2}\times \\
-         & \max\{ s(v,j)\gamma(\frac{(N-1)\ell_{u,v}}{i-j})\ |\ 
-               h(v) \leq j < i\} \times \\
-         & \max\{ s(w,k)\gamma(\frac{(N-1)\ell_{u,w}}{i-k})\ |\ 
+s(u,i) =  b(i)\times 
+          \max\{ s(v,j)\gamma(\frac{\ell_{u,v}}{\tau_i-\tau_j})\ |\
+              h(v) \leq j < i\} \times 
+          \max\{ s(w,k)\gamma(\frac{\ell_{u,w}}{\tau_i-\tau_k})\ |\ 
                h(w) \leq k < i\}
 \end{split}
 \end{equation*}
