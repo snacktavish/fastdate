@@ -132,8 +132,8 @@ Heidelberg Institute for Theoretical Studies; Heidelberg, 69118, Germany, E-mail
 \vspace{1in}
 
 \subsubsection{Abstract} We present a dynamic programming algorithm to rapidly
-date even very large phylogenies, implemented in the open source software package FastDate. 
-This software is capable of using node or tip dating information to scale trees to absolute time,
+date even phylogenies with \ejmcomment{?thousands?} of tips, implemented in the open source software package FastDate. 
+This software is capable of using node or tip date prior information to scale trees to absolute time,
 or estimate relative times for nodes.
 We have implemented recent developments in calculating probabilities of trees accounting for both incomplete 
 sampling of species in the present day, and the sampling in the past due to the fossilization and recovery processes.
@@ -142,13 +142,13 @@ FastDate is \ejmcomment{(will be)} available on our webserver and source code is
 
 \vspace{1.5in}
 
-As it is becoming possible to reconstruct very large phylogenies, 
-researchers are interested in using these phylogenies for downstream analyses.
-However, most phylogenetic analysis generates trees with branch lengths in units of expected number of substitutions per site,
+Phylogenetic analyses generate trees with branch lengths in units of expected number of substitutions per site,
 whereas downstream analyses may require ultrametric trees or divergence times in years.
-For many questions, such as comparisons of rates of speciation in different groups, it is necessary to have a time scaled tree.
+For many biological questions it is necessary to have a time scaled tree.
 Phylogeographic and paleontological analyses depend upon node dates in absolute time,
 in order to associate evolutionary events with historical ones.
+Identifying changes in diversification rates, and inferring causes for those changes
+relies on accurate estimates of relative speciation times.
 \ejmcomment{More on why of dating trees?}
 
 \subsection{Previous approaches}
@@ -158,73 +158,62 @@ However, due to both stochastic variation in observed mutations and
 biological variation in rates of mutation fixation across different lineages,
 using a strict molecular clock does not directly generate an ultrametric tree.
 There have been many alternative approaches developed to estimate
-ultrametric trees using an realxed clock or correlated rates models (REFS).
-IN order to scale estimates to actual time researchers apply claibration dates. 
+ultrametric trees using an relaxed clock or correlated rates models (REFS).
+In order to scale branch length estimates to time researchers, apply calibration dates. 
 There are two main approaches to calibrating phylogenies with known dates:
 priors on node ages or tip dates.
-Node priors use a prior distribution for an estimate of the age of a node.
+Node priors are a distribution the age of a node.
 These estimates of node age are often generated from fossils,
 but can also be inferred from geological, biogeographical or other information (REF).
-Tip dating approaches are usually applied to serially sampled data, i.e. data where some tips were sampled in the past, and have known dates.
+Tip dating approaches are usually applied to serially sampled data, i.e. data where some tips were sampled by in the past,
+and have known dates.
 While tip-date information is most commonly known for bacterial or viral phylogenies,
 where samples have been taken at known times,
 it is also possible to have use fossil taxa as tips.
-These tip dates can either be prior distributions or fixed dates, depending on the sampling and the certainty.
+These tip dates can either be prior distributions or fixed dates, 
+depending on the sampling and the certainty of the date inference.
 \citet{Heath2014} developed the fossilized-birth-death model which 
 integrates across potential tip placements of fossils
-to apply information multiple fossils to better infer node dates.
+to apply information multiple fossils to better dated phylogenies.
 
-Regardless of the form of dating information or priors on the tree,
+Regardless of the form of date information or priors,
 reconciling these dates with branch lengths across the tree is a complex problem.
 Several Bayesian methods have been developed which use Markov Chain Monte Carlo (MCMC) methods
 to infer dated phylogenies using this prior information, e.g. BEAST (ref)(some various other references)
 While these approaches can be accurate, and integrate over uncertainty about the dated
-phylogeny, for trees with many tips and/or many calibration points, they can be intractably slow. 
-(REF/is this even true?)
+phylogeny, for trees with many tips (>?) or many calibration points, they can be intractably slow. 
+\ejmcomment{(REF/is this even true?)}
 
 Some rapid phylogenetic dating approaches have been developed which do not rely on MCMC.
 R8s uses non parametric rate smoothing to rapidly estimate maximum likelihood calibrated or ultrametric trees \citep{Sanderson2003}
 Least Squares Dating (LSD) (REF Gascuel) 
-\ejmcomment{Need to cite but it isn't publicly available anywhere....}
+\ejmcomment{Need to cite but it isn't publicly available anywhere.}
 uses a least squares approach based on a normal approximation of the molecular clock.
 According to (Gascuel LSD ref) LSD achieves similar results to BEAST, in orders of magnitude shorter times.
 
 \cite{Akerborg2008} describe a dynamic programming approach to 
 rapidly estimate ultrametric phylogenies. 
 However, this algorithm is not available as an open source implementation.
-Our software is an expansion of the ideas they describe, 
+Our program, FastDate adapted from their dynamic programming algorithm.
+Fast Date implements a faster version of the dynamic programming approach running 
+in quadratic time instead of the original cubic-time, and instead computes the 
+optimal probability density of a sampled tree.
+In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010}'s 
+probability of sampled trees with defined node heights,
+by building up a table of node height values which maximize the likelihood of 
+the node height ($\lambda p_1(t)$),  and the likelihood of branch lengths in the tree 
+having a given rate based on the gamma distribution $g(r)$.
+In addition it can apply prior information on node dates or \ejmcomment{in future} tip dates to scale the tree to
+absolute time.
+The granularity of the dating approach can be determined by the user's choice of the number of time intervals to which 
+nodes can be assigned and maximum possible root age.
+The full procedure is described in depth below.
+
+
 with the addition of using node and tip date calibrations to scale trees to real time,
 and applying recent work on  priors for dates of sampled phylogenies \citep{Stadler2010}.
 
-\subsection{Branch rate priors}
-Setting dates on a tree requires factorizing the branch lengths of an input topology
-from estimates of evolutionary distances into rates and times. 
-An appropriate expectation for the variation in these branch rates is difficult to select.
-A common approximation is to treat branch rates as gamma distributed (REF NEEDED)
-
-\subsection{Birth death process}
-Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process \cite{Kendall1948}.
-The tree shape is parameterized using simply a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
-$\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
-Recent work by \citet{Gernhard2008} and \citet{Stadler2009, Stadler2010} has expanded on Kendall's basic 
-formulation of the probabilities of birth\textendash death trees to incorporate several important aspects of sampling:
-the effect on branch lengths of truncating the process by sampling tips at the present \citep{Gernhard2008},
-the effect of incomplete sampling of tips at the present day \citep{Stadler2009}, and the effect of the sampling
-of fossils on recovery of ancestral taxa \citep{Stadler2010}.
-\citet{Stadler2010} (theorem 3.11) gives probability of a dated topology with $n$ leaves,
-under the birth\textendash death process, with some proportion of currently sampled tips ($\rho$), a rate of recovery of taxa in the past ($\psi$),
-and the standard birth and death rate parameters.
-
 \section{Methods}
-FastDate is based on an dynamic programming adapted from that of \citet{Akerborg2008}.
-The granularity of the dating approach can be determined by the user's choice of the number of time intervals to which 
-nodes can be assigned.
-In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010} 's probability of sampled trees with defined node heights,
-by building up a table of node height values which maximize the likelihood of the node height ($\lambda p_1(t)$), 
-and the likelihood of branch lengths in the tree having a given rate based on the gamma distribution $g(r)$.
-
-The full procedure is described in depth below.
-
 
 \section {Preliminaries}
 %
@@ -256,7 +245,10 @@ The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
 use implicitly the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 
 \subsection{Branch rate distribution}
-\subsection{Gamma function, Gamma distribution}
+Setting dates on a tree requires factorizing the branch lengths of an input topology
+from estimates of evolutionary distances into rates and times. 
+An appropriate expectation for the variation in these branch rates is difficult to select.
+A common approximation is to treat branch rates as gamma distributed (REF NEEDED)
 
 The {\em Gamma function} is an extension to the factorial function to handle
 any real or complex number as argument. For point $t$ it is defined as
@@ -273,7 +265,18 @@ Its natural logarithm can be computed as
 $$ \ln \gamma(x;\alpha,\beta) = \alpha\ln\beta + (\alpha-1)\ln x -x\beta - \ln\Gamma(\alpha) $$
 
 \subsection{Birth-death process}
-
+Phylogenetic trees are commonly modeled using the the constant rate birth\textendash death process \cite{Kendall1948}.
+The tree shape is parameterized using simply a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
+$\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
+Recent work by \citet{Gernhard2008} and \citet{Stadler2009, Stadler2010} has expanded on Kendall's basic 
+formulation of the probabilities of birth\textendash death trees to incorporate several important aspects of sampling:
+the effect on branch lengths of truncating the process by sampling tips at the present \citep{Gernhard2008},
+the effect of incomplete sampling of tips at the present day \citep{Stadler2009}, and the effect of the sampling
+of fossils on recovery of ancestral taxa \citep{Stadler2010}.
+\citet{Stadler2010} (theorem 3.11) gives probability of a dated topology with $n$ leaves,
+under the birth\textendash death process, with some proportion of currently sampled tips 
+($\rho$), a rate of recovery of taxa in the past ($\psi$),
+and the standard birth and death rate parameters.
 We assume two extended types of the {\em constant rate birth-death process}
 \cite{Kendall1948} that take into account individuals sampled through time. The
 first one takes into account sampling of only extant individuals
@@ -404,7 +407,7 @@ the first time-line.
 %%% TOMAS: For simplicity, I changed the section to describe relative dating only and then
 %%% extend it in the next section with fossil information. Therefore, I left property 2 intact.
 
-Before describing the algorithm, it is necesary to define the interval of
+Before describing the algorithm, it is necessary to define the interval of
 discretized time-lines a node can be placed on, such that Property 1 holds. The
 interval $d(r)$ for root $r$ is defined as $$d(r) = \{ i\ |\ h(r) \leq i <
 N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
@@ -561,7 +564,7 @@ Algorithm DP computes the optimal score of (\ref{eq:score}).
 We show that the score terms $s(r,i), h(r) \leq i \leq N$ the DP computes are
 in fact equal to $f_2(T,\hat\phi_i)$ and hence, finding the product
 $f_2(T,\phi_i)\times f_1(T,\phi_i)$ yields the highest value gives us the
-optiomal solution. We show our proof by strong induction on the height of the
+optimal solution. We show our proof by strong induction on the height of the
 root node.
 \paragraph{Base case.} Let $u$ be the parent of $v$ and $w$, such that $h(u) =
 1$. Nodes $v$ and $w$ are therefore leaves, which leads us to compute
@@ -604,8 +607,10 @@ s(u,i) = & \frac{e^{-(\lambda-\mu)\tau_u}}
 and pick the maximal.
 \qed\end{proof}
 
-\section{Extending the DP algorithm with fossil information}
+\section{Extending the DP algorithm with node prior information}
+To come
 
+\section{Extending the DP algorithm with tip date information}
 To come
 
 \section{Description of software}
@@ -623,24 +628,27 @@ a number or intervals ($N$) my be provided to control the granularity of
 the relative age estimates.
 
 
-\subsection{Node dating}
+\subsection{Node prior}
+The user can input prior information on node dates in the form of an exponential
+or log normal distribution, and a minimum age offset.
+
+
 
 \subsection{Tip dating}
+\ejmcomment{not yet fully implemented}
 Optional parameters include $\psi$ the rate of recovery of fossils per lineage, 
 if extinct tips have been sampled.
-In addition
+
 
 
 \section{Examples}
 \subsection{Node dating example from 1 KITE}
 
-\subsection{Tip dating example from Stadler and Yang}
-
-\subsection{Other test data from LSD?}
+\subsection{Other tip dating test data from LSD?}
 
 \section{Discussion}
 
-TODO Compare to Gascuel `LSD' and other rapid approaches
+TODO Compare to Gascuel `LSD' and other rapid approaches.
 
 
 
