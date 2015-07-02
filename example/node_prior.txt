@@ -1,3 +1,2 @@
-A,B ln(50,10)
-C,D ln(25,5)
-#max root age 300
+A B ln(5,10,50)
+C D ln(10,3,10)
