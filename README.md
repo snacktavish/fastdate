@@ -74,7 +74,6 @@ ultrametric tree (`--out_form`).
 
 `./fastdate --method_relative --show_tree --grid 1000 --bd_lambda 2 --bd_mu 1 --bd_rho 0.5 --rate_mean 2 --rate_variance 1 --tree_file example/small.tre --out_file output.newick --out_form ultrametric`
 
-`./fastdate --method_nodeprior --tree_file example/small.tre --prior_file example/node_prior.txt --out_file node_prior_out.newick --bd_mu 2 --bd_lambda 3 --max_age 100 --bd_rho 0.5 --show_tree --grid 100'
 
 ## Setting node priors
 
@@ -106,6 +105,10 @@ tip1 tip2 ln (mean,variance,offset)
 
 which sets the prior on the most recent common ancestor (mRCA) of `tip1` and
 `tip2`.
+
+
+
+`./fastdate --method_nodeprior --tree_file example/small.tre --prior_file example/node_prior.txt --out_file node_prior_out.newick --bd_mu 2 --bd_lambda 3 --max_age 100 --bd_rho 0.5 --show_tree --grid 100`
 
 ## FASTDATE license and third party licenses
 
