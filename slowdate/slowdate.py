@@ -73,6 +73,48 @@ def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_ca
   assert highest_ln_density_idx is not None
   return highest_ln_density, highest_ln_density_idx
 
+def ln_of_sum(prev_ln_sum, new_ln_term):
+  '''Avoid underflow/overflow, but return:
+      log(x + y)
+  where x = exp(prev_ln_sum) and y = exp(new_ln_term)
+  '''
+  if (prev_ln_sum is None) or (new_ln_term - prev_ln_sum > 30):
+    return new_ln_term # first term, or previous is lost in rounding error
+  if prev_ln_sum - new_ln_term > 30:
+    return prev_ln_sum # new term is lost in rounding error
+  ln_m = min(prev_ln_sum, new_ln_term)
+  prev_ln_sum -= ln_m
+  new_ln_term -= ln_m
+  # one is now 0 and the other is no greater than 30
+  exp_sum = math.exp(prev_ln_sum) + math.exp(new_ln_term)
+  return math.log(exp_sum) + ln_m
+
+
+def _sum_date_table_for_des(par_age, par_bin_idx, des_node, rate_prior_calc, grid):
+  if des_node.is_leaf():
+    end_idx = 1
+  else:
+    assert par_bin_idx <= 1 + des_node.max_grid_idx
+    end_idx = par_bin_idx
+  des_ln_prob_entries = {}
+  des_ln_sum = None
+  for i_d in xrange(des_node.min_grid_idx, end_idx):
+    t_d = grid.to_abs_age(i_d)
+    duration = par_age - t_d
+    rate_of_mol_evol = des_node.edge.length / duration
+    ln_rate_prior = rate_prior_calc(rate_of_mol_evol)
+    assert (ln_rate_prior > NEG_INF)
+    d_dp = des_node.idx2DP[i_d]
+    assert (d_dp is not None)
+    dp_ln_d = d_dp[0]
+    if not (dp_ln_d > NEG_INF):
+      fatal('-inf in des idx2DP table for index {}.\n{}'.format(i_d, des_node.idx2DP))
+    ln_d = ln_rate_prior + dp_ln_d
+    des_ln_prob_entries[i_d] = ln_d
+    des_ln_sum = ln_of_sum(des_ln_sum, ln_d)
+  return des_ln_sum, des_ln_prob_entries
+
+
 def calc_date_credible_interval(tree, age_prior_calc, rate_prior_calc, grid, interval_prob):
   '''Uses a dynamic programming approach to approximate a `interval_prob` marginal credible
   interval for the age of each non-leaf node.
@@ -88,15 +130,15 @@ def calc_date_credible_interval(tree, age_prior_calc, rate_prior_calc, grid, int
       for i_u in xrange(u.min_grid_idx, 1 + u.max_grid_idx):
         assert u.idx2DP[i_u] is None
         t_u = grid.to_abs_age(i_u)
-        sum_left, table_left = _sum_date_table_for_des(t_u, i_u, v, rate_prior_calc, grid)
+        ln_sum_left, table_left = _sum_date_table_for_des(t_u, i_u, v, rate_prior_calc, grid)
         u.leftTable[i_u] = table_left
-        sum_right, table_right = _sum_date_table_for_des(t_u, i_u, w, rate_prior_calc, grid)
+        ln_sum_right, table_right = _sum_date_table_for_des(t_u, i_u, w, rate_prior_calc, grid)
         u.rightTable[i_u] = table_right
         
         ln_age_factor = age_prior_calc.ln_internal_node_factor(t_u)
         for calib_dist in u.calibrations:
           ln_age_factor += calib_dist.ln_calibration_density(t_u)
-        d_terms = [sum_left, sum_right, ln_age_factor]
+        d_terms = [ln_sum_left, ln_sum_right, ln_age_factor]
         if u is tree.seed_node:
           d_terms.append(age_prior_calc.ln_root_factor(t_u))
         d_u = sum(d_terms)
