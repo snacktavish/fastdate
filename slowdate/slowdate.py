@@ -225,8 +225,9 @@ class LnRelUncorrelatedGammaRatePrior(object):
 class Grid(object):
   def __init__(self, num_bins, max_age):
     self.max_age = max_age
-    self.mill_years_per_bin = float(max_age)/num_bins
     self.num_bins = num_bins
+    self.max_idx = self.num_bins - 1
+    self.mill_years_per_bin = float(max_age)/num_bins
   def to_abs_age(self, bin_index):
     assert bin_index < self.num_bins
     return bin_index * self.mill_years_per_bin
@@ -380,7 +381,8 @@ def main(args):
     nd.calibrations = []
     nd.min_grid_idx = 0
 
-  grid = Grid(args.grid, max_age=args.max_age)
+  # Add 1 because we don't count the 0 bin (for the tips) in the the UI
+  grid = Grid(1 + args.grid, max_age=args.max_age)
   # read node calibrations and allow then to adjust min_age
   node_calibrations = parse_node_calibrations(args.prior_file)
   tip_calibrations = parse_node_calibrations(args.age_file)
@@ -393,7 +395,7 @@ def main(args):
       child_based_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
       nd.min_grid_idx = max(nd.min_grid_idx, child_based_idx)
 
-  if tree.seed_node.min_grid_idx >= args.grid:
+  if tree.seed_node.min_grid_idx >= grid.max_idx:
     raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
   # fill in min_height leaves at 0 (contemporaneous leaves assumption)
   for nd in tree.preorder_node_iter():
@@ -402,7 +404,7 @@ def main(args):
       nd.idx2DP = [(1.0, None)]
     else:
       if nd is tree.seed_node:
-        nd.max_grid_idx = args.grid - 1
+        nd.max_grid_idx = grid.max_idx
       else:
         nd.max_grid_idx = nd.parent_node.max_grid_idx - 1
       if nd.max_grid_idx < nd.min_grid_idx:
