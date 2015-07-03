@@ -48,7 +48,8 @@
 \newcommand{\ImpPr}[0]{\ensuremath{\mathbb{P}}\xspace}
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
 \newcommand{\norm}[0]{\ensuremath{\mathbb{N}}\xspace}
-\newcommand{\minbin}[1]{\mathcal{M}_{#1}}
+\newcommand{\minbin}[1]{\mathcal{L}_{#1}}
+\newcommand{\maxbin}[1]{\mathcal{U}_{#1}}
 \newcommand{\subtreeConst}[2]{\mathcal{S}_{#1,#2}}
 \newcommand{\firstCSubtreeConst}[4]{\mathcal{B}_{#1,#2;#3,#4}}
 \newcommand{\rootNode}[0]{\rho}
@@ -439,10 +440,11 @@ This imply that one should also be able to use the same approximation for an app
     form or Bayesian interval estimate.
 
 Suppose that we want to calculate the marginal posterior probabilities of each node's age.
-First, we note that we have already encountered the posterior probability distrubution for the age
+First, we note that we have already encountered the posterior probability distribution for the age
     of the root (in discrete time) in equation (\ref{rootProb}).
 
-For non-root nodes, we can 
+For non-root nodes, we can produce an interval estimate by summing the probabilities over
+    all parent's ages (and weighting by the probability that the parent has that age)
 \newpage
 
 \begin{algorithm} \caption{\textsc{PruneNodeAges}}\label{pruneNodeAges}
@@ -450,10 +452,10 @@ For non-root nodes, we can
 \REQUIRE $\edgeLenVec$ - vector of MLE's of edge lengths (in expected \# subst/site)
 \REQUIRE parameters of a prior on rates of mol.~evol. and a prior on node ages
 \ENSURE fill a table \subtreeAgeSum{i}{d} for node $i$ at discrete age $d$\\
+\COMMENT{$\minbin{u}$ is the minimum age bin of $u$, and $\maxbin{u}$ is the maximum age bin of $u$. For tips they are the same.}
 \COMMENT{\textsc{Initialization}}
 \STATE allocate \subtreeAgeSum{}{} as $2\numLeaves -1$ by $\numAges$ matrix of floating point numbers.
 \FOR{each leaf node, $u$, in postorder}
-    \STATE $\minbin{u} = \mbox{Age of tip } u$
     \FOR{$d \in [0, 1, 2, \ldots, \numAges)$ }
         \STATE \subtreeAgeSum{u}{d} = 0.0
         \STATE \leftSubtreeAgeSum{u}{d} = 0.0
@@ -467,9 +469,8 @@ For non-root nodes, we can
 \ENDFOR \\
 \COMMENT{\textsc{End of Initialization}}
 \FOR{each non-root, internal node $u$ in postorder}
-    \STATE $v, w \leftarrow \firstChild{u}, \secondChild{u}$ \COMMENT{\textsc{Nodes $u,v$ are children of $u$}}
-    \STATE $\minbin{u} \leftarrow 1 + \min(\minbin{v}, \minbin{w})$
-    \FOR{$d \in [\minbin{u}, 2, \ldots, \numAges)$ }
+    \STATE $v, w \leftarrow \firstChild{u}, \secondChild{u}$ \COMMENT{\textsc{Nodes $v,w$ are children of $u$}}
+    \FOR{$d \in [\minbin{u}, 1 + \minbin{u}, \ldots, \maxbin{u})$ }
         \STATE $\subtreeAgeSum{u}{d} \leftarrow 0.0$
         \STATE $\leftSubtreeAgeSum{u}{d} \leftarrow 0.0$
         \STATE $\rightSubtreeAgeSum{u}{d} \leftarrow 0.0$
