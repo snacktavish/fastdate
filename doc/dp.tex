@@ -10,6 +10,7 @@
 \usepackage{breqn}
 \usepackage{a4wide}
 \usepackage{natbib}
+\usepackage{tikz}
 \usepackage[normalem]{ulem} % for \sout to strikethrough text
 \newcounter{instr}
 \newcommand{\ninstr}{\refstepcounter{instr}\theinstr.}
@@ -256,7 +257,7 @@ The {\em probability density function} in the shape-rate parameterization of a
 is
 $$ \gamma(x;\alpha,\beta) = \frac{\beta^{\alpha}x^{a-1}e^{-x\beta}}{\Gamma(\alpha)} $$
 
-where $\beta = \mu / \sigma^2$ and $\alpha = \bar{r} \beta$.
+where $\beta = \mu / \sigma^2$ and $\alpha = \mu \beta$.
 
 \ejmcomment{autocorrelated rates possibly to come?}
 
@@ -391,8 +392,17 @@ children of $u$.
 %
 The restriction imposed by Property 1 ensures that no node $v$ in subtree $T_u$
 is placed on time-line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves onto
-the first time-line.
+the first time-line. Fig.~\ref{fig:mapping} is an example of such mapping $V$.
 %
+%
+\begin{figure}[t]
+\centering
+\scalebox{0.3}{
+\input{img/rooted}}
+\caption{Tree $T$ mapped to $N$ discretized time-lines. Column `age' indicates
+the date of each time-line in relative time units.}
+\label{fig:mapping}
+\end{figure}
 %
 %%%\ejmcomment{Not true in case of tip dating, but still currently true. 
 %%%Also - we have some inconsistency on whether they are mapped to line 0 or 1.
@@ -504,8 +514,34 @@ the optimal mapping $\hat\phi$. By selecting the maximal score (and hence the
 time-line of the root) we also obtain the time-lines of its two children, and,
 at each of the two children, the time-lines of their two children. Recursively,
 we can obtain the time-lines of all nodes that maximize term \ref{eq:score}.
-%
-Fig.~\ref{fig:dp} describes the algorithm in detail.
+
+Fig.~\ref{fig:dp} describes the first phase (bottom-up) part of the algorithm
+in detail. It takes as input the tree $T$, the number of grid time-lines $N$
+and, in its first call, the root $r$ of the tree which the function names as
+$u$.  The result of the function is three two-dimensional tables $M, M^r$ and
+$M^l$, where the entry $M(u,i), \min d(u) \leq i \leq \max d(u)$ stores the
+maximal score achieved by placing node $u$ on time-line $i$, and $M^r(u,i)$
+resp. $M^l(u,i)$ the time-lines its two children $v$ resp. $w$ were placed on
+to achieve the particular score.  The algorithm is executed for each node in
+post-order traversal, and this is done in lines 7 resp. 11, where in the case
+of an inner node, the function recursively calls itself with the node's left
+resp. right child as parameter. Once the recursion reaches a tip node $v$
+(resp. $w$), the table entry $M(v,1)$ (resp. $M(w,1)$) is filled with a
+constant value 1 for its only available time-line 1. The process continues in a
+bottom-up fashion.  As soon as the entries of table $M$ are computed for the
+two children of an inner node $u$, the algorithm computes all entries
+(time-lines) $M(u,i), \min d(u) \leq i \leq \max d(u)$ for node $u$ (lines
+12-25) by finding the maximal product from all scores $M(v,j), \min d(v) \leq j
+< i$ resp.  $M(w,k), \min d(w) \leq k < i$ of time-lines each child $v$ (lines
+14-17) resp. $w$ (lines 18-21) could have been placed on given by the current
+time-line $i$ of $u$, multiplied by the prior of factorized edge rates
+$\ell_{u,v}/(\tau_i - \tau_j)$ resp. $\ell_{u,w}/(\tau_i - \tau_k)$. Once the
+maximal products for $v$ and $w$ are found (denoted as $\hat f_v$ resp. $\hat
+f_w$), the score of time-line $i$ for node $u$ is computed as their product
+multiplied by the birth-death term $b(i)$ and stored in $M(u,i)$ (line 22).
+The time-lines of $v$ resp. $w$ which yielded $\hat f_{v}$ resp. $\hat f_{w}$
+are stored in $M^l(u,i)$ resp. $M^r(u,i)$ (line 23). In addition, if node $u$
+is the root, it is multiplied by the term $f_1(T\ |\ n,i)$ (line 25).
 
 \setcounter{instr}{0}
 \begin{figure}[t]
@@ -543,10 +579,14 @@ Fig.~\ref{fig:dp} describes the algorithm in detail.
 \hline  
 \end{tabular}
 \end{center}
-\caption{The DP algorithm for computing relative divergence times. The
-algorithm starts by passing the tree ($T$), number of discretization lines
-($N$) and the root of $T$ ($u$). It recursively traverses the tree in
-postorder and then computes the best placement for every node $u$.}
+\caption{The bottom-up phase of the DP algorithm for computing relative
+divergence times. The algorithm accepts three parameters; tree ($T$), number of
+discretization lines ($N$) and the root $u$ of subtree  $T_u$. In it's first
+call, the root $r$ of $T$ is passed as $u$.  It recursively traverses the tree
+in postorder and constructs a table $M$ of the optimal scores for each node $u$
+and time-line $i$, where $\min d(u) \leq i \leq \max d(u)$, along with
+information on how to retrieve the optimal mapping $V$ in the later,
+backtracking phase (not in Figure).}
 \label{fig:dp}
 \end{figure}
 
@@ -600,24 +640,34 @@ and pick the maximal.
 \qed\end{proof}
 
 \section{Extending the DP algorithm with node prior information}
-To come
+\textbf{Not finished yet.} Node priors are either log-normal or exponential
+distributions together with an {\em offset} $\varphi$ (minimum age).  The
+algorithm is the same as in ``relative dating'' except that it is also given a
+theoretical maximum age $\zeta$ for line $N$ of the grid.  When running the DP
+algorithm for the time-line $i$ of an inner node $u$ that is calibrated with a
+distribution, then Equation (\ref{eq:score}) is multiplied by the probability
+density function of its distribution for value $\tau_i \times \zeta - \varphi$,
+otherwise by 1.
 
 \section{Extending the DP algorithm with tip date information}
 To come
 
 \section{Description of software}
-FastDate requires as input a fully bifurcating rooted phylogeny with branch lengths,
-and user defined estimates of birth rate ($\lambda$), death rate ($\mu$), 
-and proportion of descendants of the most recent common ancestor of the taxa found in the tree
-which were sampled in the tree ($\rho$).
-In addition a rate mean ($\bar{r}$) and a rate variance ($\sigma$) must be provided by the user
-to parameterize the gamma prior on branch rates.
+Maybe in supplement?
+%FastDate requires as input a fully bifurcating rooted phylogeny with branch lengths,
+%and user defined estimates of birth rate ($\lambda$), death rate ($\mu$), 
+%and proportion of descendants of the most recent common ancestor of the taxa found in the tree
+%which were sampled in the tree ($\rho$).
+%In addition a rate mean ($\bar{r}$) and a rate variance ($\sigma$) must be provided by the user
+%to parameterize the gamma prior on branch rates.
+
+\section {Auto-correlated rates}
 
 
 \subsection{Relative dating}
-For relative dating estimates (generating an ultrametric tree),
-a number or intervals ($N$) my be provided to control the granularity of 
-the relative age estimates.
+For relative dating estimates (generating an ultrametric tree), a number or
+intervals ($N$) my be provided to control the granularity of the relative age
+estimates.
 
 
 \subsection{Node prior}
