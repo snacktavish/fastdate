@@ -170,6 +170,8 @@ def calc_date_credible_interval(tree, age_prior_calc, rate_prior_calc, grid, int
     if u.is_leaf():
       continue
     create_child_age_probs(u)
+    v, w = u.child_nodes()
+    calc_cred_interval_of_age(u, grid, interval_prob)
 
 def create_child_age_probs(node):
   assert not node.is_leaf()
@@ -195,7 +197,31 @@ def fill_age_prob_from_ln_age_prob(node):
     #print 'age bin=', i, ' ap = ', ap, ' ln_ap =', ln_ap
     p += ap
     node.age_prob[i] = ap
-  print 'node p sum = ', p
+  
+def calc_cred_interval_of_age(node, grid, interval_prob):
+  bins = node.age_prob.keys()
+  min_i = min(bins)
+  max_i = max(bins)
+  high_tail_prob = 0.0
+  tail_p = (1 - interval_prob)/2.0
+  for i in range(max_i, min_i - 1, -1):
+    hp = node.age_prob[i]
+    high_tail_prob += hp
+    if high_tail_prob > tail_p:
+      cred_upper = 1 + i
+      break
+  low_tail_prob = 0.0
+  for i in range(min_i, max_i + 1):
+    hp = node.age_prob[i]
+    low_tail_prob += hp
+    if low_tail_prob > tail_p:
+      cred_lower = i - 1
+      break
+  node.lower_age_limit_bin = cred_lower
+  node.upper_age_limit_bin = cred_upper
+  node.age_credible_interval_prob = interval_prob
+  node.lower_age_limit = grid.to_abs_age(node.lower_age_limit_bin)
+  node.upper_age_limit = grid.to_abs_age(node.upper_age_limit_bin)
 
 
 def add_to_age_prob(ln_age_prob, ln_par_age_prob, ln_unnorm_prob, ln_norm_constant):
@@ -203,8 +229,6 @@ def add_to_age_prob(ln_age_prob, ln_par_age_prob, ln_unnorm_prob, ln_norm_consta
     ln_norm_prob_conditional_on_par = lup - ln_norm_constant
     ln_norm_joint = ln_norm_prob_conditional_on_par + ln_par_age_prob
     ln_age_prob[i] = ln_of_sum(ln_age_prob.get(i), ln_norm_joint)
-
-
 
 def calc_date_map_estimate(tree, age_prior_calc, rate_prior_calc, grid):
   '''Uses a dynamic programming approach to approximate a MAP estimate
@@ -564,14 +588,17 @@ def main(args):
                                 grid=grid,
                                 interval_prob=args.interval)
     for nd in tree.preorder_node_iter():
-      nd.annotations.add_new(name='age', value=nd.map_age)
+      if not nd.is_leaf():
+        nd.annotations.add_new(name='lower_age', value=nd.lower_age_limit)
+        nd.annotations.add_new(name='upper_age', value=nd.upper_age_limit)
   else:
     calc_date_map_estimate(tree,
                            age_prior_calc=bd_prior,
                            rate_prior_calc=rate_prior_calc,
                            grid=grid)
     for nd in tree.preorder_node_iter():
-      nd.annotations.add_new(name='age', value=nd.map_age)
+      if not nd.is_leaf():
+        nd.annotations.add_new(name='age', value=nd.map_age)
 
   tree.write(file=sys.stdout,
              schema='newick',
