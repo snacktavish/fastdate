@@ -44,6 +44,7 @@
 \newcommand{\optChildAges}[3]{\ensuremath{x_{[{#1}][{#2}][{#3}]}}\xspace}
 \newcommand{\ratePriorDensity}[0]{\ensuremath{g}\xspace}
 \newcommand{\timePriorDensity}[0]{\ensuremath{h}\xspace}
+\newcommand{\agePriorDensity}[0]{\ensuremath{h^{\prime}}\xspace}
 \newcommand{\ImpDensity}[0]{\ensuremath{v}\xspace}
 \newcommand{\ImpPr}[0]{\ensuremath{\mathbb{P}}\xspace}
 \newcommand{\numAges}[0]{\ensuremath{N}\xspace}
@@ -111,6 +112,7 @@ in time comparable to standard substitution model-based reconstruction methods.'
     \item[\firstChild{v}, \secondChild{v}] denote the two children of node $v$
     \item[\ratePriorDensity] is the prior probability density on rates
     \item[\timePriorDensity] is the prior probability density on durations of edges
+    \item[\agePriorDensity] is the prior probability density on age of nodes (could be used in place of \timePriorDensity)
 \begin{equation}
     \mbox{MAP}(\ratevec, \timevec)  \equiv \argmax_{\ratevec, \timevec} \Pr\left(\dataMatrix \mid \tree, \ratevec, \timevec\right) \ratePriorDensity(\ratevec) \timePriorDensity(\timevec | T)
 \end{equation}
@@ -387,6 +389,17 @@ The time for tip $x$ is known to be $\timeBinRealization{x}$.
 If all of the tips are extant then $\timeBinRealization{x}=0$ of each tip.
 The base case of the recursion is, for any tip $x$, $\subtreeAgeSum{x}{\timeBinRealization{x}} = 1$ and $\subtreeAgeSum{x}{y} = 0$
 where $y\neq\timeBinRealization{x}$.
+
+Note that, when we have a prior on node ages rather than edge durations, we can effectively replace $\timePriorDensity(d\mid d_w)$ with $\agePriorDensity(d)$.
+This means that we can move the multiplication to the $\leftSubtreeAgeSum{u}{d}$ and $\rightSubtreeAgeSum{u}{d}$ formulae:
+\begin{eqnarray}
+\subtreeAgeSum{u}{d} & = & \leftSubtreeAgeSum{u}{d}^{\prime} \rightSubtreeAgeSum{u}{d}^{\prime} \agePriorDensity(d) \\
+\leftSubtreeAgeSum{u}{d}^{\prime} & = &  \sum_{d_v = 0}^{d-1} \leftThreeDTable{u}{d}{d_v}^{\prime} \\
+\leftThreeDTable{u}{d}{d_v}^{\prime} & = & \subtreeAgeSum{v}{d_v} \ratePriorDensity(\edgeLen{v} \mid d, d_v)  \\
+\rightSubtreeAgeSum{u}{d}^{\prime} & = & \sum_{d_w = 0}^{d-1} \rightThreeDTable{u}{d}{d_w}^{\prime} \\
+\rightThreeDTable{u}{d}{d_w}^{\prime} & = & \subtreeAgeSum{w}{d_v} \ratePriorDensity(\edgeLen{w} \mid d, d_w)
+\end{eqnarray}
+
 
 After sweeping to the root we have:
 \begin{eqnarray}
