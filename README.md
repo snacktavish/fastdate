@@ -89,7 +89,7 @@ node exp (mean,offset)
 node ln (mean,variance,offset)
 ```
 
-where `node` is either a tip node or an inner node provided that it was
+where `node` is an inner node provided that it was
 assigned a label in the input newick file. `mean` sets the mean of the
 distribution, `variance` sets the variance of the log-normal distribution, and
 the x-axis is shifted by `offset` (or minimum age) to the right, i.e.  x-axis
@@ -106,9 +106,25 @@ tip1 tip2 ln (mean,variance,offset)
 which sets the prior on the most recent common ancestor (mRCA) of `tip1` and
 `tip2`.
 
+``./fastdate --method_nodeprior --tree_file example/small.tre --prior_file example/node_prior.txt --out_file node_prior.tre 
+--bd_mu 1 --bd_lambda 4 --max_age 100 --bd_rho 1 --show_tree --grid 100 --rate_mean 5 --rate_variance 1``
+
+## Setting tip priors
+Tip priors can be passed in the same way as node priors,
+
+```
+tip exp (mean,offset)
+tip ln (mean,variance,offset)
+```
+
+and should be analyzed using the --method_tipdates and 
+a value for the rate of sampling of tips in the past, --bd_psi, 
+must be provided.
+
+``./fastdate --method_tipdates --tree_file example/small.tre --prior_file example/tip_prior.txt --out_file tip_dates.tre 
+--bd_mu 1 --bd_lambda 4 --max_age 100 --bd_rho 0.01 --show_tree --grid 100 --rate_mean 5 --rate_variance 1 --bd_psi 0.1``
 
 
-`./fastdate --method_nodeprior --tree_file example/small.tre --prior_file example/node_prior.txt --out_file node_prior_out.newick --bd_mu 2 --bd_lambda 3 --max_age 100 --bd_rho 0.5 --show_tree --grid 100`
 
 ## FASTDATE license and third party licenses
 
