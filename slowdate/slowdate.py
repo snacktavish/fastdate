@@ -73,6 +73,139 @@ def _max_relative_date_map_for_des(par_age, par_bin_idx, des_node, rate_prior_ca
   assert highest_ln_density_idx is not None
   return highest_ln_density, highest_ln_density_idx
 
+def ln_of_sum(prev_ln_sum, new_ln_term):
+  '''Avoid underflow/overflow, but return:
+      log(x + y)
+  where x = exp(prev_ln_sum) and y = exp(new_ln_term)
+  '''
+  if (prev_ln_sum is None) or (new_ln_term - prev_ln_sum > 30):
+    return new_ln_term # first term, or previous is lost in rounding error
+  if prev_ln_sum - new_ln_term > 30:
+    return prev_ln_sum # new term is lost in rounding error
+  ln_m = min(prev_ln_sum, new_ln_term)
+  prev_ln_sum -= ln_m
+  new_ln_term -= ln_m
+  # one is now 0 and the other is no greater than 30
+  exp_sum = math.exp(prev_ln_sum) + math.exp(new_ln_term)
+  return math.log(exp_sum) + ln_m
+
+
+def _sum_date_table_for_des(par_age, par_bin_idx, des_node, rate_prior_calc, grid):
+  if des_node.is_leaf():
+    end_idx = 1
+  else:
+    assert par_bin_idx <= 1 + des_node.max_grid_idx
+    end_idx = par_bin_idx
+  des_ln_prob_entries = {}
+  des_ln_sum = None
+  for i_d in xrange(des_node.min_grid_idx, end_idx):
+    t_d = grid.to_abs_age(i_d)
+    duration = par_age - t_d
+    rate_of_mol_evol = des_node.edge.length / duration
+    ln_rate_prior = rate_prior_calc(rate_of_mol_evol)
+    assert (ln_rate_prior > NEG_INF)
+    d_dp = des_node.idx2DP[i_d]
+    assert (d_dp is not None)
+    dp_ln_d = d_dp[0]
+    if not (dp_ln_d > NEG_INF):
+      fatal('-inf in des idx2DP table for index {}.\n{}'.format(i_d, des_node.idx2DP))
+    ln_d = ln_rate_prior + dp_ln_d
+    des_ln_prob_entries[i_d] = ln_d
+    des_ln_sum = ln_of_sum(des_ln_sum, ln_d)
+  return des_ln_sum, des_ln_prob_entries
+
+
+def calc_date_credible_interval(tree, age_prior_calc, rate_prior_calc, grid, interval_prob):
+  '''Uses a dynamic programming approach to approximate a `interval_prob` marginal credible
+  interval for the age of each non-leaf node.
+  '''
+  for u in tree.postorder_node_iter():
+    debug('node u = {n}'.format(n=u._as_newick_string()))
+    if u.is_leaf():
+      assert not u.calibrations, 'tip calibrations and interval estimates are not jointly supported (yet)'
+    else:
+      u.leftTable = {}
+      u.rightTable = {}
+      u.leftNormConstants = {}
+      u.rightNormConstants = {}
+      v, w = u.child_nodes()
+      for i_u in xrange(u.min_grid_idx, 1 + u.max_grid_idx):
+        assert u.idx2DP[i_u] is None
+        t_u = grid.to_abs_age(i_u)
+        
+        ln_sum_left, table_left = _sum_date_table_for_des(t_u, i_u, v, rate_prior_calc, grid)
+        u.leftTable[i_u] = table_left
+        u.leftNormConstants[i_u] = ln_sum_left
+        
+        ln_sum_right, table_right = _sum_date_table_for_des(t_u, i_u, w, rate_prior_calc, grid)
+        u.rightTable[i_u] = table_right
+        u.rightNormConstants[i_u] = ln_sum_right
+        
+        ln_age_factor = age_prior_calc.ln_internal_node_factor(t_u)
+        for calib_dist in u.calibrations:
+          ln_age_factor += calib_dist.ln_calibration_density(t_u)
+        d_terms = [ln_sum_left, ln_sum_right, ln_age_factor]
+        if u is tree.seed_node:
+          d_terms.append(age_prior_calc.ln_root_factor(t_u))
+        d_u = sum(d_terms)
+        if not (d_u > NEG_INF):
+          fatal('-inf ln density at {} time={}. terms={}'.format(i_u, t_u, d_terms))
+        u.idx2DP[i_u] = (d_u, None) # store density and traceback info
+  root = tree.seed_node
+  ln_norm_constant = None
+  for i_u in xrange(root.min_grid_idx, 1 + root.max_grid_idx):
+    lnt = root.idx2DP[i_u][0]
+    ln_norm_constant = ln_of_sum(ln_norm_constant, lnt)
+  root.age_prob = {}
+  root.ln_age_prob = {}
+  for i_u in xrange(root.min_grid_idx, 1 + root.max_grid_idx):
+    ln_unnorm_prob = root.idx2DP[i_u][0]
+    ln_norm_prob = ln_unnorm_prob - ln_norm_constant
+    age_prob = math.exp(ln_norm_prob)
+    print 'root i_u =', i_u, ' Pr(age) = ', age_prob
+    root.ln_age_prob[i_u] = ln_norm_prob
+    root.age_prob[i_u] = age_prob
+
+  for u in tree.preorder_node_iter():
+    if u.is_leaf():
+      continue
+    create_child_age_probs(u)
+
+def create_child_age_probs(node):
+  assert not node.is_leaf()
+  v, w = node.child_nodes()
+  v.ln_age_prob = {}
+  w.ln_age_prob = {}
+  for i_u in xrange(node.min_grid_idx, 1 + node.max_grid_idx):
+    ln_u_age_prob = node.ln_age_prob[i_u]
+    if not v.is_leaf():
+      add_to_age_prob(v.ln_age_prob, ln_u_age_prob, node.leftTable[i_u], node.leftNormConstants[i_u])
+    if not w.is_leaf():
+      add_to_age_prob(w.ln_age_prob, ln_u_age_prob, node.rightTable[i_u], node.rightNormConstants[i_u])
+  if not v.is_leaf():
+    fill_age_prob_from_ln_age_prob(v)
+  if not w.is_leaf():
+    fill_age_prob_from_ln_age_prob(w)
+
+def fill_age_prob_from_ln_age_prob(node):
+  p = 0.0
+  node.age_prob = {}
+  for i, ln_ap in node.ln_age_prob.items():
+    ap = math.exp(ln_ap)
+    #print 'age bin=', i, ' ap = ', ap, ' ln_ap =', ln_ap
+    p += ap
+    node.age_prob[i] = ap
+  print 'node p sum = ', p
+
+
+def add_to_age_prob(ln_age_prob, ln_par_age_prob, ln_unnorm_prob, ln_norm_constant):
+  for i, lup in ln_unnorm_prob.items():
+    ln_norm_prob_conditional_on_par = lup - ln_norm_constant
+    ln_norm_joint = ln_norm_prob_conditional_on_par + ln_par_age_prob
+    ln_age_prob[i] = ln_of_sum(ln_age_prob.get(i), ln_norm_joint)
+
+
+
 def calc_date_map_estimate(tree, age_prior_calc, rate_prior_calc, grid):
   '''Uses a dynamic programming approach to approximate a MAP estimate
   for the grid_idx for each non-leaf node.
@@ -225,8 +358,9 @@ class LnRelUncorrelatedGammaRatePrior(object):
 class Grid(object):
   def __init__(self, num_bins, max_age):
     self.max_age = max_age
-    self.mill_years_per_bin = float(max_age)/num_bins
     self.num_bins = num_bins
+    self.max_idx = self.num_bins - 1
+    self.mill_years_per_bin = float(max_age)/num_bins
   def to_abs_age(self, bin_index):
     assert bin_index < self.num_bins
     return bin_index * self.mill_years_per_bin
@@ -371,6 +505,8 @@ def main(args):
   assert args.bd_rho <= 1.0, 'bd_rho cannot be greater than 1'
   assert args.rate_mean > 0.0, 'rate_mean must be positive'
   assert args.rate_variance >= 0.0, 'rate_variance must be non-negative'
+  assert args.interval is None or (args.interval > 0.0 and args.interval < 1.0)
+  
   tree = dendropy.Tree.get(path=args.tree_file, schema='newick', rooting='force-rooted')
   for edge in tree.inorder_edge_iter():
     if (edge.tail_node is not None) and (edge.length is None):
@@ -380,7 +516,8 @@ def main(args):
     nd.calibrations = []
     nd.min_grid_idx = 0
 
-  grid = Grid(args.grid, max_age=args.max_age)
+  # Add 1 because we don't count the 0 bin (for the tips) in the the UI
+  grid = Grid(1 + args.grid, max_age=args.max_age)
   # read node calibrations and allow then to adjust min_age
   node_calibrations = parse_node_calibrations(args.prior_file)
   tip_calibrations = parse_node_calibrations(args.age_file)
@@ -393,7 +530,7 @@ def main(args):
       child_based_idx = 1 + max([c.min_grid_idx for c in nd.child_nodes()])
       nd.min_grid_idx = max(nd.min_grid_idx, child_based_idx)
 
-  if tree.seed_node.min_grid_idx >= args.grid:
+  if tree.seed_node.min_grid_idx >= grid.max_idx:
     raise ValueError('Grid too small! A grid of at least {g} is required'.format(g=tree.seed_node.min_grid_idx + 1))
   # fill in min_height leaves at 0 (contemporaneous leaves assumption)
   for nd in tree.preorder_node_iter():
@@ -402,7 +539,7 @@ def main(args):
       nd.idx2DP = [(1.0, None)]
     else:
       if nd is tree.seed_node:
-        nd.max_grid_idx = args.grid - 1
+        nd.max_grid_idx = grid.max_idx
       else:
         nd.max_grid_idx = nd.parent_node.max_grid_idx - 1
       if nd.max_grid_idx < nd.min_grid_idx:
@@ -420,13 +557,22 @@ def main(args):
                             args.bd_rho,
                             args.bd_psi)
   rate_prior_calc = LnRelUncorrelatedGammaRatePrior(mean=args.rate_mean, variance=args.rate_variance)
-  calc_date_map_estimate(tree,
-                         age_prior_calc=bd_prior,
-                         rate_prior_calc=rate_prior_calc,
-                         grid=grid)
-  for nd in tree.preorder_node_iter():
-    nd.annotations.add_new(name='age', value=nd.map_age)
-  
+  if args.interval is not None:
+    calc_date_credible_interval(tree,
+                                age_prior_calc=bd_prior,
+                                rate_prior_calc=rate_prior_calc,
+                                grid=grid,
+                                interval_prob=args.interval)
+    for nd in tree.preorder_node_iter():
+      nd.annotations.add_new(name='age', value=nd.map_age)
+  else:
+    calc_date_map_estimate(tree,
+                           age_prior_calc=bd_prior,
+                           rate_prior_calc=rate_prior_calc,
+                           grid=grid)
+    for nd in tree.preorder_node_iter():
+      nd.annotations.add_new(name='age', value=nd.map_age)
+
   tree.write(file=sys.stdout,
              schema='newick',
              suppress_annotations=False,
@@ -514,6 +660,12 @@ if __name__ == '__main__':
                       type=str,
                       default=None,
                       help='Filepath to list of tip calibrations.')
+  parser.add_argument('--interval',
+                      type=float,
+                      required=False,
+                      default=None,
+                      help='If supplied, it should be a sub-probability used to defined the probability of the credible interval')
+  
   args = parser.parse_args()
   if args.version:
     ERR.write('{n} v{v}\n'.format(n=NAME, v=VERSION))
