@@ -189,10 +189,12 @@ def create_child_age_probs(node):
 
 def fill_age_prob_from_ln_age_prob(node):
   p = 0.0
+  node.age_prob = {}
   for i, ln_ap in node.ln_age_prob.items():
     ap = math.exp(ln_ap)
+    #print 'age bin=', i, ' ap = ', ap, ' ln_ap =', ln_ap
     p += ap
-    node.ln_age_prob[i] = ap
+    node.age_prob[i] = ap
   print 'node p sum = ', p
 
 
