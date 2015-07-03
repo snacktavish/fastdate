@@ -126,14 +126,20 @@ def calc_date_credible_interval(tree, age_prior_calc, rate_prior_calc, grid, int
     else:
       u.leftTable = {}
       u.rightTable = {}
+      u.leftNormConstants = {}
+      u.rightNormConstants = {}
       v, w = u.child_nodes()
       for i_u in xrange(u.min_grid_idx, 1 + u.max_grid_idx):
         assert u.idx2DP[i_u] is None
         t_u = grid.to_abs_age(i_u)
+        
         ln_sum_left, table_left = _sum_date_table_for_des(t_u, i_u, v, rate_prior_calc, grid)
         u.leftTable[i_u] = table_left
+        u.leftNormConstants[i_u] = ln_sum_left
+        
         ln_sum_right, table_right = _sum_date_table_for_des(t_u, i_u, w, rate_prior_calc, grid)
         u.rightTable[i_u] = table_right
+        u.rightNormConstants[i_u] = ln_sum_right
         
         ln_age_factor = age_prior_calc.ln_internal_node_factor(t_u)
         for calib_dist in u.calibrations:
@@ -146,7 +152,58 @@ def calc_date_credible_interval(tree, age_prior_calc, rate_prior_calc, grid, int
           fatal('-inf ln density at {} time={}. terms={}'.format(i_u, t_u, d_terms))
         u.idx2DP[i_u] = (d_u, None) # store density and traceback info
   root = tree.seed_node
-  raise NotImplementedError('traceback of interval estimate')
+  ln_norm_constant = None
+  for i_u in xrange(root.min_grid_idx, 1 + root.max_grid_idx):
+    lnt = root.idx2DP[i_u][0]
+    ln_norm_constant = ln_of_sum(ln_norm_constant, lnt)
+  root.age_prob = {}
+  root.ln_age_prob = {}
+  for i_u in xrange(root.min_grid_idx, 1 + root.max_grid_idx):
+    ln_unnorm_prob = root.idx2DP[i_u][0]
+    ln_norm_prob = ln_unnorm_prob - ln_norm_constant
+    age_prob = math.exp(ln_norm_prob)
+    print 'root i_u =', i_u, ' Pr(age) = ', age_prob
+    root.ln_age_prob[i_u] = ln_norm_prob
+    root.age_prob[i_u] = age_prob
+
+  for u in tree.preorder_node_iter():
+    if u.is_leaf():
+      continue
+    create_child_age_probs(u)
+
+def create_child_age_probs(node):
+  assert not node.is_leaf()
+  v, w = node.child_nodes()
+  v.ln_age_prob = {}
+  w.ln_age_prob = {}
+  for i_u in xrange(node.min_grid_idx, 1 + node.max_grid_idx):
+    ln_u_age_prob = node.ln_age_prob[i_u]
+    if not v.is_leaf():
+      add_to_age_prob(v.ln_age_prob, ln_u_age_prob, node.leftTable[i_u], node.leftNormConstants[i_u])
+    if not w.is_leaf():
+      add_to_age_prob(w.ln_age_prob, ln_u_age_prob, node.rightTable[i_u], node.rightNormConstants[i_u])
+  if not v.is_leaf():
+    fill_age_prob_from_ln_age_prob(v)
+  if not w.is_leaf():
+    fill_age_prob_from_ln_age_prob(w)
+
+def fill_age_prob_from_ln_age_prob(node):
+  p = 0.0
+  for i, ln_ap in node.ln_age_prob.items():
+    ap = math.exp(ln_ap)
+    p += ap
+    node.ln_age_prob[i] = ap
+  print 'node p sum = ', p
+
+
+def add_to_age_prob(ln_age_prob, ln_par_age_prob, ln_unnorm_prob, ln_norm_constant):
+  for i, lup in ln_unnorm_prob.items():
+    ln_norm_prob_conditional_on_par = lup - ln_norm_constant
+    ln_norm_joint = ln_norm_prob_conditional_on_par + ln_par_age_prob
+    ln_age_prob[i] = ln_of_sum(ln_age_prob.get(i), ln_norm_joint)
+
+
+
 def calc_date_map_estimate(tree, age_prior_calc, rate_prior_calc, grid):
   '''Uses a dynamic programming approach to approximate a MAP estimate
   for the grid_idx for each non-leaf node.
