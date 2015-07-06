@@ -200,24 +200,30 @@ Least Squares Dating (LSD) (REF Gascuel)
 \ejmcomment{Need to cite but it isn't publicly available anywhere.}
 uses a least squares approach based on a normal approximation of the molecular clock.
 According to (Gascuel LSD ref) LSD achieves similar results to BEAST, 
-in orders of magnitude shorter times. \cite{Akerborg2008} describe a dynamic programming approach to 
+in orders of magnitude shorter times.
+\cite{Akerborg2008} describe a dynamic programming approach to 
 rapidly generate ultrametric phylogenies from an input tree topology.
-This algorithm is not available as an open source implementation, 
-but is available as part of the PrimeGSR program \citep{Akerborg2009}.
+The approach uses discretization of the time scale.
+A standalone, open source implemention of this algorithm is not available,
+but it is implemented as a part of the PrimeGSR program \citep{Akerborg2009}.
 
 Our program, FastDate, is adapted from the algorithm in \cite{Akerborg2008}.
 FastDate implements a faster version of the dynamic programming approach running 
-in quadratic time instead of the original cubic-time, and instead computes the 
-optimal probability density of a sampled tree.
-In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010}'s 
-probability of sampled trees with defined node heights,
-by building up a table of node height values which maximize the likelihood of 
-the node height,  and the likelihood of branch lengths in the tree 
-having a given rate based on the gamma distribution.
-In addition, FastDate can apply prior information on node dates or tip dates to scale the tree to
-absolute time.
-The granularity of the dating approach can be determined by the user's choice of the number of time intervals to which 
-nodes can be assigned and a maximum possible root age.
+in quadratic time as a function of the number of bins of the time scale;
+the original algorithm ran in cubic-time.
+FastDate produces an approximation of the maximum {\em a posteriori} (MAP)
+estimate of the ages of node of a sampled tree.
+Similar to the original algorithm of \cite{Akerborg2008}, FastDate treats
+the branch lengths in terms of expected substitutions per site as known without error.
+FastDate uses priors on node ages of sampled trees conditional on the 
+number of extant tips sampled derived in \cite{Stadler2010}.
+The rate of molecular evolution on each edge is assumed to follow a 
+gamma distribution, as in the uncorrelated model of \cite{BEASTREF-FOR-THIS-MODEL}.
+FastDate can use prior information on node dates or tip dates as additional
+factors in calculation of the posterior probability density.
+The user can choice of the number of time intervals to which 
+nodes can be assigned, which controls the granularity of the approximation.
+The user must also specify a maximum possible root age.
 
 \section{Methods}
 
@@ -225,6 +231,7 @@ nodes can be assigned and a maximum possible root age.
 %
 %
 \subsection{Basic definitions}
+
 %
 A tree $T=(V,E)$ is a connected acyclic graph where $V$ is the set of {\em
 nodes} and $E$ the set of {\em edges}, such that $E = V\times V$. We use the
@@ -251,6 +258,8 @@ The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
 use implicitly the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 
 \subsection{Branch rate distribution}
+\mthcomment{I think that we can just say that we use uncorrelated Gamma rates, and delete this section.}
+
 Setting dates on a tree requires factorizing the branch lengths of an input topology
 from estimates of evolutionary distances into rates and times. 
 A common approximation is to treat branch rates as gamma distributed \citep{Kishino2001}.
@@ -270,10 +279,8 @@ where $\beta = \mu / \sigma^2$ and $\alpha = \mu \beta$.
 
 \subsection{Birth-death process}
 Phylogenetic trees are commonly modeled using the constant rate birth\textendash death process \citep{Kendall1948}.
-The tree shape is parameterized using a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
-$\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
-Recent work by \citet{Gernhard2008} and \citet{Stadler2009, Stadler2010} has expanded on Kendall's basic 
-formulation of the probabilities of birth\textendash death trees to incorporate several important aspects of sampling:
+The process is parameterized using a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
+Recent work has incorporate several important aspects of sampling:
 the effect on branch lengths of truncating the process by sampling tips at the present \citep{Gernhard2008},
 the effect of incomplete sampling of tips at the present day \citep{Stadler2009}, and the effect of the sampling
 of fossils on recovery of ancestral taxa \citep{Stadler2010}.
@@ -286,13 +293,14 @@ takes into account sampling individuals in the past \citep{Stadler2010}.
 Given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
 $0 \leq \mu < \lambda$. An individual at the present is sampled with
 probability $\rho$.  The probability density of a sampled tree $T$ with $n$
-extant sampled leaves is given by the formula
+extant sampled leaves is given by
 %
 %
 $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}
-\frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_i}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_i})^2}.$$
+\frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_i}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_i})^2}$$
 %
 %
+\citep[pg.~11][]{Stadler2010}.
 The probability density of a sampled tree $T$ with $n$ extant sampled leaves,
 $m$ extinct sampled leaves, $n+m > 0$, and $k \geq 0$ sampled individuals with
 sampled descendants, conditioned on sampling $n$ present day individuals is
@@ -305,7 +313,7 @@ $$f[T|n,m,k] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1}
 where $p_0(t)$ is the probability that an individual alive at time $t$ before
 present has no sampled extinct or extant descendants, and $p_1(t)$ is the
 probability that an individual alive at time $t$ before present has precisely
-one sampled extant descendant and no sampled extinct descendant. Those probabilities
+one sampled extant descendant and no sampled extinct descendant \citep[Eqn (9)][]{Stadler2010}. Those probabilities
 are defined as
 %
 $$p_0(t) = \frac{\lambda+\mu+\psi+c_1\frac{e^{-c_1 t}(1-c_2)-(1+c_2)}{e^{-c_1t}(1-c_2)+(1+c_2)}}{2\lambda}$$
