@@ -620,7 +620,8 @@ $f_2(T,\phi_i)\times f_1(T,\phi_i)$ yields the highest value gives us the
 optimal solution. We show our proof by strong induction on the height of the
 root node.
 \paragraph{Base case.} Let $u$ be the parent of $v$ and $w$, such that $h(u) =
-1$. Nodes $v$ and $w$ are therefore leaves, which leads us to compute
+1$. \mthcomment{You define $h(v) = 1$ if $v$ is a leaf. So something is wrong.}
+ Nodes $v$ and $w$ are therefore leaves, which leads us to compute
 $|d(u)|=N-1$ values, of the form
 %
 %
