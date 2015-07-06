@@ -26,14 +26,14 @@ static char progheader[80];
 static char * cmdline;
 
 /* number of mandatory options for the user to input */
-static const char mand_options_count = 2;
-static const char * mand_options_list = "  --tree_file\n  --out_file\n";
+static const char mand_options_count = 7;
+static const char * mand_options_list = " --tree_file\n --out_file\n --bd_mu\n --bd_lambda\n --bd_rho\n --rate_mean\n --rate_variance\n"
+;
 
 /* options */
 char * opt_treefile;
 char * opt_outfile;
 char * opt_priorfile;
-char * opt_agefile;
 double opt_max_age;
 double opt_lambda;
 double opt_mu;
@@ -73,9 +73,8 @@ static struct option long_options[] =
   {"method_nodeprior",   no_argument,       0, 0 },  /* 15 */
   {"method_tipdates",    no_argument,       0, 0 },  /* 16 */
   {"prior_file",         required_argument, 0, 0 },  /* 17 */
-  {"age_file",           required_argument, 0, 0 },  /* 18 */
-  {"quiet",              no_argument,       0, 0 },  /* 19 */
-  {"threads",            required_argument, 0, 0 },  /* 20 */
+  {"quiet",              no_argument,       0, 0 },  /* 18 */
+  {"threads",            required_argument, 0, 0 },  /* 19 */
   { 0, 0, 0, 0 }
 };
 
@@ -96,14 +95,7 @@ void args_init(int argc, char ** argv)
   opt_treefile = NULL;
   opt_outfile = NULL;
   opt_priorfile = NULL;
-  opt_agefile = NULL;
   opt_grid_intervals = 1000;
-  opt_lambda = 2;
-  opt_mu = 0;
-  opt_rho = 0.5;
-  opt_psi = 0;
-  opt_rate_mean = 5;
-  opt_rate_var = 1;
   opt_quiet = 0;
   opt_max_age = 0;
   opt_threads = 0;
@@ -203,14 +195,10 @@ void args_init(int argc, char ** argv)
         break;
 
       case 18:
-        opt_agefile = optarg;
-        break;
-
-      case 19:
         opt_quiet = 1;
         break;
       
-      case 20:
+      case 19:
         opt_threads = atol(optarg);
         break;
 
@@ -228,6 +216,16 @@ void args_init(int argc, char ** argv)
   if (opt_treefile)
     mand_options++;
   if (opt_outfile)
+    mand_options++;
+  if (opt_rate_var)
+    mand_options++;
+  if (opt_rate_mean)
+    mand_options++;
+  if (opt_lambda)
+    mand_options++;
+  if (opt_mu)
+    mand_options++;
+  if (opt_rho)
     mand_options++;
 
   /* check for number of independent commands selected */
@@ -268,9 +266,7 @@ void args_init(int argc, char ** argv)
   if (opt_method_relative)
   {
     if (opt_priorfile)
-      fatal("Option --prior_file can only be used with --method_nodeprior");
-    if (opt_agefile)
-      fatal("Option --age_file can only be used with --method_tipdates");
+      fatal("Option --prior_file can only be used with --method_nodeprior or --method_tipdates");
     if (opt_max_age)
       fatal("Option --max_age can only be used with --method_nodeprior "
             "and --method_tipdates");
@@ -280,7 +276,7 @@ void args_init(int argc, char ** argv)
   if (opt_method_tipdates)
   {
     if (opt_psi == 0)
-      fatal("Use method --method_relative when estimating divergence times "
+      fatal("Use method --method_relative or --method_nodeprior when estimating divergence times "
             "without fossil information (psi = 0)");
     if (opt_psi < 0)
       fatal(" Option --bd_psi must be a positive value");
@@ -297,13 +293,11 @@ void args_init(int argc, char ** argv)
 
   if (opt_method_tipdates)
   {
-    if (!opt_agefile)
+    if (!opt_priorfile)
       fatal("Method --method_tipdates requires a file with the ages of some "
-            "tips to be specified with the --age_file switch");
+            "tips to be specified with the --prior_file switch"); 
     if (!opt_max_age)
       fatal("Method --method_tipdates requires that --max_age is defined");
-    if (opt_outform == OUTPUT_ULTRAMETRIC)
-      fatal("Method --method_tipdates cannot generate ultrametric trees");
   }
 
   /* if no command specified, turn on --help */
@@ -328,15 +322,14 @@ void cmd_help()
           "  --version                      display version information.\n"
           "  --show_tree                    display an ASCII version of the computed tree.\n"
           "  --method_relative              perform divergence time estimations given no fossil information is available.\n"
-          "  --method_nodeprior             perform divergence time estimations given fossil information is available for certain nodes (node dating and tip dating).\n"
-          "  --method_tipdates              perform divergence time estimation given the absolute ages of certain tips.\n"
+          "  --method_nodeprior             perform divergence time estimations given prior information is available for certain nodes.\n"
+          "  --method_tipdates              perform divergence time estimation given priors on ages of certain tips.\n"
           "  --quiet                        only output warnings and fatal errors to stderr.\n"
           "  --threads INT                  number of threads to use, zero for all cores (default: 0).\n"
           "  --grid INT                     number of grid intervals to use (default: 1000).\n"
           "Input and output options:\n"
           "  --tree_file FILENAME           tree file in newick format.\n"
           "  --prior_file FILENAME          file containing node priors (for --method_nodeprior).\n"
-          "  --age_file FILENAME            file containing tip dates (for --method_tipdates).\n"
           "  --out_file FILENAME            output file name.\n"
           "  --out_form STRING              format of the output tree. Can be either 'dated' or"
                                             "'ultrametric' (default: 'ultrametric').\n"
@@ -390,7 +383,7 @@ void cmd_method_nodeprior()
   if (!opt_quiet)
     fprintf(stdout, "Setting node priors...\n");
   set_node_priors(tree, &fossils_count, &extinct_leaves_count);
-
+  assert(extinct_leaves_count == 0);
   dp(tree);
 
   if (opt_showtree)
@@ -407,7 +400,32 @@ void cmd_method_nodeprior()
 
 void cmd_method_tipdates()
 {
-  fatal("Not implemented yet");
+  long fossils_count, extinct_leaves_count;
+
+  /* parse tree */
+  if (!opt_quiet)
+    fprintf(stdout, "Parsing tree file...\n");
+  tree_node_t * tree = yy_parse_tree(opt_treefile);
+  if (!tree)
+    fatal("Tree is probably not binary.\n");
+
+  /* set tip priors */
+  if (!opt_quiet)
+    fprintf(stdout, "Setting tip priors...\n");
+  set_node_priors(tree, &fossils_count, &extinct_leaves_count);
+  assert(extinct_leaves_count > 0);
+  dp(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
+
+  if (!opt_quiet)
+    fprintf(stdout, "Writing tree file...\n");
+  write_newick_tree(tree);
+  if (!opt_quiet)
+    fprintf(stdout, "Done\n");
+
+  yy_dealloc_tree(tree);
 }
 
 void getentirecommandline(int argc, char * argv[])

@@ -42,7 +42,6 @@ static void reset_node_heights(tree_node_t * node)
     offset = ((exp_params_t *)(node->prior_params))->offset; 
   else if (node->prior  == NODEPRIOR_LN)
     offset = ((ln_params_t *)(node->prior_params))->offset;
-
   min_height = lrint(ceil(offset / interval_age));
 
   if (!node->left)
@@ -167,7 +166,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       }
       else assert(0);
 
-      node->matrix[i] = dist_logprob + bd_nodeprior_prod_tip(rel_age_node);
+      node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
     }
 
     return;
@@ -256,10 +255,10 @@ void dp_recurse(tree_node_t * node, int root_height)
     assert(kbest > -1);
 
     double bd_term = 0;
-    if (opt_method_relative)
+    if (opt_method_relative || opt_method_nodeprior)
       bd_term = bd_relative_prod(rel_age_node);
-    else if (opt_method_nodeprior)
-      bd_term = bd_nodeprior_prod_inner(rel_age_node);
+    else if (opt_method_tipdates)
+      bd_term = bd_tipdates_prod_inner(rel_age_node);
     else assert(0);
 
 
@@ -285,11 +284,11 @@ void dp_recurse(tree_node_t * node, int root_height)
     /* if it's the root add one more term */
     if (node->height == root_height)
     {
-      if (opt_method_relative)
+      if (opt_method_relative || opt_method_nodeprior)
         score += bd_relative_root(node->leaves,
                                   rel_age_node);
-      else if (opt_method_nodeprior)
-        score += bd_nodeprior_root(node->leaves,
+      else if (opt_method_tipdates)
+        score += bd_tipdates_root(node->leaves,
                                    rel_age_node);
       else assert(0);
     }
@@ -347,11 +346,11 @@ void dp(tree_node_t * tree)
   bd_init(0,0);
 
   /* compute the absolute age of an interval line */
-  if (opt_method_nodeprior)
+  if (opt_method_nodeprior|| opt_method_tipdates)
     interval_age = opt_max_age / (opt_grid_intervals - 1);
   
   /* reset node heights according to calibrations if nodeprior method is used */
-  if (opt_method_nodeprior)
+  if (opt_method_nodeprior || opt_method_tipdates)
     reset_node_heights(tree);
 
   /* allocate space for node entries */

@@ -199,9 +199,10 @@ double gamma_dist_logpdf(double x);
 void bd_init(long fossils_count, long extinct_leaves_count);
 double bd_relative_prod(double t);
 double bd_relative_root(int leaves, double t);
-double bd_nodeprior_root(int leaves, double t);
-double bd_nodeprior_prod_inner(double t);
-double bd_nodeprior_prod_tip(double t);
+double bd_tipdates_root(int leaves, double t);
+double bd_tipdates_prod_inner(double t);
+double bd_tipdates_prod_tip(double t);
+
 
 /* functions in newick.y */
 
