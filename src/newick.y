@@ -21,6 +21,8 @@
 %{
 #include "fastdate.h"
 
+#define HASHTABLE_SIZE 5000
+
 extern int yylex();
 extern FILE * yyin;
 extern void yylex_destroy();
@@ -28,6 +30,37 @@ extern void yylex_destroy();
 void yyerror(tree_node_t * tree, const char * s) 
 {
   fprintf(stderr, "%s.\n", s);
+}
+
+static void hash_table_create()
+{
+  hcreate(HASHTABLE_SIZE);
+}
+
+/* insert the taxon/node label in the hashtable */
+static void hash_table_insert(char * label)
+{
+  ENTRY entry;
+
+  entry.key = label;
+  entry.data = NULL;
+  hsearch(entry,ENTER);
+
+}
+
+/* check if a taxon/node label with thte same name already exists */
+static void hash_table_find(char * label)
+{
+  ENTRY entry;
+
+  entry.key = label;
+  if (hsearch(entry,FIND))
+    fatal("Duplicate taxon or node label (%s) in file %s", label, opt_treefile);
+}
+
+static void hash_table_destroy()
+{
+  hdestroy();
 }
 
 %}
@@ -75,6 +108,13 @@ input: OPAR subtree COMMA subtree CPAR optional_label optional_length SEMICOLON
   $4->parent = tree;
 
   free($7);
+
+  /* check for duplicate taxa/node labels */
+  if (tree->label)
+  {
+    hash_table_find(tree->label);
+    hash_table_insert(tree->label);
+  }
 };
 
 subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
@@ -95,6 +135,14 @@ subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
   $4->parent = $$;
 
   free($7);
+
+  /* check for duplicate taxa/node labels */
+  if ($$->label)
+  {
+    hash_table_find($$->label);
+    hash_table_insert($$->label);
+  }
+
 }
        | label optional_length
 {
@@ -111,6 +159,10 @@ subtree: OPAR subtree COMMA subtree CPAR optional_label optional_length
   $$->matrix       = NULL;
 
   free($2);
+  
+  /* check for duplicate taxa/node labels */
+  hash_table_find($$->label);
+  hash_table_insert($$->label);
 };
 
  
@@ -126,6 +178,7 @@ tree_node_t * yy_parse_tree(const char * filename)
   struct tree_noderec * tree;
 
   tree = yy_create_tree();
+  hash_table_create();
 
   yyin = fopen(filename, "r");
   if (!yyin)
@@ -140,6 +193,7 @@ tree_node_t * yy_parse_tree(const char * filename)
   if (yyin) fclose(yyin);
 
   yylex_destroy();
+  hash_table_destroy();
 
   return tree;
 }
