@@ -245,7 +245,7 @@ number of incoming (resp.~outgoing) edges of $u$. The
 {\em degree} of a node $u$ denotes the number of edges $u$ is an end-point of.
 We denote with $T_u$ the subtree of $T$ rooted at node $u$.  A {\em
 rooted binary tree} $T$ is a {\em directed} tree with all nodes having
-in-degree $1$ and out-degree $1$ {\bf TODO out-degree 1???}  ({\em inner} nodes), or in-degree $1$ and out-degree
+in-degree $1$ and out-degree $2$ ({\em inner} nodes), or in-degree $1$ and out-degree
 $0$ ({\em leaves}). The single root node has in-degree $0$ and out-degree $2$.  
 Henceforth, we use the term tree to denote a
 binary rooted tree.  We refer to the set of leaves of tree $T$ as $L(T)$.  The
@@ -259,8 +259,9 @@ $u$ of $T$ with children $v$ and $w$ is defined as
 
 {\bf TODO why shouldn't the height of the leaf nodes be set to zero? you should explain that this might be needed later on}
 
-The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
-use implicitly {\bf TODO why implicitely?} the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
+The height $h(T)$ of a tree $T$ is the height of its root. Finally, the mapping $\ell : E \mapsto \mathbb{R}$ maps
+each edge to a real number which we call the {\em branch length}, and we will use the notation $\ell_{u,v}$ for
+the branch length of edge $(u,v)$.
 
 \subsection{Branch rate distribution}
 Placing dates on a tree requires factorizing the branch lengths of an input topology (estimates of evolutionary distances) 
@@ -480,7 +481,7 @@ f_2(T\ |\ \phi) = \prod_{u\notin L(T)}
 %
 and computing all $|d(r)|$ maximum scores of 
 $f_2(T\ |\ \phi_i), h(r) \leq i \leq N$, that is, for each time-line the root can be placed on. 
-Because $f_1(T\ |\n,\phi)$ depends only on the root time-line, the optimal mapping $\phi_i$ that
+Because $f_1(T\ |\ n,\phi)$ depends only on the root time-line, the optimal mapping $\phi_i$ that
 maximizes \ref{eq:score} (denoted by $\hat\phi$) is the one that leads to the
 highest value of the product $f_1(T\ |\ n,\phi_i)\times f_2(T\ |\ \phi_i)$.%
 Our approach is to maximize the term \ref{eq:part2} using a dynamic programming
@@ -714,7 +715,7 @@ or log normal distribution, and a minimum age offset.
 \subsection{Tip dating}
 \ejmcomment{not yet fully implemented}
 Optional parameters include $\psi$ the rate of recovery of fossils per lineage, 
-if extinct tips have been sampled. {\bf this is the first time you actually define $\psi$$}
+if extinct tips have been sampled. {\bf this is the first time you actually define $\psi$}
 
 
 
