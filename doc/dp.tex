@@ -110,7 +110,7 @@ Version dated: \today
 \begin{center}
 
 % Insert your title:
-\noindent{\Large \bf A dynamic programming approach for speed-dating}
+\noindent{\Large \bf A dynamic programming approach and tool for speed-dating and divergence time estimation}
 \bigskip
 
 % We don't use a special title page; the author information is entered 
@@ -120,11 +120,13 @@ Version dated: \today
 % tables. Don't include any footnotes in the text.
 
 
-\noindent {\normalsize \sc Tom\'{a}\v{s} Flouri$^1$, Emily Jane McTavish$^{1,2}$, Diego Darriba, Pashalia Kapli, Mark T.\@ Holder, Alexandros Stamatakis}\\
-\ejmcomment{We haven't discussed order\\ Email Bastien about further involvement?\\}
+\noindent {\normalsize \sc Tom\'{a}\v{s} Flouri$^1$, Emily Jane McTavish$^{1,2}$, Diego Darriba, Pashalia Kapli, Mark T.\@ Holder, Alexandros Stamatakis$^{1,3}$}\\
+\ejmcomment{We haven't discussed order AS: I personally don't care, maybe Mark should go last due to more closer involvement\\ Email Bastien about further involvement? AS: not sure 
+how much he really contributed or is able to contribute.\\}
 \noindent {\small \it 
 $^1$Heidelberg Institute for Theoretical Studies, Heidelberg, 69118, Germany\\
-$^2$Ecology and Evolutionary Biology, University of Kansas, Lawrence, KS, 66045, USA}\\
+$^2$Ecology and Evolutionary Biology, University of Kansas, Lawrence, KS, 66045, USA\\
+$^3$Institute of Theoretical Inofrmatics, Karlsruhe Institute of Technology, Karlsruhe, 76131, Germany}
 \end{center}
 \medskip
 \noindent{\bf Corresponding author:} Tom\'{a}\v{s} Flouri, 
@@ -138,84 +140,91 @@ Heidelberg Institute for Theoretical Studies; Heidelberg, 69118, Germany, E-mail
 \vspace{1in}
 
 \subsubsection{Abstract} We present a dynamic programming algorithm to rapidly
-date phylogenies with thousands of tips implemented in the open source software package FastDate. 
-This software is capable of using node or tip date prior information to scale trees to absolute time,
-or estimate relative times for nodes.
-We have implemented recent developments in calculating probabilities of trees accounting for both incomplete 
-sampling of species in the present day, and sampling in the past, 
-such as due to the fossilization and recovery processes.
-FastDate is \ejmcomment{(will be)} available on our webserver and source code is on GitHub.\\
+date phylogenies with thousands of tips and make it available in the open source software package FastDate. 
+Our tool can use prior information on node or tip dates to either scale trees to absolute time.
+If this information is not available, FastDate can alternatively estimate relative times for nodes.
+We have integrated recent mathematical models to calculate tree probabilities {\bf TODO tree probabilities sounds as if we are samoling over trees which we are not} 
+that account for
+incomplete  sampling of extant as well as ancestral species.
+This incomplete sampling can be due to fossilization and recovery processes, for instance.
+{\bf TODO add results, speed and comparison to established programs for dating!}
+FastDate is \ejmcomment{(will be)} available as a web-service at {\bf TOOD} and open source code at {\bf TODO}.\\
 \noindent (Keywords: )\\
 
 \vspace{1.5in}
 
-Phylogenetic analyses generate trees with branch lengths in units of expected number of substitutions per site.
-Each branch length is a product of that lineage's substitution rate and elapsed time.
-To generate time\textendash scaled trees it is necessary to tease apart these two variables.
-Answering important biological questions requires time\textendash scaled trees.
+Phylogenetic analyses produce trees with branch lengths that represent the expected number of substitutions per site.
+Each branch length is a product of a lineage's substitution rate and elapsed time.
+To generate time\textendash scaled trees it is necessary to disentangle the time from the substitution rate.
+Answering  a plethora of biological questions does require time\textendash scaled trees.
 Phylogeographic and paleontological analyses depend upon node dates in absolute time,
-to associate evolutionary events with historical ones.
+to associate evolutionary with historical events.
 Identifying changes in diversification rates and inferring causes for those changes
 rely on accurate estimates of relative speciation times.
-As recent sequencing and computational developments are enabling the generation of
-phylogenies with hundreds or thousands of tips, rapid approaches for dating large trees are needed.
+As recent sequencing and computational developments allow to infer
+phylogenies with thousands of tips, rapid approaches for dating such trees are needed.
 
-The most straightforward approach to dating trees is using the molecular clock model;
-assuming that the rate of nucleotide substitutions is constant through time \citep{zuckerkandl1962}.
+The most straightforward approach to dating trees is to use the molecular clock model.
+It assumes that the rate of nucleotide substitutions is constant through time \citep{zuckerkandl1962}.
 However, due to both stochastic variation in observed mutations and 
 biological variation in rates of mutation fixation across different lineages,
-using a strict molecular clock does not generate an ultrametric tree.
-There have been several alternative approaches developed to estimate
-ultrametric trees using relaxed clock or correlated rates models \citep{Lepage2007, Thorne1998, Kishino2001}.
-In order to scale branch length estimates to absolute time, researchers apply calibration dates. 
-There are two main approaches to calibrating phylogenies with known dates:
+using a strict molecular clock does typically not generate an ultrametric tree.
+Several alternative approaches have been developed to estimate
+ultrametric trees using relaxed clock or correlated rates {\bf TODO rate or rates?} models \citep{Lepage2007, Thorne1998, Kishino2001}.
+In order to anchor branch length estimates in absolute time, researchers deploy so-called calibration dates. 
+There are two main approaches to annotate phylogenies by absolute times:
 priors on node ages or tip dates.
-Node priors are probability distributions on the ages of nodes.
-These estimates of node age are often generated from fossils,
-but can also be inferred from geological, biogeographical, or other prior information.
-Tip dating approaches are usually applied to serially sampled data, 
-i.e.\ data where some tips were sampled in the past, and have known sampling dates.
-While tip-date information is most commonly known for bacterial or viral phylogenies,
+Node priors are probability distributions on the ages of nodes {\bf TODO do you mean inner nodes of the tree or does this refer to all nodes?}.
+These node age estimates are often obtained from fossils,
+but can also be inferred from geological, biogeographical, or other external information.
+Tip dating approaches are usually applied to serially sampled data, that is, 
+data where some tips were sequenced in the past, and have known sequencing dates.
+While tip-date information is most commonly used in bacterial or viral phylogenies,
 it is also possible to use fossil taxa as tips.
-Tip dates may be either be prior distributions or fixed dates, 
-depending on the sampling and the certainty of the date inference.
+Tip dates may either be prior distributions or fixed, dsicrete dates, 
+depending on the sampling {\bf not clear what you mean by sampling here} and the uncertainty associated with the respective
+dating technique.
 \citet{Heath2014} developed the fossilized-birth-death model which 
-uses an explicit macroevolutionary model to integrate across potential 
-placements of fossils to date phylogenies.
+uses an explicit macroevolutionary model to integrate over potential 
+placements of fossils {\bf TODO define what you mean by fossil placement, is this in the entire tree or just along a branch?} for dating phylogenies.
 
-Regardless of the form of date information, reconciling multiple calibrations dates with 
-branch lengths across a tree with more than a few tips is a complex problem.
+Irrespective of the date information type, reconciling {\bf TODO is there a better word than reconciling, previsouly you used calibrating, are those words used as synonyms?} 
+multiple calibrations dates with branch lengths across a tree with more than a few tips represents a challenging task.
 Several Bayesian methods have been developed which use Markov Chain Monte Carlo (MCMC) methods
 to infer dated phylogenies using prior information, 
 (e.g. BEAST \citealt{Drummond2007}; BEAST 2 \citealt{bouckaert2014}; MCMCTree \citealt{Stadler2013}).
 While these approaches can be accurate, and integrate over uncertainty about the dated
-phylogeny, for trees with many tips or many calibration points, they can be intractably slow.
+phylogeny {\bf TODO need to more accurately describe what you mean with ``integrate over uncertaionty about the dated phylogeny''}, 
+for trees with many tips or many calibration points, they can be intractably slow.
+{\bf Add a sentence that they (Beast for sure, not sure what MCMCTRee does) rely on calculating likelihoods on tree and data,
+thus they are also slow for very large phylogenomic datasets, i.e., the performance bottleneck are always the likelihood calculations!}
 For example, using BEAST to estimate the dates for the phylogeny in \citet{Misof2014}, which has 144 tips
-and 37 node calibration priors, entailed thousands of CPU hours.
+and 37 node calibration priors, entailed thousands of CPU hours.{\bf TODO can we be a bit more specific here? Was it possible to date the tree using the entire dataset?}
 
-Some rapid phylogenetic dating approaches have been developed which do not rely on MCMC.\@
-R8s uses non parametric rate smoothing to rapidly estimate 
+Some rapid phylogenetic dating approaches have been developed which do not rely on MCMC and on associated phylogenetic likelihood calculations on the alignments.\@
+R8s uses non-parametric rate smoothing to rapidly estimate 
 maximum likelihood calibrated or ultrametric trees \citep{Sanderson2003}.
 Least Squares Dating (LSD) (REF Gascuel) 
-\ejmcomment{Need to cite but it isn't publicly available anywhere.}
+\ejmcomment{Need to cite but it isn't publicly available anywhere.}{\bf TODO shall I ask him where we can find/ho wto cite it?}
 uses a least squares approach based on a normal approximation of the molecular clock.
-According to (Gascuel LSD ref) LSD achieves similar results to BEAST, 
-in orders of magnitude shorter times. \cite{Akerborg2008} describe a dynamic programming approach to 
+According to (Gascuel LSD ref) LSD achieves similar results to BEAST but is orders of magnitude faster. 
+\cite{Akerborg2008} describe a dynamic programming-like approach to 
 rapidly generate ultrametric phylogenies from an input tree topology.
-This algorithm is not available as an open source implementation, 
-but is available as part of the PrimeGSR program \citep{Akerborg2009}.
+This algorithm is not open source, but is part of the PrimeGSR program \citep{Akerborg2009}.{\bf is PrimeGSR open-source?}
 
-Our program, FastDate, is adapted from the algorithm in \cite{Akerborg2008}.
-FastDate implements a faster version of the dynamic programming approach running 
-in quadratic time instead of the original cubic-time, and instead computes the 
+Our program, FastDate, represents a substantial extension and re-engineering of \cite{Akerborg2008}.
+FastDate implements an efficient dynamic programming {\bf TODO need to decide if we want to call this DP or DP-like consistently in the paper} 
+approach running  in $O(n^2)$ instead of the original $O(n^3)$, where $n$ is the number of tips.
+{\bf TODO the rest of this sentence needs to be re-written, you don't state what speed-date computes!} instead computes the 
 optimal probability density of a sampled tree.
-In short, the algorithm maximizes probability of the overall tree using \cite{Stadler2010}'s 
-probability of sampled trees with defined node heights,
-by building up a table of node height values which maximize the likelihood of 
-the node height,  and the likelihood of branch lengths in the tree 
-having a given rate based on the gamma distribution.
-In addition, FastDate can apply prior information on node dates or tip dates to scale the tree to
+In short, the algorithm maximizes the probability of the overall tree {\bf with respect to what?} using \cite{Stadler2010}'s 
+probability of sampled trees with defined node heights.
+It does so, by progressively constructing a table of node height values that maximize both, the likelihood of 
+the node height,  and the likelihood of branch lengths with a given rate drawn from a gamma distribution.
+{\bf TODO maybe need to explain where this GAMMA distribution comes from and how you estimkate its shape}
+In addition, FastDate can use prior information on node or tip dates to scale the tree to
 absolute time.
+{\bf TODO the sentence below is too specific, needs to be omitted or moved elsewhere!}
 The granularity of the dating approach can be determined by the user's choice of the number of time intervals to which 
 nodes can be assigned and a maximum possible root age.
 
@@ -231,15 +240,15 @@ nodes} and $E$ the set of {\em edges}, such that $E = V\times V$. We use the
 notation $(u,v) \in E$ to denote an edge with end-points $u,v \in V$. If $T$ is
 {\em oriented}, $(u,v) \in E$ indicates that the edge originates at $u$ and leads
 to $v$, in which case $u$ is called the {\em parent} and $v$ the {\em child}.
-{\em In-degree} (resp. {\em out-degree}) of a node denotes the
-number of incoming (resp. outgoing edges) of $u$. In the opposite case, the
-{\em degree} of node $u$ denotes the number of edges $u$ is an end-point of.
+The {\em in-degree} (resp.~{\em out-degree}) of a node denotes the
+number of incoming (resp.~outgoing) edges of $u$. The
+{\em degree} of a node $u$ denotes the number of edges $u$ is an end-point of.
 We denote with $T_u$ the subtree of $T$ rooted at node $u$.  A {\em
 rooted binary tree} $T$ is a {\em directed} tree with all nodes having
-in-degree 1 and out-degree 1 ({\em inner} nodes), or in-degree 1 and out-degree
-0 ({\em leaves}). One node has in-degree 0 and out-degree 2 ({\em
-root}).  In the rest of the text we implicitly assume under the term tree a
-binary rooted tree.  We denote the set of leaves of tree $T$ as $L(T)$.  The
+in-degree $1$ and out-degree $1$ {\bf TODO out-degree 1???}  ({\em inner} nodes), or in-degree $1$ and out-degree
+$0$ ({\em leaves}). The single root node has in-degree $0$ and out-degree $2$.  
+Henceforth, we use the term tree to denote a
+binary rooted tree.  We refer to the set of leaves of tree $T$ as $L(T)$.  The
 cardinality of a set $X$ is denoted as $|X|$. The {\em height} $h(u)$ of a node
 $u$ of $T$ with children $v$ and $w$ is defined as 
 %
@@ -247,16 +256,19 @@ $u$ of $T$ with children $v$ and $w$ is defined as
 \max(h(v), h(w)) + 1 & \quad : \quad u \notin L(T)\\
 1                    & \quad : \quad u    \in L(T)\\
 \end{array}\right. \] 
+
+{\bf TODO why shouldn't the height of the leaf nodes be set to zero? you should explain that this might be needed later on}
+
 The height $h(T)$ of a tree $T$ is the height of its root.: Finally, we will
-use implicitly the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
+use implicitly {\bf TODO why implicitely?} the notation $\ell_{u,v}$ for the length of edge $(u,v)$.
 
 \subsection{Branch rate distribution}
-Setting dates on a tree requires factorizing the branch lengths of an input topology
-from estimates of evolutionary distances into rates and times. 
-A common approximation is to treat branch rates as gamma distributed \citep{Kishino2001}.
+Placing dates on a tree requires factorizing the branch lengths of an input topology (estimates of evolutionary distances) 
+into rates and times. 
+A common approach to model branch rates is to assume that they are $\Gamma$ distributed \citep{Kishino2001}.
 
-The {\em Gamma function} is an extension to the factorial function to handle
-any real or complex number as argument. For point $t$ it is defined as
+The {\em Gamma function} is an extension to the factorial function that accepts
+real or complex numbers as arguments. For point $t$ it is defined as
 $$\Gamma(t) = \int_0^\infty x^{t-1} e^{-x} dx.$$
 
 The {\em probability density function} in the shape-rate parameterization of a
@@ -269,22 +281,23 @@ where $\beta = \mu / \sigma^2$ and $\alpha = \mu \beta$.
 \ejmcomment{autocorrelated rates possibly to come?}
 
 \subsection{Birth-death process}
-Phylogenetic trees are commonly modeled using the constant rate birth\textendash death process \citep{Kendall1948}.
-The tree shape is parameterized using a per lineage birth rate ($\lambda$) and a per lineage death rate ($\mu$).
-$\lambda$ must be greater than $\mu$ or the process deterministically goes to extinction.
+Phylogenetic trees are commonly modeled using a constant-rate birth\textendash death process \citep{Kendall1948}.
+The tree shape is parameterized using a lineage-sepcific birth rate ($\lambda$) and a lineage-specific death rate ($\mu$).
+The birth rate $\lambda$ must be greater than $\mu$; otherwise, the process will deterministically lead to extinction.
 Recent work by \citet{Gernhard2008} and \citet{Stadler2009, Stadler2010} has expanded on Kendall's basic 
-formulation of the probabilities of birth\textendash death trees to incorporate several important aspects of sampling:
-the effect on branch lengths of truncating the process by sampling tips at the present \citep{Gernhard2008},
-the effect of incomplete sampling of tips at the present day \citep{Stadler2009}, and the effect of the sampling
-of fossils on recovery of ancestral taxa \citep{Stadler2010}.
-We assume two extended types of the {\em constant rate birth-death process}
-that take into account sampling. The
-first one takes into account sampling of only extant individuals
+formulation of the probabilities of birth\textendash death trees to incorporate several important sampling phenomena or biases:
+the effect caused on branch lengths by truncating the process at extant tips \citep{Gernhard2008},
+the effect of incomplete sampling extant tips \citep{Stadler2009}, and the effect of the sampling
+of fossils on recovery of ancestral taxa {\bf TODO last part of this sentence unclear, not sure what it means} \citep{Stadler2010}.
+We consider two extensions of the {\em constant rate birth-death process}
+that take into account sampling phenomena. 
+The first one takes into account sampling of extant individuals only
 \citep{Stadler2009} while the second, which is a generalization of the first,
-takes into account sampling individuals in the past \citep{Stadler2010}.
+also takes into account sampling individuals in the past \citep{Stadler2010}.
+{\bf TODO provide a rationale as ti why we focus on these two!} 
 
-Given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
-$0 \leq \mu < \lambda$. An individual at the present is sampled with
+Assume that we are given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
+$0 \leq \mu < \lambda$. Further, let an extant individual be sampled with
 probability $\rho$.  The probability density of a sampled tree $T$ with $n$
 extant sampled leaves is given by the formula
 %
@@ -293,16 +306,17 @@ $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -
 \frac{\lambda\rho(\lambda-\mu)^2e^{-(\lambda-\mu)x_i}}{(\rho\lambda + (\lambda(1-\rho)-\mu)e^{-(\lambda-\mu)x_i})^2}.$$
 %
 %
+{\bf TODO what are the $x_i$? they have not been defined!} 
 The probability density of a sampled tree $T$ with $n$ extant sampled leaves,
 $m$ extinct sampled leaves, $n+m > 0$, and $k \geq 0$ sampled individuals with
-sampled descendants, conditioned on sampling $n$ present day individuals is
+sampled descendants, conditioned on sampling $n$ extant individuals is
 %
 %
 $$f[T|n,m,k] = \frac{4n\rho\lambda\psi^{k+m}}{c_1(c_2+1)(1-c_2+(1+c_2)e^{c_1x_1})}\prod_{i=1}^{n+m-1}\lambda p_1(x_i)\prod_{i=1}^{m}\frac{p_0(y_i)}{p_1(y_i)}$$
 %
 %N.B. There is a typo in this equation in \cite{Stadler2010} but logic and Stadler say that last term in denominator is $e^{c_1x_1}$ not  $e^{c_1x}$ \\
 %
-where $p_0(t)$ is the probability that an individual alive at time $t$ before
+{\bf TODO this sentence is far too long! what are the $c_1$, $y_i$, wher does $\psi$ come from?} where $p_0(t)$ is the probability that an individual alive at time $t$ before
 present has no sampled extinct or extant descendants, and $p_1(t)$ is the
 probability that an individual alive at time $t$ before present has precisely
 one sampled extant descendant and no sampled extinct descendant. Those probabilities
@@ -317,6 +331,7 @@ and the constants $c_1$ and $c_2$ are defined as
 $$c_1 = \sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi} \qquad c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
 %
 For more information see \cite{Stadler2010} (Section 3).
+{\bf TODO mention that the above equations are according to Stadler before actually presenting them!} 
 
 %%%%% TODO: Move the following to the DP section %%%%%
 %%%%%\begin{enumerate}
@@ -349,16 +364,15 @@ For more information see \cite{Stadler2010} (Section 3).
 
 \section{Dynamic programming algorithm}
 
-We present the dynamic programming algorithm for relative dating of a tree
-$T=(V,E)$. This will be extended in the next section to accommodate fossil
-information.
+We present the dynamic programming algorithm to infer relative dates on a tree
+$T=(V,E)$. We will show how to extend it to accomodate fossil information in the next Section.
 
-We are given an integer $N \geq h(T) > 1$ which we use to construct a grid of
+We initially chose an integer $N \geq h(T) > 1$ and use it to construct a grid of
 time-lines numbered from 1 to $N$, such that the (uniform) distance between any
 two adjacent time-lines is $1 / (N-1)$ and time-line $i$ represents time
-$\tau_i = \frac{i-1}{N-1}$ in relative time units. The goal is to project each node of
+$\tau_i = \frac{i-1}{N-1}$ in relative time units. The goal is to place each node of
 $T$ onto one of the $N$ time-lines using a mapping $\phi : V \mapsto
-\{1,\ldots,N\}$ such that a) the score of the formula
+\{1,\ldots,N\}$ such that (i) the value of the formula
 %
 %
 \begin{equation}\label{eq:score}
@@ -379,7 +393,7 @@ f(T\ |\ n,\phi) = & n (\lambda-\mu)
 \end{equation}
 %
 %
-is maximized and b) the following two properties are maintained
+is maximized and (ii) the following two properties are maintained
 %
 %
 \begin{enumerate}
@@ -390,16 +404,18 @@ is maximized and b) the following two properties are maintained
 %
 %
 The term $f(T\ |\ n,\phi)$ is the score of tree $T$ for the mapping $\phi$
-given the parameters of the birth-death process, gamma distribution for
-obtaining edge rate probability densities. The factorized edge-rates of node
+given the parameters of the birth-death process {\bf TODO state again which those are} and the parameters {\bf TODO state which parameters these are!} 
+of the $\Gamma$ distribution that describes edge rate probability densities. 
+The factorized edge-rates of node
 $u$ given its two children $v$ and $w$ are $\eta_{u,v} =
 \ell_{u,v}/(\tau_{\phi(u)} - \tau_{\phi(v)})$ and $\eta_{u,v} =
 \ell_{u,w}/(\tau_{\phi(u)}-\tau_{\phi(w)})$, where $v$ and $w$ are the two
 children of $u$.
+{\bf TODO: state where and if you are also optimizing the parameters of gamma and the birth-death process, i.e., make clear where you get them from!}
 %
-The restriction imposed by Property 1 ensures that no node $v$ in subtree $T_u$
-is placed on time-line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves onto
-the first time-line. Fig.~\ref{fig:mapping} is an example of such mapping $V$.
+The restriction imposed by Property 1 ensures that none of the nodes $v$ located in subtree $T_u$
+is placed on a time-line $\phi(v) \geq \phi(u)$. Property 2 maps all leaves onto
+the first time-line. Fig.~\ref{fig:mapping} provides an example of such a mapping $\phi$ of the nodes $V$.
 %
 %
 \begin{figure}[t]
@@ -417,20 +433,22 @@ the date of each time-line in relative time units.}
 %%% TOMAS: For simplicity, I changed the section to describe relative dating only and then
 %%% extend it in the next section with fossil information. Therefore, I left property 2 intact.
 
-Before describing the algorithm, it is necessary to define the interval of
-discretized time-lines a node can be placed on, such that Property 1 holds. The
-interval $d(r)$ for root $r$ is defined as $$d(r) = \{ i\ |\ h(r) \leq i <
-N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
-d(p); (p,u) \in E\}.$$ This is justified by the fact that the farthest {\em
-path} from node $u$ leading to a leaf is of size $h(u)$ and contains exactly
-$h(u)$ nodes (including $u$).  Therefore, we require at least $h(u)$ time-lines
-for placing each node of the path on a distinct time-line.  Hence, the first (most recent)
-time-line $u$ can be placed on is $h(u)$. The same applies for the path from
-$u$ leading to the root node $r$.  Each node must be placed on a distinct
-time-line, and as such, the last (furthest back in time) time-line $u$ may be placed on is one before
-the last time-line its parent node $p$ can be placed on. The intervals for each
-node can be computed by a preorder traversal of the tree. One method to achieve
-maximization of (\ref{eq:score}) is to split $f(T\ |\ n, \phi)$ into two terms
+Before describing the algorithm, it is necessary to define the interval $d(u)$ {\bf why would we call an interval d()?} of
+discretized time-lines a node can be placed on, such that Property 1 holds {\bf not clear what property one refers to! is this from (i) or (ii) above?}. The
+interval $d(r)$ for root $r$ is defined as 
+$$d(r) = \{ i\ |\ h(r) \leq i <N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
+d(p); (p,u) \in E\}.$$ 
+{\bf TODO Maybe describe all this in times like earliest = N with latest = 1 time line, I think this owuld be more intuitive to understand}
+This is justified by the fact that the longest {\em path} from node $u$ leading to a leaf is of size $h(u)$ and contains exactly
+$h(u)$ nodes (including $u$).  Therefore, we need to use at least $h(u)$ time-lines
+for placing each node of this longest path onto a distinct, discrete time-line $i$.  
+Hence, the first (most recent) time-line $u$ can be placed on, is $h(u)$. 
+The same holds for the path from
+$u$ to the root node $r$.  Each node on the path must be placed onto a distinct
+time-line, and as such, the last (furthest back in time) time-line $u$ can be placed on, is the
+one before {\bf TODO I'd rather write after here} the latest time-line its parent node $p$ can be placed on. The intervals for each
+node can be computed by a preorder traversal of the tree.
+Once this is done, one can maximize the score of equation (\ref{eq:score}) by splitting $f(T\ |\ n, \phi)$ into two terms
 $f_1(T\ |\ n,\phi(r))$ and $f_2(T\ |\ \phi)$
 %
 %
@@ -460,14 +478,14 @@ f_2(T\ |\ \phi) = \prod_{u\notin L(T)}
 \end{equation}
 %
 %
-and compute the $|d(r)|$ maximized values of $f_2(T\ |\ \phi_i), h(r) \leq i
-\leq N$, i.e.\ for each time-line the root may be placed on. Because $f_1(T\ |\
-n,\phi)$ depends only on the root time-line, the optimal mapping $\phi_i$ that
+and computing all $|d(r)|$ maximum scores of 
+$f_2(T\ |\ \phi_i), h(r) \leq i \leq N$, that is, for each time-line the root can be placed on. 
+Because $f_1(T\ |\n,\phi)$ depends only on the root time-line, the optimal mapping $\phi_i$ that
 maximizes \ref{eq:score} (denoted by $\hat\phi$) is the one that leads to the
-highest product $f_1(T\ |\ n,\phi_i)\times f_2(T\ |\ \phi_i)$.%
-Our approach is to maximize term \ref{eq:part2} using a dynamic programming
-algorithm. For that, we slightly modify the structure of \ref{eq:part2} into
-the following equivalent formula, 
+highest value of the product $f_1(T\ |\ n,\phi_i)\times f_2(T\ |\ \phi_i)$.%
+Our approach is to maximize the term \ref{eq:part2} using a dynamic programming
+algorithm. For that, we transform formula \ref{eq:part2} into
+the following equivalent form, 
 %
 %
 \begin{equation}\label{eq:DP}
@@ -492,55 +510,61 @@ s(u\notin L(T),i) = %& \overbrace{\frac{e^{-(\lambda-\mu)\tau_i}}
 \end{equation}
 %
 %
-where $s(u\in L(T),1) = 1$ for tip nodes.%
-%
+where $s(u\in L(T),1) := 1$ for tip nodes.
+{\bf TODO still not clear if this is DP or DP-like!}
 The DP traverses the target tree in postorder and for each inner node $u$, it
-computes $|d(u)|$ maximized values $s(u,i), h(u) \leq i < h(u) + |d(u)|$, one
-for each time-line that node $u$ may be placed on.  The score $s(u,i)$ of a
-particular time-line $i$ of node $u$ is computed by finding the time-lines $j$
-resp. $k$ of its two children $v$ resp. $w$, which maximize the products of
-$s(u,j)$ resp. $s(w,k)$ times the probability densities of the factorized edge
-priors  $\gamma(\frac{\ell_{u,v}}{\tau_{i}-\tau_{j}})$ resp.
+computes a total of $|d(u)|$ maximized values $s(u,i), h(u) \leq i < h(u) + |d(u)|$, one
+for each time-line on which node $u$ can be placed.  The score $s(u,i)$ of a
+particular time-line $i$ of node $u$ is computed by finding the respective 
+optimal time-lines $j$ and $k$ of its two children $v$ and $w$, which maximize the products of
+$s(u,j)$ and $s(w,k)$ with the probability densities of the respective factorized edge
+priors  $\gamma(\frac{\ell_{u,v}}{\tau_{i}-\tau_{j}})$ and
 $\gamma(\frac{\ell_{u,w}}{\tau_{i}-\tau_{k}})$.
                     Note that, for a pair of time-lines $i$
-and $j$ resp. $k$, we can factorize the branch length of edge $(u,v)$ resp.
-$(u,w)$ into a product of time (age) and rate.
-%
-%
-This results into ${\cal O}((|d(v)|+|d(w)|)\times|d(u)|)$ computations for
-determining the $|d(u)|$ maximal scores (and mappings) for $T_u$. These maximal
-values for each time-line are then stored in a table together with the
-positions (time-lines) its two direct descendants (children) were placed on.
-This procedure is repeated recurrently for each node in the tree starting from
-the leaves and moving towards the root (postorder). Finally, once the terms
-$s(r,i)$ are computed for each time-line of the root node, they are multiplied
-with the corresponding term $f_1(T\ |\ n, \phi(r))$, and the time-line yielding
-the maximal score is selected.
+and $j$ (resp.~$k$), we can factorize the branch length of edge $(u,v)$ 
+(resp.~$(u,w)$) into a product of time (age) and rate.
 
-At this point, the process of backtracking starts, with the goal of retrieving
-the optimal mapping $\hat\phi$. By selecting the maximal score (and hence the
-time-line of the root) we also obtain the time-lines of its two children, and,
-at each of the two children, the time-lines of their two children. Recursively,
-we can obtain the time-lines of all nodes that maximize term \ref{eq:score}.
+This requires ${\cal O}((|d(v)|+|d(w)|)\times|d(u)|)$ computations for
+determining the $|d(u)|$ optimal scores (and mappings) for $T_u$. These optimal
+values for each time-line {\bf time line of u?} {\bf not entirely clear how time lines are linked to nodes here} 
+are then stored in a table together with the positions (time-lines) of the two direct descendants (children).
+This procedure is recursively applied to each tree node via a postorder tarversal 
+(starting from the leaves and moving towards the root). Finally, once we have computed the terms
+$s(r,i)$ {\bf say once more what they mean} for each possible time-line of the root node, we 
+multiply them with the corresponding term $f_1(T\ |\ n, \phi(r))$, and select the root 
+time-line that yields the optimal score.
 
-Fig.~\ref{fig:dp} describes the first phase (bottom-up) part of the algorithm
-in detail. It takes as input the tree $T$, the number of grid time-lines $N$
-and, in its first call, the root $r$ of the tree which the function names as
-$u$.  The result of the function is three two-dimensional tables $M, M^r$ and
-$M^l$, where the entry $M(u,i), \min d(u) \leq i \leq \max d(u)$ stores the
-maximal score achieved by placing node $u$ on time-line $i$, and $M^r(u,i)$
-resp. $M^l(u,i)$ the time-lines its two children $v$ resp. $w$ were placed on
-to achieve the particular score.  The algorithm is executed for each node in
-post-order traversal, and this is done in lines 7 resp. 11, where in the case
-of an inner node, the function recursively calls itself with the node's left
-resp. right child as parameter. Once the recursion reaches a tip node $v$
-(resp. $w$), the table entry $M(v,1)$ (resp. $M(w,1)$) is filled with a
-constant value 1 for its only available time-line 1. The process continues in a
-bottom-up fashion.  As soon as the entries of table $M$ are computed for the
+{\bf TODO General: we should use optimal instead of maximal, consistently for clarity}
+
+Thereafter, we initiate a backtracking process to calculate the optimal mapping $\hat\phi$. 
+By selecting the optimal score (and hence the time-line of the root) we automatically obtain the time-lines of its two children, and,
+at each of the two children, the time-lines of their respective children. Via recursion 
+we thus obtain the time-lines of all nodes that maximize term \ref{eq:score}.
+
+Fig.~\ref{fig:dp} depicts the bottom-up phase of the algorithm. 
+The input is: the tree $T$ and the number of grid time-lines $N$.
+{\bf what about the model parameters, state where you will discuss the choice and impact of parameter N}
+In the first invocation $u$ is the root $r$ of the tree.  
+The function returns three two-dimensional tables $M, M^r$, and
+$M^l$, where entry $M(u,i), \min d(u) \leq i \leq \max d(u)$ contains the
+optimal score for placing node $u$ onto time-line $i$.
+The tables $M^r(u,i)$ and $M^l(u,i)$ copntain the optimal time-lines for 
+the two children $v$ and $w$ with respect to the optimal score in $M(u,i)$. 
+The algorithm is executed for each node via a post-order {\bf inconsistent writing, previsouly you always wrote postorder and preorder etc.} 
+traversal in lines 7 and 11. 
+%AS: this is trivial we can omit it. where in the case
+%of an inner node, the function recursively calls itself with the node's left
+%resp. right child as parameter. 
+When the recursion reaches a tip node $v$
+(resp. $w$), we set the table entries $M(v,1)$ and $M(w,1)$ to the
+constant value $1$. The process then continues in a
+bottom-up direction. 
+{\bf TODO the following paragraph needs to be entirely re-written ins simpler language, shorter sentences, fewer grammatical errors and less passive forms!}
+ As soon as the entries of table $M$ have been computed for the
 two children of an inner node $u$, the algorithm computes all entries
 (time-lines) $M(u,i), \min d(u) \leq i \leq \max d(u)$ for node $u$ (lines
-12-25) by finding the maximal product from all scores $M(v,j), \min d(v) \leq j
-< i$ resp.  $M(w,k), \min d(w) \leq k < i$ of time-lines each child $v$ (lines
+12-25) by finding the maximal product among all scores $M(v,j), \min d(v) \leq j
+< i$ resp. $M(w,k), \min d(w) \leq k < i$ of time-lines each child $v$ (lines
 14-17) resp. $w$ (lines 18-21) could have been placed on given by the current
 time-line $i$ of $u$, multiplied by the prior of factorized edge rates
 $\ell_{u,v}/(\tau_i - \tau_j)$ resp. $\ell_{u,w}/(\tau_i - \tau_k)$. Once the
@@ -598,7 +622,7 @@ backtracking phase (not in Figure).}
 \label{fig:dp}
 \end{figure}
 
-W.l.o.g we prove that the DP algorithm computes the optimal score of
+W.l.o.g we now prove that the DP algorithm computes the optimal score of
 \ref{eq:part2} given the grid size $N$ and the values of $\lambda,\mu,\rho$.
 
 \begin{theorem}[Optimality of DP]
@@ -608,11 +632,13 @@ Algorithm DP computes the optimal score of (\ref{eq:score}).
 \begin{proof}
 We show that the score terms $s(r,i), h(r) \leq i \leq N$ the DP computes are
 in fact equal to $f_2(T,\hat\phi_i)$ and hence, finding the product
-$f_2(T,\phi_i)\times f_1(T,\phi_i)$ yields the highest value gives us the
-optimal solution. We show our proof by strong induction on the height of the
+$f_2(T,\phi_i)\times f_1(T,\phi_i)$ that yields the highest value represents the
+optimal solution. We prove this by strong induction on the height of the
 root node.
 \paragraph{Base case.} Let $u$ be the parent of $v$ and $w$, such that $h(u) =
-1$. Nodes $v$ and $w$ are therefore leaves, which leads us to compute
+1$. {\bf how can h of a non-tip node u be 1?} 
+Nodes $v$ and $w$ 
+are therefore leaves, such that we have to compute
 $|d(u)|=N-1$ values, of the form
 %
 %
@@ -627,7 +653,7 @@ for each $i \in d(u)$. Since DP selects the score that maximizes the product
 when multiplied with $f_1(T,\phi)$, we obtain the optimal score.
 \paragraph{Inductive step.} Assume the claim holds for each node $u$ of height
 $1 \leq h(u) \leq m$. Our task is to prove that the claim holds for $h(u) =
-m+1$.  According to the definition of height, a node $u$ of height $h(u)=m+1$
+m+1$.  According to the definition of $h()$, a node $u$ of height $h(u)=m+1$
 has a child $v$ of height $h(v)=m$ and a child $w$ of height $0 \leq h(w) \leq
 m$.  Since the values $s(v,j), h(v) \leq j \leq \max d(v)$ and $s(w,k), 1 \leq
 k \leq \max d(w)$ are maximized (assumption), we compute $|d(u)|$ values
@@ -644,7 +670,7 @@ s(u,i) =  b(i)\times
 \end{equation*}
 %
 %
-and pick the maximal.
+and select the optimal.
 \qed\end{proof}
 
 \section{Extending the DP algorithm with node prior information}
@@ -655,13 +681,14 @@ theoretical maximum age $\zeta$ for line $N$ of the grid.  When running the DP
 algorithm for the time-line $i$ of an inner node $u$ that is calibrated with a
 distribution, then Equation (\ref{eq:score}) is multiplied by the probability
 density function of its distribution for value $\tau_i \times \zeta - \varphi$,
-otherwise by 1.
+and with $1$ otherwise.
 
 \section{Extending the DP algorithm with tip date information}
 To come
 
 \section{Description of software}
-Maybe in supplement?
+Maybe in supplement? 
+{\bf TODO, need to see, if it is just a straight-forward implementation of the recursion and equations and can go into the supplement}
 %FastDate requires as input a fully bifurcating rooted phylogeny with branch lengths,
 %and user defined estimates of birth rate ($\lambda$), death rate ($\mu$), 
 %and proportion of descendants of the most recent common ancestor of the taxa found in the tree
@@ -687,7 +714,7 @@ or log normal distribution, and a minimum age offset.
 \subsection{Tip dating}
 \ejmcomment{not yet fully implemented}
 Optional parameters include $\psi$ the rate of recovery of fossils per lineage, 
-if extinct tips have been sampled.
+if extinct tips have been sampled. {\bf this is the first time you actually define $\psi$$}
 
 
 
@@ -696,10 +723,14 @@ if extinct tips have been sampled.
 
 \subsection{Other tip dating test data from LSD?}
 
+\subsection{dating of that science paper}
+
 \section{Discussion}
 
 TODO Compare to Gascuel `LSD' and other rapid approaches.
 
+{\bf TODO: discuss input parameter optimization, discuss choice of N, describe strtegy to automatically determine N, e.g., keep multiplying N by 2 until 
+estimated parameters do not change significantly any more, sho some experiments of impact of N or propose default value}
 
 
 \bibliographystyle{sysbio}
