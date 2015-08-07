@@ -46,8 +46,17 @@ void yy_dealloc_tree(tree_node_t * tree)
   free(tree->matrix);
   free(tree->matrix_left);
   free(tree->matrix_right);
+  int i;
+  if (tree->left)
+  {  
+    for (i = 0; i < tree->entries; ++i)
+  {
+    free(tree->matrix_left_prob_vecs[i]);
+    free(tree->matrix_right_prob_vecs[i]);  
+  }
   free(tree->matrix_left_prob_vecs);
   free(tree->matrix_right_prob_vecs);
+}
   free(tree->prior_params);
   yy_dealloc_tree(tree->left);
   yy_dealloc_tree(tree->right);

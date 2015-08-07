@@ -21,6 +21,7 @@
 
 #include "fastdate.h"
 
+
 static long inner_entries = 0;
 static double interval_age = 0;
 static int tree_height = 0;
@@ -107,14 +108,17 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
   
   /*allocate storage space for probability density vectors for left and right descendent for each node*/
-  node->matrix_left_prob_vecs  = (double **)xmalloc((size_t)entries * sizeof(double)); /*EJM The way I'm thinking about it, HALP
+  node->matrix_left_prob_vecs  = (double **)xmalloc((size_t)entries * sizeof(double *)); /*EJM The way I'm thinking about it, HALP
   this will be an array of pointers that point to probability vectors for each position of each node. But need to allocate space for those arrays as well? UGH*/
-  node->matrix_right_prob_vecs = (double **)xmalloc((size_t)entries * sizeof(double));
+  node->matrix_right_prob_vecs = (double **)xmalloc((size_t)entries * sizeof(double *));
   int i;
   for (i = 0; i < node->entries; ++i)
   {
-    node->matrix_left_prob_vecs[i]  = (double *)xmalloc((size_t)entries * sizeof(double));
-    node->matrix_right_prob_vecs[i] = (double *)xmalloc((size_t)entries * sizeof(double));
+    int jmax, kmax;
+    jmax = (node->height + i - node->left->height);
+    node->matrix_left_prob_vecs[i]  = (double *)xmalloc((size_t)jmax * sizeof(double));
+    kmax = (node->height + i - node->right->height);
+    node->matrix_right_prob_vecs[i] = (double *)xmalloc((size_t)kmax * sizeof(double));
   }/* HALP this is def wrong but I don't know how many entries are needed! Is entries the max poss? I thiiink so...*/
   
   /* for progress bar indication */
@@ -534,10 +538,11 @@ void dp_recurse_sampling(tree_node_t * node, int root_height) /* EJM experiment*
         node->matrix_right_prob_vecs[i][k] = vector_right[k];
         printf("again, %s, kmax %i, %i, scaled %f\n",node->label, kmax, k, node->matrix_right_prob_vecs[i][k]);
     }
-       for (j = 0; j < jmax; ++j)
+    for (j = 0; j < jmax; ++j)
     {
         node->matrix_left_prob_vecs[i][j] = vector_left[j];
     }
+
 
   }
   sum_entries += node->entries;
@@ -582,8 +587,8 @@ static void dp_backtrack(tree_node_t * root)
 static int select_loc_from_probs(double * prob_vec, int array_size) /*TODO I assume this is super slooo*/
 {
   int i;
-  srand(time(NULL)); /*TO DO: HALP This is not OK*/
-  double rnd =  ((float)rand())/RAND_MAX;
+ /*TO DO: HALP This is not OK (should)*/
+  double rnd =  ((double)rand())/RAND_MAX;
   printf("array_size is %i\n", array_size);
   for (i=0; i < array_size; i++) {
      printf("prob %i %f, rnd %f \n", i, prob_vec[i], rnd);
@@ -599,31 +604,20 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node, int selected_ent
   node->interval_line = node->height + selected_entry; /*EJM Q. Wait why? I'm not clear on what this means... I guess should be 0, unless tip dates...*/
   int jmax, kmax;
   /* check the ages of the left child */
-  if (!node->left->left)
+  if (!node->left)
     {
        return; /*HALP think about why this might be....*/
        /*jmax = 1;
        dp_backtrack_sampling_recursive(node->left, 1);*/
     }
-  else
-  {
-      jmax = (node->interval_line - node->left->height);
-      int left_loc = select_loc_from_probs(node->matrix_left_prob_vecs[selected_entry], jmax);
-      dp_backtrack_sampling_recursive(node->left, left_loc);
-    }
-  if (!node->right->left)
-  {
-      return;
-      /*kmax = 1;
-      dp_backtrack_sampling_recursive(node->right, 1);*/
-    }
-  else
-  {
-      kmax = (node->interval_line - node->right->height);
-      int right_loc = select_loc_from_probs(node->matrix_right_prob_vecs[selected_entry], kmax);
-      dp_backtrack_sampling_recursive(node->right, right_loc);
-    }
-  /*
+    jmax = (node->interval_line - node->left->height);
+    int left_loc = select_loc_from_probs(node->matrix_left_prob_vecs[selected_entry], jmax);
+    dp_backtrack_sampling_recursive(node->left, left_loc);
+
+    kmax = (node->interval_line - node->right->height);
+    int right_loc = select_loc_from_probs(node->matrix_right_prob_vecs[selected_entry], kmax);
+    dp_backtrack_sampling_recursive(node->right, right_loc);
+/*
   for (k = 0; k < kmax; ++k)
     {
         printf("third time, %s, i %i, kmax %i, %i, scaled %f\n", node->label, i, kmax, k, node->matrix_right_prob_vecs[i][k]);
@@ -671,6 +665,7 @@ static void dp_backtrack_sampling(tree_node_t * root) /*EJM experiment*/
 
 void dp(tree_node_t * tree)
 {
+  srand(time(NULL));
   assert(opt_grid_intervals > tree->height);
   int sampling = 1; /*TMP for working on sampling, needs own option*/
   tree_height = tree->height;
