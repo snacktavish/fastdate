@@ -115,7 +115,7 @@ static void alloc_node_entries(tree_node_t * node)
   {
     node->matrix_left_prob_vecs[i]  = (double *)xmalloc((size_t)entries * sizeof(double));
     node->matrix_right_prob_vecs[i] = (double *)xmalloc((size_t)entries * sizeof(double));
-  }
+  }/* HALP this is def wrong but I don't know how many entries are needed! Is entries the max poss? I thiiink so...*/
   
   /* for progress bar indication */
   inner_entries += entries;
@@ -544,10 +544,10 @@ void dp_recurse_sampling(tree_node_t * node, int root_height) /* EJM experiment*
   progress_update(sum_entries);
 }
 
-/*static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
+static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
 {
   if (!node) return;
-  node->interval_line = node->height + best_entry; EJM Q. Wait why? I'm not clear on what this means... I guess should be 0, unless tip dates... HALP
+  node->interval_line = node->height + best_entry;/* EJM Q. Wait why? I'm not clear on what this means... I guess should be 0, unless tip dates... HALP*/
 
   if (node->left)
   {
@@ -576,12 +576,13 @@ static void dp_backtrack(tree_node_t * root)
   root->interval_line = root->height + best_entry;
 
   dp_backtrack_recursive(root, best_entry);
-}*/
+}
+
 
 static int select_loc_from_probs(double * prob_vec, int array_size) /*TODO I assume this is super slooo*/
 {
   int i;
-  srand(time(NULL)); /*TO DO: This is not OK*/
+  srand(time(NULL)); /*TO DO: HALP This is not OK*/
   double rnd =  ((float)rand())/RAND_MAX;
   printf("array_size is %i\n", array_size);
   for (i=0; i < array_size; i++) {
@@ -597,11 +598,10 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node, int selected_ent
   if (!node) return;
   node->interval_line = node->height + selected_entry; /*EJM Q. Wait why? I'm not clear on what this means... I guess should be 0, unless tip dates...*/
   int jmax, kmax;
-/*  printf("i = %i\n", i);*/
   /* check the ages of the left child */
   if (!node->left->left)
     {
-       return;
+       return; /*HALP think about why this might be....*/
        /*jmax = 1;
        dp_backtrack_sampling_recursive(node->left, 1);*/
     }
@@ -623,7 +623,7 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node, int selected_ent
       int right_loc = select_loc_from_probs(node->matrix_right_prob_vecs[selected_entry], kmax);
       dp_backtrack_sampling_recursive(node->right, right_loc);
     }
-  /* check the ages of right child 
+  /*
   for (k = 0; k < kmax; ++k)
     {
         printf("third time, %s, i %i, kmax %i, %i, scaled %f\n", node->label, i, kmax, k, node->matrix_right_prob_vecs[i][k]);
@@ -672,7 +672,7 @@ static void dp_backtrack_sampling(tree_node_t * root) /*EJM experiment*/
 void dp(tree_node_t * tree)
 {
   assert(opt_grid_intervals > tree->height);
-
+  int sampling = 1; /*TMP for working on sampling, needs own option*/
   tree_height = tree->height;
 
   gamma_dist_init();
@@ -690,13 +690,16 @@ void dp(tree_node_t * tree)
   alloc_node_entries(tree);
 
   progress_init("Running DP...", inner_entries);
-  /*dp_recurse(tree,tree->height);*/
-  dp_recurse_sampling(tree,tree->height);
+  if (sampling)
+    dp_recurse_sampling(tree,tree->height);
+  else
+    dp_recurse(tree,tree->height);
   progress_done();
 
   if (!opt_quiet)
     printf ("Backtracking...\n");
-
-  /*dp_backtrack(tree);*/
-  dp_backtrack_sampling(tree);
+  if (sampling)
+    dp_backtrack_sampling(tree);
+  else
+    dp_backtrack(tree);
 }
