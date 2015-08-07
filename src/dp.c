@@ -394,7 +394,6 @@ static void scale_node_probs(tree_node_t * node, int count, double rel_age_paren
           total_score_real = vector[j] + total_score_real;
     }
     assert (total_score_real > 0);
-    printf("total_score_real %.17f\n", total_score_real);
 
     /* Scale probabilities and generate cumulative probabiltiy vector */
     vector[0] /= total_score_real;
