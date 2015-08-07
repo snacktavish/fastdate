@@ -26,6 +26,8 @@ static long inner_entries = 0;
 static double interval_age = 0;
 static int tree_height = 0;
 
+static double * prob_vector;
+
 /* this resets the node heights for method_nodeprior */
 static void reset_node_heights(tree_node_t * node)
 {
@@ -349,103 +351,100 @@ static int select_loc_from_probs(double * prob_vec, int array_size)
  assert(!"should never get here");
 }
 
+static void scale_node_probs(tree_node_t * node, int count, double rel_age_parent, double * vector) /*vector is of at least size count*/
+{
+    double score;
+    double score_max = -__DBL_MAX__;
+    unsigned int node_low = node->height;
+    double rel_age_node;
+    double prob_rate_node;
+    int j;
+
+    /*Calculate scores from edge prior and node probabilities, and find max*/
+    for (j = 0; j < count; ++j)
+    {
+      rel_age_node = (1.0 / opt_grid_intervals) * (node_low+j);
+
+      prob_rate_node = gamma_dist_logpdf(node->length / 
+                                         (rel_age_parent - rel_age_node)); /*Change to abs rates? Or just scale gamma earlier*/
+
+      score = node->matrix[j] + prob_rate_node; /*Prop of that node being at line j * the prior prob of that rate. added becasue log probs*/
+      if (score > score_max)
+          score_max = score;
+      vector[j] = score;
+    }
+
+    /*Subtract max from all*/
+    for (j = 0; j < count; ++j)
+    {
+      vector[j] = vector[j] - score_max;
+    }
+
+    /* Compute threshold for precision */
+    double thresh = log(10e-16) - log(count);
+    double total_score_real = 0;
+    
+    /* convert to probabilities */
+    for (j = 0; j < count; ++j)
+    {
+      if (vector[j] < thresh) 
+           vector[j] = 0;
+      else
+          vector[j] = exp(vector[j]);
+          total_score_real = vector[j] + total_score_real;
+    }
+    assert (total_score_real > 0);
+    printf("total_score_real %.17f\n", total_score_real);
+
+    /* Scale probabilities and generate cumulative probabiltiy vector */
+    vector[0] /= total_score_real;
+    for (j = 1; j < count; ++j)
+    {
+      vector[j] = (vector[j] / total_score_real) + vector[j-1];
+    }
+    assert(0.9999 < vector[count-1]);
+    assert(vector[count-1] < 1.0001);
+}
+
 static void dp_backtrack_sampling_recursive(tree_node_t * node, int selected_entry)
 {   
   if (!node) return;
   node->interval_line = node->height + selected_entry;
   
   int jmax, kmax;
-  int j,k;
   unsigned int low;
-  unsigned int left_low;
-  unsigned int right_low;
-  double rel_age_node, rel_age_left, rel_age_right, age_diff;
-  double prob_rate_left, prob_rate_right;
-  int i = selected_entry;
+  double rel_age_node;
+
   /* check the ages of the left child */
 
-  if (!node->left)
-  {
-         return; 
-    }
-  tree_node_t * left;
-  tree_node_t * right;
-  left = node->left;
-  right = node->right;
+  if (!node->left) return; 
+
   low = node->height;
-  left_low = left->height;
-  right_low = right->height;
+  rel_age_node = (1.0 / opt_grid_intervals) * (low+selected_entry);
 
-    rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
+  /* check the ages of the left child */
+  if (!node->left->left) /*if left is a tip*/
+    jmax = 1;
+  else
+    jmax = (node->height + selected_entry - node->left->height);
+  assert(jmax <= node->left->entries);
+  
+  scale_node_probs(node->left, jmax, rel_age_node, prob_vector);
+  int left_loc = select_loc_from_probs(prob_vector, jmax);
+  dp_backtrack_sampling_recursive(node->left, left_loc);
 
-    /* check the ages of the left child */
-    if (!left->left)
-      jmax = 1;
-    else
-      jmax = (node->height + i - left->height);
-    
-    assert(jmax <= left->entries);
-    double jscore_real;
-    double jtotal_score_real = 0;
-    double vector_left[jmax];
-    for (j = 0; j < jmax; ++j)
-    {
-      assert(j+left->height < node->height + i);
-      rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
+  /* check the ages of right child */
+  if (!node->right->left) /*if right is a tip*/
+    kmax = 1;
+  else
+    kmax = (node->height + selected_entry - node->right->height);
+  assert(kmax <= node->right->entries);
 
-      prob_rate_left = gamma_dist_logpdf(left->length / 
-                                         (rel_age_node - rel_age_left)); /*Change to abs rates? Or just scale gamma earlier*/
-
-      jscore_real = exp(left->matrix[j] + prob_rate_left); /*Prop of that node being at line j * the prior prob of that rate. added becasue log probs*/
-      vector_left[j] = jscore_real;
-      jtotal_score_real = jtotal_score_real + jscore_real;
-    }
-    double jprev = 0;
-    for (j = 0; j < jmax; ++j)
-    {
-      vector_left[j] = (vector_left[j] / jtotal_score_real) + jprev;
-      jprev = vector_left[j]; /*A vector of  cumulative probabilites of L child placement.*/
-    }
-    assert(0.9999 < jprev);
-    assert(jprev < 1.0001);
-
-    /* check the ages of right child */
-    if (!right->left)
-      kmax = 1;
-    else
-      kmax = (node->height + i - right->height);
-
-    assert(kmax <= right->entries);
-    double kscore_real;
-    double ktotal_score_real = 0;
-    double vector_right[kmax];
-    for (k = 0; k < kmax; ++k)
-    {
-      assert(k+right->height < node->height + i);
-      rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
-      age_diff = rel_age_node - rel_age_right;
-      prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-
-      kscore_real = exp(right->matrix[k] + prob_rate_right);
-      
-      vector_right[k] = kscore_real;
-      ktotal_score_real = ktotal_score_real + kscore_real;
-    }
-    double kprev = 0;
-    for (k = 0; k < kmax; ++k)
-    { 
-      vector_right[k] = (vector_right[k] / ktotal_score_real) + kprev;
-      kprev = vector_right[k];
-    }
-    assert(0.9999 < kprev);
-    assert(kprev < 1.0001);
-
-
-    int left_loc = select_loc_from_probs(vector_left, jmax);
-    dp_backtrack_sampling_recursive(node->left, left_loc);
-    int right_loc = select_loc_from_probs(vector_right, kmax);
-    dp_backtrack_sampling_recursive(node->right, right_loc);
+  scale_node_probs(node->right, kmax, rel_age_node, prob_vector);
+  int right_loc = select_loc_from_probs(prob_vector, kmax);
+  dp_backtrack_sampling_recursive(node->right, right_loc);    
 }
+
 
 static void dp_backtrack_sampling(tree_node_t * root) /*Stochastic backtracking*/
 {
@@ -515,7 +514,11 @@ void dp(tree_node_t * tree)
   if (!opt_quiet)
     printf ("Backtracking...\n");
   if (sampling)
+  {
+    prob_vector = (double *)xmalloc(opt_grid_intervals * sizeof(double));
     dp_backtrack_sampling(tree);
+    free(prob_vector);
+  }
   else
     dp_backtrack(tree);
 }
