@@ -97,7 +97,7 @@ static void alloc_node_entries(tree_node_t * node)
   }
 
   if (!node->parent)
-    entries = opt_grid_intervals - node->height; /*EJM Q. Why do tips need this many entries?*/
+    entries = opt_grid_intervals - node->height;
   else
     entries = node->parent->entries + node->parent->height - node->height - 1;
 
@@ -106,21 +106,7 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
   node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
   node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
-  
-  /*allocate storage space for probability density vectors for left and right descendent for each node*/
-  node->matrix_left_prob_vecs  = (double **)xmalloc((size_t)entries * sizeof(double *)); /*EJM The way I'm thinking about it, HALP
-  this will be an array of pointers that point to probability vectors for each position of each node. But need to allocate space for those arrays as well? UGH*/
-  node->matrix_right_prob_vecs = (double **)xmalloc((size_t)entries * sizeof(double *));
-  int i;
-  for (i = 0; i < node->entries; ++i)
-  {
-    int jmax, kmax;
-    jmax = (node->height + i - node->left->height);
-    node->matrix_left_prob_vecs[i]  = (double *)xmalloc((size_t)jmax * sizeof(double));
-    kmax = (node->height + i - node->right->height);
-    node->matrix_right_prob_vecs[i] = (double *)xmalloc((size_t)kmax * sizeof(double));
-  }/* HALP this is def wrong but I don't know how many entries are needed! Is entries the max poss? I thiiink so...*/
-  
+ 
   /* for progress bar indication */
   inner_entries += entries;
 
@@ -232,11 +218,11 @@ void dp_recurse(tree_node_t * node, int root_height)
 
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
-
-      if (left->matrix[j] + prob_rate_left > jbest_score) /* EJM Q. Any reason this is different than how things are for k?*/
+      score = left->matrix[j] + prob_rate_left;
+      if (score  > jbest_score)
       {
         jbest = j;
-        jbest_score = left->matrix[j] + prob_rate_left;
+        jbest_score = score;
       }
     }
 
@@ -317,242 +303,10 @@ void dp_recurse(tree_node_t * node, int root_height)
   progress_update(sum_entries);
 }
 
-void dp_recurse_sampling(tree_node_t * node, int root_height) /* EJM experiment*/
-{
-  static long sum_entries = 0;
-
-  int i,j,k;
-  int jmax, kmax;
-  unsigned int low;
-  unsigned int left_low;
-  unsigned int right_low;
-
-  tree_node_t * left;
-  tree_node_t * right;
-
-  double rel_age_node, rel_age_left, rel_age_right, age_diff, abs_age_node;
-  double prob_rate_left, prob_rate_right;
-  double dist_logprob;
-  double score;
-  double jscore;
-  double kscore;
-  double total_score = 0.0;
-
-  if (!node) return;
-
-  /* leaves case */
-  if (!node->left)
-  {
-    if (!node->prior)
-    {
-      node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
-      return;
-    }
-
-    /* tip fossil case */
-    for (i = 0; i < node->entries; ++i)
-    {
-      rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
-      abs_age_node = (node->height+i)*interval_age;
-      /* if estimating absolute ages check for node priors and compute PDF */
-      dist_logprob = 0;
-      if (node->prior == NODEPRIOR_EXP)
-      {
-        exp_params_t * params = (exp_params_t *)(node->prior_params);
-        dist_logprob = exp_dist_logpdf(1/params->mean, 
-                                       abs_age_node - params->offset);
-      }
-      else if (node->prior == NODEPRIOR_LN)
-      {
-        ln_params_t * params = (ln_params_t *)(node->prior_params);
-        dist_logprob = ln_dist_logpdf(params->mean,
-                                      params->stdev,
-                                      abs_age_node - params->offset);
-      }
-      else assert(0);
-
-      node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
-    }
-
-    return;
-  }
-  
-  /* inner nodes case */
-  left  = node->left;
-  right = node->right;
-
-  dp_recurse_sampling(left,  root_height);
-  dp_recurse_sampling(right, root_height);
-
-  low = node->height;
-  left_low = left->height;
-  right_low = right->height;
-
-  /* run DP */
-
-  /*
-         
-                        o  (rel_age_node)
-                       / \
-                      /   \
-      (rel_age_left) o     \
-                            o (rel_age_right)
-                    
-  */
-
-  for (i = 0; i < node->entries; ++i)
-  {
-    printf("i = %i\n", i);
-    rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
-    abs_age_node = (low+i)*interval_age;
-
-    /* check the ages of the left child */
-    if (!left->left)
-      jmax = 1;
-    else
-      jmax = (node->height + i - left->height);
-    
-    assert(jmax <= left->entries);
-
-    int jbest = -1;
-    double jbest_score = -__DBL_MAX__;
-    double jtotal_score = 0.0;
-    double vector_left[jmax];
-    for (j = 0; j < jmax; ++j)
-    {
-      assert(j+left->height < node->height + i);
-      rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
-
-      prob_rate_left = gamma_dist_logpdf(left->length / 
-                                         (rel_age_node - rel_age_left)); /*EJM Change to abs rates? Or just scale gamma earlier*/
-
-      jscore = left->matrix[j] + prob_rate_left; /*Prop of that node being at line j * the prior prob of that rate. added becasue log probs*/
-      vector_left[j] = jscore;
-      jtotal_score = jtotal_score + jscore;
-      if (jscore > jbest_score)
-      {
-        jbest = j;
-        jbest_score = jscore;
-      }
-    }
-    double jprev = 0;  
-    for (j = 0; j < jmax; ++j)
-    {
-      vector_left[j] = (vector_left[j] / jtotal_score) + jprev;
-      jprev = vector_left[j]; /*EJM So now should have a vector of  cumulative probabilites of L child placement.*/
-    }
-    assert(0.9999 < jprev);
-    assert(jprev < 1.0001); /* What is the right way to do this?*/
-
-    /* check the ages of right child */
-    if (!right->left)
-      kmax = 1;
-    else
-      kmax = (node->height + i - right->height);
-
-    assert(kmax <= right->entries);
-
-    int kbest = -1;
-    double kbest_score = -__DBL_MAX__;
-    double ktotal_score = 0.0;
-    double vector_right[kmax];
-    for (k = 0; k < kmax; ++k)
-    {
-      assert(k+right->height < node->height + i);
-      rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
-
-      age_diff = rel_age_node - rel_age_right;
-      prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-
-      kscore = right->matrix[k] + prob_rate_right;
-      vector_right[k] = kscore;
-      ktotal_score = ktotal_score + kscore;
-      if (kscore > kbest_score)
-      {
-        kbest = k;
-        kbest_score = kscore;
-      }
-    }
-    double kprev = 0;
-    for (k = 0; k < kmax; ++k)
-    { 
-/*      printf("unscaled %f, scaled %f \n", vector_right[k], (vector_right[k] / ktotal_score));*/
-      vector_right[k] = (vector_right[k] / ktotal_score) + kprev;
-/*      printf("vector_right[%i] is %f\n", k, vector_right[k]);*/
-      kprev = vector_right[k];
-    }
-    assert(0.9999 < kprev);
-    assert(kprev < 1.0001);
-
-    assert(jbest > -1);
-    assert(kbest > -1);
-
-    double bd_term = 0;
-    if (opt_method_relative || opt_method_nodeprior)
-      bd_term = bd_relative_prod(rel_age_node);
-    else if (opt_method_tipdates)
-      bd_term = bd_tipdates_prod_inner(rel_age_node);
-    else assert(0);
-
-
-    /* if estimating absolute ages check for node priors and compute PDF */
-    dist_logprob = 0;
-    if (node->prior == NODEPRIOR_EXP)
-    {
-      exp_params_t * params = (exp_params_t *)(node->prior_params);
-      dist_logprob = exp_dist_logpdf(1/params->mean, 
-                                     abs_age_node - params->offset);
-    }
-    else if (node->prior == NODEPRIOR_LN)
-    {
-      ln_params_t * params = (ln_params_t *)(node->prior_params);
-      dist_logprob = ln_dist_logpdf(params->mean,
-                                    params->stdev,
-                                    abs_age_node - params->offset);
-    }
-    else if (node->prior) assert(0);
-    score = bd_term + jbest_score + kbest_score + dist_logprob;
-
-    /* if it's the root add one more term */
-    if (node->height == root_height)
-    {
-      if (opt_method_relative || opt_method_nodeprior)
-        score += bd_relative_root(node->leaves,
-                                  rel_age_node);
-      else if (opt_method_tipdates)
-        score += bd_tipdates_root(node->leaves,
-                                   rel_age_node);
-      else assert(0);
-    }
-
-    /* store best placement of children and likelihood for interval line i */
-    total_score = total_score + score;
-    node->matrix[i] = score;
-    node->matrix_left[i] = jbest;
-    node->matrix_right[i] = kbest;
-    /*Here need to point to these vectors from the probability matrix...*/
-    /* EJM Q. How to properly allocate and how to point to vector of pointers*/
-
-    for (k = 0; k < kmax; ++k)
-    {
-        node->matrix_right_prob_vecs[i][k] = vector_right[k];
-        printf("again, %s, kmax %i, %i, scaled %f\n",node->label, kmax, k, node->matrix_right_prob_vecs[i][k]);
-    }
-    for (j = 0; j < jmax; ++j)
-    {
-        node->matrix_left_prob_vecs[i][j] = vector_left[j];
-    }
-
-
-  }
-  sum_entries += node->entries;
-  progress_update(sum_entries);
-}
-
 static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
 {
   if (!node) return;
-  node->interval_line = node->height + best_entry;/* EJM Q. Wait why? I'm not clear on what this means... I guess should be 0, unless tip dates... HALP*/
+  node->interval_line = node->height + best_entry;
 
   if (node->left)
   {
@@ -584,15 +338,12 @@ static void dp_backtrack(tree_node_t * root)
 }
 
 
-static int select_loc_from_probs(double * prob_vec, int array_size) /*TODO I assume this is super slooo*/
+static int select_loc_from_probs(double * prob_vec, int array_size) 
 {
   int i;
- /*TO DO: HALP This is not OK (should)*/
   double rnd =  ((double)rand())/RAND_MAX;
-  printf("array_size is %i\n", array_size);
   for (i=0; i < array_size; i++) {
-     printf("prob %i %f, rnd %f \n", i, prob_vec[i], rnd);
-     if (rnd < prob_vec[i]) /*Because is cumulative probaility distribution!*/
+     if (rnd < prob_vec[i]) /*Requires cumulative probaility distribution!*/
         return i;
   }
  assert(!"should never get here");
@@ -601,30 +352,102 @@ static int select_loc_from_probs(double * prob_vec, int array_size) /*TODO I ass
 static void dp_backtrack_sampling_recursive(tree_node_t * node, int selected_entry)
 {   
   if (!node) return;
-  node->interval_line = node->height + selected_entry; /*EJM Q. Wait why? I'm not clear on what this means... I guess should be 0, unless tip dates...*/
+  node->interval_line = node->height + selected_entry;
+  
   int jmax, kmax;
+  int j,k;
+  unsigned int low;
+  unsigned int left_low;
+  unsigned int right_low;
+  double rel_age_node, rel_age_left, rel_age_right, age_diff;
+  double prob_rate_left, prob_rate_right;
+  int i = selected_entry;
   /* check the ages of the left child */
-  if (!node->left)
-    {
-       return; /*HALP think about why this might be....*/
-       /*jmax = 1;
-       dp_backtrack_sampling_recursive(node->left, 1);*/
-    }
-    jmax = (node->interval_line - node->left->height);
-    int left_loc = select_loc_from_probs(node->matrix_left_prob_vecs[selected_entry], jmax);
-    dp_backtrack_sampling_recursive(node->left, left_loc);
 
-    kmax = (node->interval_line - node->right->height);
-    int right_loc = select_loc_from_probs(node->matrix_right_prob_vecs[selected_entry], kmax);
-    dp_backtrack_sampling_recursive(node->right, right_loc);
-/*
-  for (k = 0; k < kmax; ++k)
+  if (!node->left)
+  {
+         return; 
+    }
+  tree_node_t * left;
+  tree_node_t * right;
+  left = node->left;
+  right = node->right;
+  low = node->height;
+  left_low = left->height;
+  right_low = right->height;
+
+    rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
+
+    /* check the ages of the left child */
+    if (!left->left)
+      jmax = 1;
+    else
+      jmax = (node->height + i - left->height);
+    
+    assert(jmax <= left->entries);
+    double jscore_real;
+    double jtotal_score_real = 0;
+    double vector_left[jmax];
+    for (j = 0; j < jmax; ++j)
     {
-        printf("third time, %s, i %i, kmax %i, %i, scaled %f\n", node->label, i, kmax, k, node->matrix_right_prob_vecs[i][k]);
-    }*/
+      assert(j+left->height < node->height + i);
+      rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
+
+      prob_rate_left = gamma_dist_logpdf(left->length / 
+                                         (rel_age_node - rel_age_left)); /*Change to abs rates? Or just scale gamma earlier*/
+
+      jscore_real = exp(left->matrix[j] + prob_rate_left); /*Prop of that node being at line j * the prior prob of that rate. added becasue log probs*/
+      vector_left[j] = jscore_real;
+      jtotal_score_real = jtotal_score_real + jscore_real;
+    }
+    double jprev = 0;
+    for (j = 0; j < jmax; ++j)
+    {
+      vector_left[j] = (vector_left[j] / jtotal_score_real) + jprev;
+      jprev = vector_left[j]; /*A vector of  cumulative probabilites of L child placement.*/
+    }
+    assert(0.9999 < jprev);
+    assert(jprev < 1.0001);
+
+    /* check the ages of right child */
+    if (!right->left)
+      kmax = 1;
+    else
+      kmax = (node->height + i - right->height);
+
+    assert(kmax <= right->entries);
+    double kscore_real;
+    double ktotal_score_real = 0;
+    double vector_right[kmax];
+    for (k = 0; k < kmax; ++k)
+    {
+      assert(k+right->height < node->height + i);
+      rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
+      age_diff = rel_age_node - rel_age_right;
+      prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
+
+      kscore_real = exp(right->matrix[k] + prob_rate_right);
+      
+      vector_right[k] = kscore_real;
+      ktotal_score_real = ktotal_score_real + kscore_real;
+    }
+    double kprev = 0;
+    for (k = 0; k < kmax; ++k)
+    { 
+      vector_right[k] = (vector_right[k] / ktotal_score_real) + kprev;
+      kprev = vector_right[k];
+    }
+    assert(0.9999 < kprev);
+    assert(kprev < 1.0001);
+
+
+    int left_loc = select_loc_from_probs(vector_left, jmax);
+    dp_backtrack_sampling_recursive(node->left, left_loc);
+    int right_loc = select_loc_from_probs(vector_right, kmax);
+    dp_backtrack_sampling_recursive(node->right, right_loc);
 }
 
-static void dp_backtrack_sampling(tree_node_t * root) /*EJM experiment*/
+static void dp_backtrack_sampling(tree_node_t * root) /*Stochastic backtracking*/
 {
   int i;
   int selected_entry = 0;
@@ -653,11 +476,9 @@ static void dp_backtrack_sampling(tree_node_t * root) /*EJM experiment*/
     if (score > max_score)
     {
       max_score = score;
-/*      printf("unscaled, i %i, %f\n",i, score);*/
     }
   }
   selected_entry = select_loc_from_probs(root_probs, root->entries); /*set up prob vector for root as well....*/
-  printf("root selected entry %i \n", selected_entry);
   root->interval_line = root->height + selected_entry;
   dp_backtrack_sampling_recursive(root, selected_entry);
 }
@@ -685,9 +506,9 @@ void dp(tree_node_t * tree)
   alloc_node_entries(tree);
 
   progress_init("Running DP...", inner_entries);
-  if (sampling)
+  /*if (sampling)
     dp_recurse_sampling(tree,tree->height);
-  else
+  else*/
     dp_recurse(tree,tree->height);
   progress_done();
 
