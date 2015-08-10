@@ -84,6 +84,8 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix       = (double *)xmalloc(sizeof(double));
       node->matrix_left  = (int *)xmalloc(sizeof(int));
       node->matrix_right = (int *)xmalloc(sizeof(int));
+      node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
+
     }
     else
     {
@@ -92,6 +94,7 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
       node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
       node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
+      node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
     }
     return;
   }
@@ -221,7 +224,8 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
-      jsum_score = -log(exp(-jsum_score)+exp(-score)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
+      PPscore = left->matrix_PP[j] + prob_rate_left;
+      jsum_score = -log(exp(-jsum_score)+exp(-PPscore)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
       if (score  > jbest_score)
       {
         jbest = j;
@@ -249,7 +253,8 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
 
       score = right->matrix[k] + prob_rate_right;
-      ksum_score = -log(exp(-ksum_score)+exp(-score)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
+      PPscore = right->matrix_PP[k] + prob_rate_right;
+      ksum_score = -log(exp(-ksum_score)+exp(-PPscore)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
       if (score > kbest_score)
       {
         kbest = k;
