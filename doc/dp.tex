@@ -269,7 +269,7 @@ $u$ of $T$ with children $v$ and $w$ is defined as
 
 The height $h(T)$ of a tree $T$ is the height of its root. Finally, the mapping $\ell : E \mapsto \mathbb{R}$ maps
 each edge to a real number which we call the {\em branch length}, and we will use the notation $\ell_{u,v}$ for
-the branch length of edge $(u,v)$.
+the branch length of edge $(u,v)$. 
 
 \subsection{Branch rate distribution}
 
@@ -310,7 +310,7 @@ also takes into account sampling individuals in the past \citep{Stadler2010}.
 Assume that we are given a constant birth rate $\lambda$ and a constant death rate $\mu$ such that
 $0 \leq \mu < \lambda$. Further, let an extant individual be sampled with
 probability $\rho$.  The probability density of a sampled tree $T$ with $n$
-extant sampled leaves is given by
+extant sampled leaves as shown in \citep{Stadler2010} is 
 %
 %
 $$f(T|n) = n(\lambda-\mu)\frac{e^{-(\lambda-\mu)x_1}}{\rho\lambda + (\lambda(1 -\rho)-\mu)e^{-(\lambda-\mu)x_1}}\prod_{i=1}^{n-1}
@@ -345,7 +345,7 @@ and the constants $c_1$ and $c_2$ are defined as
 %
 $$c_1 = \sqrt{(\lambda-\mu-\psi)^2 + 4\lambda\psi} \qquad c_2 = \frac{\lambda-\mu-2\lambda\rho-\psi}{c_1}$$
 %
-For more information see \cite{Stadler2010} (Section 3).
+For more information see \citep{Stadler2010} (Section 3).
 {\bf TODO mention that the above equations are according to Stadler before actually presenting them!} 
 
 %%%%% TODO: Move the following to the DP section %%%%%
@@ -382,7 +382,7 @@ For more information see \cite{Stadler2010} (Section 3).
 We present the dynamic programming algorithm to infer relative dates on a tree
 $T=(V,E)$. We will show how to extend it to accomodate fossil information in the next Section.
 
-We initially chose an integer $N \geq h(T) > 1$ and use it to construct a grid of
+We initially choose an integer $N \geq h(T) > 1$ and use it to construct a grid of
 time-lines numbered from 1 to $N$, such that the (uniform) distance between any
 two adjacent time-lines is $1 / (N-1)$ and time-line $i$ represents time
 $\tau_i = \frac{i-1}{N-1}$ in relative time units. The goal is to place each node of
@@ -422,10 +422,9 @@ The term $f(T\ |\ n,\phi)$ is the score of tree $T$ for the mapping $\phi$
 given the parameters of the birth-death process {\bf TODO state again which those are} and the parameters {\bf TODO state which parameters these are!} 
 of the $\Gamma$ distribution that describes edge rate probability densities. 
 The factorized edge-rates of node
-$u$ given its two children $v$ and $w$ are $\eta_{u,v} =
-\ell_{u,v}/(\tau_{\phi(u)} - \tau_{\phi(v)})$ and $\eta_{u,v} =
-\ell_{u,w}/(\tau_{\phi(u)}-\tau_{\phi(w)})$, where $v$ and $w$ are the two
-children of $u$.
+$u$ given its two children $v$ and $w$ are $\ell_{u,v}/(\tau_{\phi(u)} -
+\tau_{\phi(v)})$ and $\ell_{u,w}/(\tau_{\phi(u)}-\tau_{\phi(w)})$, where $v$
+and $w$ are the two children of $u$.
 {\bf TODO: state where and if you are also optimizing the parameters of gamma and the birth-death process, i.e., make clear where you get them from!}
 %
 The restriction imposed by Property 1 ensures that none of the nodes $v$ located in subtree $T_u$
@@ -451,7 +450,7 @@ the date of each time-line in relative time units.}
 Before describing the algorithm, it is necessary to define the interval $d(u)$ {\bf why would we call an interval d()?} of
 discretized time-lines a node can be placed on, such that Property 1 holds {\bf not clear what property one refers to! is this from (i) or (ii) above?}. The
 interval $d(r)$ for root $r$ is defined as 
-$$d(r) = \{ i\ |\ h(r) \leq i <N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
+$$d(r) = \{ i\ |\ h(r) \leq i \leq N\}$$ and for an arbitrary node $u$ as $$d(u) = \{ i\ |\ h(u) \leq i < \max
 d(p); (p,u) \in E\}.$$ 
 {\bf TODO Maybe describe all this in times like earliest = N with latest = 1 time line, I think this owuld be more intuitive to understand}
 This is justified by the fact that the longest {\em path} from node $u$ leading to a leaf is of size $h(u)$ and contains exactly
@@ -651,11 +650,7 @@ $f_2(T,\phi_i)\times f_1(T,\phi_i)$ that yields the highest value represents the
 optimal solution. We prove this by strong induction on the height of the
 root node.
 \paragraph{Base case.} Let $u$ be the parent of $v$ and $w$, such that $h(u) =
-
-1$. {\bf how can h of a non-tip node u be 1?} 
-Nodes $v$ and $w$ 
-are therefore leaves, such that we have to compute
-
+2$.  Nodes $v$ and $w$ are therefore leaves, such that we have to compute
 $|d(u)|=N-1$ values, of the form
 %
 %
