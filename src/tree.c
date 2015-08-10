@@ -30,8 +30,6 @@ static void output_um_tree_recursive(tree_node_t * node,
 
 static double interval_age = 0;
 
-
-
 tree_node_t * yy_create_tree()
 {
   tree_node_t * t = xrealloc(0, sizeof(tree_node_t));
@@ -210,7 +208,7 @@ void write_newick_tree(tree_node_t * node)
   else
     fatal("Internal error while selecting output format");
     
-  fprintf(fp_out, ";");
+  fprintf(fp_out, ";\n");
 
   fclose(fp_out);
 }

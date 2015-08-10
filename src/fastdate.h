@@ -93,6 +93,9 @@ typedef struct tree_noderec
   int prior_lineno;
   void * prior_params;
 
+  /* sampling specific */
+  int sampled_gridline;
+
 
 } tree_node_t;
 
@@ -126,6 +129,8 @@ extern long opt_method_nodeprior;
 extern long opt_method_tipdates;
 extern long opt_showtree;
 extern long opt_threads;
+extern long opt_seed;
+extern long opt_sample;
 extern double opt_max_age;
 extern double opt_lambda;
 extern double opt_mu;
@@ -175,6 +180,7 @@ void getentirecommandline(int argc, char * argv[]);
 void fillheader();
 void show_header();
 void cmd_method_relative();
+void set_seed();
 
 /* functions in tree.c */
 
@@ -235,3 +241,6 @@ void lca_init(tree_node_t * root);
 tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
 void lca_destroy();
 
+/* functions in sample.c */
+
+void sample(tree_node_t * root);

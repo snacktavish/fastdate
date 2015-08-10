@@ -20,6 +20,7 @@
 */
 
 #include "fastdate.h"
+#include <stdint.h>
 
 static char * progname;
 static char progheader[80];
@@ -51,6 +52,8 @@ long opt_method_relative;
 long opt_method_nodeprior;
 long opt_method_tipdates;
 long opt_showtree;
+long opt_seed;
+long opt_sample;
 
 
 static struct option long_options[] =
@@ -75,6 +78,8 @@ static struct option long_options[] =
   {"prior_file",         required_argument, 0, 0 },  /* 17 */
   {"quiet",              no_argument,       0, 0 },  /* 18 */
   {"threads",            required_argument, 0, 0 },  /* 19 */
+  {"seed",               required_argument, 0, 0 },  /* 20 */
+  {"sample",             required_argument, 0, 0 },  /* 21 */
   { 0, 0, 0, 0 }
 };
 
@@ -100,6 +105,8 @@ void args_init(int argc, char ** argv)
   opt_max_age = 0;
   opt_threads = 0;
   opt_outform = OUTPUT_DATED;
+  opt_seed = 0;
+  opt_sample = 0;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -200,6 +207,14 @@ void args_init(int argc, char ** argv)
       
       case 19:
         opt_threads = atol(optarg);
+        break;
+
+      case 20:
+        opt_seed = atol(optarg);
+        break;
+
+      case 21:
+        opt_sample = atol(optarg);
         break;
 
       default:
@@ -362,6 +377,10 @@ void cmd_method_relative()
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
+
+  if (opt_sample)
+    sample(tree);
+
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
 
@@ -392,6 +411,10 @@ void cmd_method_nodeprior()
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
+
+  if (opt_sample)
+    sample(tree);
+
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
 
@@ -422,6 +445,10 @@ void cmd_method_tipdates()
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
+
+  if (opt_sample)
+    sample(tree);
+
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
 
@@ -462,6 +489,14 @@ void show_header()
   fprintf(stdout,"\n");
 }
 
+void set_seed()
+{
+  if (opt_seed)
+    srand48(opt_seed);
+  else
+    srand48(time(NULL));
+}
+
 int main (int argc, char * argv[])
 {
   fillheader();
@@ -470,6 +505,8 @@ int main (int argc, char * argv[])
   args_init(argc, argv);
 
   show_header();
+
+  set_seed();
 
   if (opt_help)
   {

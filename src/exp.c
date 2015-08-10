@@ -39,5 +39,3 @@ double exp_dist_logpdf(double lambda, double x)
 
   return log(lambda) - lambda*x;
 }
-
-
