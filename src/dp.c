@@ -221,7 +221,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
-      jsum_score = score + jsum_score;
+      jsum_score = -log(exp(-jsum_score)+exp(-score)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
       if (score  > jbest_score)
       {
         jbest = j;
@@ -249,7 +249,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
 
       score = right->matrix[k] + prob_rate_right;
-      ksum_score = score + ksum_score;
+      ksum_score = -log(exp(-ksum_score)+exp(-score)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
       if (score > kbest_score)
       {
         kbest = k;
