@@ -59,7 +59,7 @@ static void recompute_scores(tree_node_t * node,
       prob_rate_node = gamma_dist_logpdf(node->length / 
                                          (rel_age_parent - rel_age_node));
 
-      score = node->matrix[i] + prob_rate_node;
+      score = node->matrix_PP[i] + prob_rate_node;
       if (score > *maxscore)
         *maxscore = score;
       vector[i] = score;

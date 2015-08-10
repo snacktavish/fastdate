@@ -84,6 +84,7 @@ typedef struct tree_noderec
   double * matrix;
   int * matrix_left;
   int * matrix_right;
+  double * matrix_PP;
 
   /* age specific */
   int interval_line;

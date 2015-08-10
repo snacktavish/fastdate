@@ -106,7 +106,8 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
   node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
   node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
- 
+  node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
+
   /* for progress bar indication */
   inner_entries += entries;
 
@@ -132,7 +133,7 @@ void dp_recurse(tree_node_t * node, int root_height)
   double rel_age_node, rel_age_left, rel_age_right, age_diff, abs_age_node;
   double prob_rate_left, prob_rate_right;
   double dist_logprob;
-  double score;
+  double score, PPscore;
 
   if (!node) return;
 
@@ -211,6 +212,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     int jbest = -1;
     double jbest_score = -__DBL_MAX__;
+    double jsum_score = 0;
     for (j = 0; j < jmax; ++j)
     {
       assert(j+left->height < node->height + i);
@@ -219,6 +221,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
+      jsum_score = score + jsum_score;
       if (score  > jbest_score)
       {
         jbest = j;
@@ -236,6 +239,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     int kbest = -1;
     double kbest_score = -__DBL_MAX__;
+    double ksum_score = 0;
     for (k = 0; k < kmax; ++k)
     {
       assert(k+right->height < node->height + i);
@@ -245,6 +249,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
 
       score = right->matrix[k] + prob_rate_right;
+      ksum_score = score + ksum_score;
       if (score > kbest_score)
       {
         kbest = k;
@@ -281,7 +286,7 @@ void dp_recurse(tree_node_t * node, int root_height)
     else if (node->prior) assert(0);
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
-
+    PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
     /* if it's the root add one more term */
     if (node->height == root_height)
     {
@@ -296,12 +301,14 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
+    node->matrix_PP[i] = PPscore;
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
   sum_entries += node->entries;
   progress_update(sum_entries);
 }
+
 
 static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
 {
