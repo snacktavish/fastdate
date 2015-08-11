@@ -24,7 +24,7 @@
 
 static long inner_entries = 0;
 static double interval_age = 0;
-static int tree_height = 0;
+static long tree_height = 0;
 
 /* this resets the node heights for method_nodeprior */
 static void reset_node_heights(tree_node_t * node)
@@ -32,11 +32,11 @@ static void reset_node_heights(tree_node_t * node)
   assert(node);
   
   double offset = 0;
-  int min_height = 0;
+  long min_height = 0;
 
   /* number of lines required above the new min height which will
      be selected for the current node */
-  int required_space = tree_height - node->height;
+  long required_space = tree_height - node->height;
 
   /* compute minimum possible interval line given a node has calibration info */
   if (node->prior == NODEPRIOR_EXP)
@@ -70,7 +70,7 @@ static void reset_node_heights(tree_node_t * node)
 
 static void alloc_node_entries(tree_node_t * node)
 {
-  int entries;
+  long entries;
 
   assert(node);
 
@@ -82,16 +82,16 @@ static void alloc_node_entries(tree_node_t * node)
       /* tips are always placed on the first grid line */
       node->entries      = 1;
       node->matrix       = (double *)xmalloc(sizeof(double));
-      node->matrix_left  = (int *)xmalloc(sizeof(int));
-      node->matrix_right = (int *)xmalloc(sizeof(int));
+      node->matrix_left  = (long *)xmalloc(sizeof(long));
+      node->matrix_right = (long *)xmalloc(sizeof(long));
     }
     else
     {
       entries = node->parent->entries + node->parent->height - node->height - 1;
       node->entries      = entries;
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
-      node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
-      node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
+      node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
+      node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
     }
     return;
   }
@@ -104,8 +104,8 @@ static void alloc_node_entries(tree_node_t * node)
   /* allocate storage space for placement information at each node */
   node->entries      = entries;
   node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
-  node->matrix_left  = (int *)xmalloc((size_t)entries * sizeof(int));
-  node->matrix_right = (int *)xmalloc((size_t)entries * sizeof(int));
+  node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
+  node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
  
   /* for progress bar indication */
   inner_entries += entries;
@@ -116,15 +116,15 @@ static void alloc_node_entries(tree_node_t * node)
 
 }
 
-void dp_recurse(tree_node_t * node, int root_height)
+static void dp_recurse(tree_node_t * node, long root_height)
 {
   static long sum_entries = 0;
 
-  int i,j,k;
-  int jmax, kmax;
-  unsigned int low;
-  unsigned int left_low;
-  unsigned int right_low;
+  long i,j,k;
+  long jmax, kmax;
+  long low;
+  long left_low;
+  long right_low;
 
   tree_node_t * left;
   tree_node_t * right;
@@ -209,7 +209,7 @@ void dp_recurse(tree_node_t * node, int root_height)
     
     assert(jmax <= left->entries);
 
-    int jbest = -1;
+    long jbest = -1;
     double jbest_score = -__DBL_MAX__;
     for (j = 0; j < jmax; ++j)
     {
@@ -234,7 +234,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     assert(kmax <= right->entries);
 
-    int kbest = -1;
+    long kbest = -1;
     double kbest_score = -__DBL_MAX__;
     for (k = 0; k < kmax; ++k)
     {
@@ -300,10 +300,10 @@ void dp_recurse(tree_node_t * node, int root_height)
     node->matrix_right[i] = kbest;
   }
   sum_entries += node->entries;
-  progress_update(sum_entries);
+  progress_update((unsigned long)sum_entries);
 }
 
-static void dp_backtrack_recursive(tree_node_t * node, int best_entry)
+static void dp_backtrack_recursive(tree_node_t * node, long best_entry)
 {
   if (!node) return;
   node->interval_line = node->height + best_entry;
@@ -356,7 +356,7 @@ void dp(tree_node_t * tree)
   /* allocate space for node entries */
   alloc_node_entries(tree);
   
-  progress_init("Running DP...", inner_entries);
+  progress_init("Running DP...", (unsigned long)inner_entries);
   dp_recurse(tree,tree->height);
   progress_done();
 

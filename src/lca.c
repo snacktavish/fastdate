@@ -43,8 +43,8 @@ static void fill_path(tree_node_t ** path, int * path_len, tree_node_t * tip)
 void lca_init(tree_node_t * root)
 {
   /* allocate two paths of maximal height */
-  path1 = (tree_node_t **)xmalloc((root->height+1) * sizeof(tree_node_t *));
-  path2 = (tree_node_t **)xmalloc((root->height+1) * sizeof(tree_node_t *));
+  path1 = (tree_node_t **)xmalloc((size_t)(root->height+1) * sizeof(tree_node_t *));
+  path2 = (tree_node_t **)xmalloc((size_t)(root->height+1) * sizeof(tree_node_t *));
 }
 
 tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2)
