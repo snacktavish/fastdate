@@ -84,7 +84,7 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix       = (double *)xmalloc(sizeof(double));
       node->matrix_left  = (int *)xmalloc(sizeof(int));
       node->matrix_right = (int *)xmalloc(sizeof(int));
-      node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
+      node->matrix_PP       = (double *)xmalloc(sizeof(double));
 
     }
     else
@@ -149,7 +149,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       return;
     }
 
-    /* tip fossil case */
+    /* tip fossil case*/
     for (i = 0; i < node->entries; ++i)
     {
       rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
@@ -224,8 +224,8 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
-      PPscore = left->matrix_PP[j] + prob_rate_left;
-      jsum_score = -log(exp(-jsum_score)+exp(-PPscore)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
+      PPscore = left->matrix_PP[j] + exp(prob_rate_left); /*Note: PPScore is not LOG*/
+      jsum_score = jsum_score + PPscore;
       if (score  > jbest_score)
       {
         jbest = j;
@@ -253,8 +253,8 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
 
       score = right->matrix[k] + prob_rate_right;
-      PPscore = right->matrix_PP[k] + prob_rate_right;
-      ksum_score = -log(exp(-ksum_score)+exp(-PPscore)); /*TODO need to think trhough if summing the probabilities is actually correct...*/
+      PPscore = left->matrix_PP[k] + exp(prob_rate_right); /*Note: PPScore is not LOG*/
+      ksum_score = ksum_score + PPscore; /*I deally this is adding the probability from bfore to this one...*/
       if (score > kbest_score)
       {
         kbest = k;
@@ -291,7 +291,7 @@ void dp_recurse(tree_node_t * node, int root_height)
     else if (node->prior) assert(0);
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
-    PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
+    PPscore = exp(bd_term) + jsum_score + ksum_score + exp(dist_logprob); /*Note: Not LOG*/
     /* if it's the root add one more term */
     if (node->height == root_height)
     {
@@ -307,6 +307,7 @@ void dp_recurse(tree_node_t * node, int root_height)
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
     node->matrix_PP[i] = PPscore;
+    /*printf("total score %f\n", PPscore);*/
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
