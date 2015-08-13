@@ -201,7 +201,8 @@ void write_newick_tree(tree_node_t * node)
   if (!fp_out)
     fatal("Unable to open output file for writing");
   interval_age = opt_max_age / (opt_grid_intervals - 1);
-
+  if (opt_method_relative)
+    interval_age =1;
   if (opt_outform == OUTPUT_ULTRAMETRIC)
     output_um_tree_recursive(node, fp_out, opt_grid_intervals);
   else if (opt_outform == OUTPUT_DATED)
