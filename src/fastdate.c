@@ -104,7 +104,7 @@ void args_init(int argc, char ** argv)
   opt_grid_intervals = 1000;
   opt_quiet = 0;
   opt_max_age = 0;
-  opt_threads = 0;
+  opt_threads = 1;
   opt_outform = OUTPUT_DATED;
   opt_seed = 0;
   opt_sample = 0;

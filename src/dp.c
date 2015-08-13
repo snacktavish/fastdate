@@ -21,10 +21,344 @@
 
 #include "fastdate.h"
 
-
 static long inner_entries = 0;
 static double interval_age = 0;
 static long tree_height = 0;
+
+static pthread_attr_t attr;
+
+typedef struct thread_info_s
+{
+  pthread_t thread;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int work;
+  tree_node_t * node;
+  long entry_first;
+  long entry_count;
+} thread_info_t;
+
+static thread_info_t * ti;
+
+static inline void dp_recurse_worker(long t)
+{
+  long i,j,k;
+  long jmax, kmax;
+  long low;
+  long left_low;
+  long right_low;
+  double rel_age_node;
+  double rel_age_left;
+  double rel_age_right;
+  double age_diff;
+  double abs_age_node;
+  double prob_rate_left;
+  double prob_rate_right;
+  double dist_logprob;
+  double score;
+
+  thread_info_t * tip = ti + t;
+  tree_node_t * node  = tip->node;
+  tree_node_t * left  = node->left;
+  tree_node_t * right = node->right;
+
+  low = node->height;
+  left_low = left->height;
+  right_low = right->height;
+
+  for (i = tip->entry_first; i < tip->entry_first + tip->entry_count; ++i)
+  {
+    rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
+    abs_age_node = (low+i)*interval_age;
+
+    /* check the ages of the left child */
+    if (!left->left)
+      jmax = 1;
+    else
+      jmax = (node->height + i - left->height);
+    
+    assert(jmax <= left->entries);
+
+    long jbest = -1;
+    double jbest_score = -__DBL_MAX__;
+    for (j = 0; j < jmax; ++j)
+    {
+      assert(j+left->height < node->height + i);
+      rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
+
+      prob_rate_left = gamma_dist_logpdf(left->length / 
+                                         (rel_age_node - rel_age_left));
+      score = left->matrix[j] + prob_rate_left;
+      if (score  > jbest_score)
+      {
+        jbest = j;
+        jbest_score = score;
+      }
+    }
+
+    /* check the ages of right child */
+    if (!right->left)
+      kmax = 1;
+    else
+      kmax = (node->height + i - right->height);
+
+    assert(kmax <= right->entries);
+
+    long kbest = -1;
+    double kbest_score = -__DBL_MAX__;
+    for (k = 0; k < kmax; ++k)
+    {
+      assert(k+right->height < node->height + i);
+      rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
+
+      age_diff = rel_age_node - rel_age_right;
+      prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
+
+      score = right->matrix[k] + prob_rate_right;
+      if (score > kbest_score)
+      {
+        kbest = k;
+        kbest_score = score;
+      }
+    }
+
+    assert(jbest > -1);
+    assert(kbest > -1);
+
+    double bd_term = 0;
+    if (opt_method_relative || opt_method_nodeprior)
+      bd_term = bd_relative_prod(rel_age_node);
+    else if (opt_method_tipdates)
+      bd_term = bd_tipdates_prod_inner(rel_age_node);
+    else assert(0);
+
+
+    /* if estimating absolute ages check for node priors and compute PDF */
+    dist_logprob = 0;
+    if (node->prior == NODEPRIOR_EXP)
+    {
+      exp_params_t * params = (exp_params_t *)(node->prior_params);
+      dist_logprob = exp_dist_logpdf(1/params->mean, 
+                                     abs_age_node - params->offset);
+    }
+    else if (node->prior == NODEPRIOR_LN)
+    {
+      ln_params_t * params = (ln_params_t *)(node->prior_params);
+      dist_logprob = ln_dist_logpdf(params->mean,
+                                    params->stdev,
+                                    abs_age_node - params->offset);
+    }
+    else if (node->prior)
+      assert(0);
+
+    score = bd_term + jbest_score + kbest_score + dist_logprob;
+
+    /* if it's the root add one more term */
+    if (node->height == tree_height)
+    {
+      if (opt_method_relative || opt_method_nodeprior)
+        score += bd_relative_root(node->leaves,
+                                  rel_age_node);
+      else if (opt_method_tipdates)
+        score += bd_tipdates_root(node->leaves,
+                                   rel_age_node);
+      else assert(0);
+    }
+
+    /* store best placement of children and likelihood for interval line i */
+    node->matrix[i] = score;
+    node->matrix_left[i] = jbest;
+    node->matrix_right[i] = kbest;
+  }
+}
+
+static void * threads_worker(void *vp)
+{
+  long t = (long) vp;
+  thread_info_t * tip = ti + t;
+
+  pthread_mutex_lock(&tip->mutex);
+
+  /* loop until signalled to quit */
+  while (tip->work >= 0)
+  {
+    /* wait for work available */
+    if (tip->work == 0)
+      pthread_cond_wait(&tip->cond, &tip->mutex);
+    if (tip->work > 0)
+    {
+      dp_recurse_worker(t);
+      tip->work = 0;
+      pthread_cond_signal(&tip->cond);
+    }
+  }
+  pthread_mutex_unlock(&tip->mutex);
+
+  pthread_exit(NULL);
+}
+
+static void threads_init()
+{
+  long t;
+
+  pthread_attr_init(&attr);
+  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+  /* allocate memory for thread info */
+  ti = (thread_info_t *)xmalloc((size_t)opt_threads * sizeof(thread_info_t));
+
+  /* init and create worker threads */
+  for (t = 0; t < opt_threads; ++t)
+  {
+    thread_info_t * tip = ti + t;
+    tip->work = 0;
+    pthread_mutex_init(&tip->mutex,NULL);
+    pthread_cond_init(&tip->cond,NULL);
+    if (pthread_create(&tip->thread, &attr, threads_worker, (void *)(long)t))
+      fatal("Cannot create thread");
+  }
+}
+
+static void threads_wakeup(tree_node_t * node)
+{
+  long t;
+  long entries = node->entries;
+  long threads = entries > opt_threads ? opt_threads : entries;
+  long entries_rest = entries;
+  long entry_next = 0;
+
+
+  /* precompute total workload as the sum of operations required for each
+     gridline node can be placed on */
+  double term = 2 * node->height + node->left->height + node->right->height;
+  unsigned long workload = (unsigned long)entries * (unsigned long)term - 
+                           (unsigned long)entries + 
+                           (unsigned long)(entries*entries);
+  double wl_thread = workload / (double)threads;
+
+  entries_rest = entries;
+  entry_next = 0;
+
+
+  /* tell the threads there is work to do */
+  for (t = 0; t < threads; ++t)
+  {
+    thread_info_t * tip = ti + t;
+
+    tip->node = node;
+    tip->entry_first = entry_next;
+
+    /* compute the workload for thread t by solving the quadratic equation */
+    if (t != threads-1)
+      tip->entry_count = (long)((sqrt((term-1)*(term-1) + 4.0*wl_thread*(t+1)) +
+                               1 - term ) / 2 - tip->entry_first);
+    else
+      tip->entry_count = entries_rest;
+
+    entries_rest -= tip->entry_count;
+    entry_next += tip->entry_count;
+
+    pthread_mutex_lock(&tip->mutex);
+    tip->work = 1;
+    pthread_cond_signal(&tip->cond);
+    pthread_mutex_unlock(&tip->mutex);
+  }
+
+  /* wait for threads to finish their work */
+  for (t = 0; t < threads; ++t)
+  {
+    thread_info_t * tip = ti+t;
+    pthread_mutex_lock(&tip->mutex);
+    while(tip->work > 0)
+      pthread_cond_wait(&tip->cond, &tip->mutex);
+    pthread_mutex_unlock(&tip->mutex);
+  }
+}
+
+static void threads_exit()
+{
+  long t;
+
+  for (t = 0; t < opt_threads; ++t)
+  {
+    thread_info_t * tip = ti + t;
+
+    /* tell worker to quit */
+    pthread_mutex_lock(&tip->mutex);
+    tip->work = -1;
+    pthread_cond_signal(&tip->cond);
+    pthread_mutex_unlock(&tip->mutex);
+
+    /* wait for worker to quit */
+    if (pthread_join(tip->thread, 0))
+      fatal("Cannot join thread");
+
+    pthread_cond_destroy(&tip->cond);
+    pthread_mutex_destroy(&tip->mutex);
+  }
+
+  free(ti);
+  pthread_attr_destroy(&attr);
+}
+
+static void dp_recurse_parallel(tree_node_t * node)
+{
+  static long sum_entries = 0;
+
+  long i;
+  double rel_age_node;
+  double abs_age_node;
+  double dist_logprob;
+
+  if (!node) return;
+
+  /* leaves case */
+  if (!node->left)
+  {
+    if (!node->prior)
+    {
+      node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
+      return;
+    }
+
+    /* tip fossil case */
+    for (i = 0; i < node->entries; ++i)
+    {
+      rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
+      abs_age_node = (node->height+i)*interval_age;
+      /* if estimating absolute ages check for node priors and compute PDF */
+      dist_logprob = 0;
+      if (node->prior == NODEPRIOR_EXP)
+      {
+        exp_params_t * params = (exp_params_t *)(node->prior_params);
+        dist_logprob = exp_dist_logpdf(1/params->mean, 
+                                       abs_age_node - params->offset);
+      }
+      else if (node->prior == NODEPRIOR_LN)
+      {
+        ln_params_t * params = (ln_params_t *)(node->prior_params);
+        dist_logprob = ln_dist_logpdf(params->mean,
+                                      params->stdev,
+                                      abs_age_node - params->offset);
+      }
+      else assert(0);
+
+      node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
+    }
+
+    return;
+  }
+
+  /* inner nodes case */
+  dp_recurse_parallel(node->left);
+  dp_recurse_parallel(node->right);
+
+  /* schedule work for threads for current node */
+  threads_wakeup(node);
+
+  sum_entries += node->entries;
+  progress_update((unsigned long)sum_entries);
+}
 
 /* this resets the node heights for method_nodeprior */
 static void reset_node_heights(tree_node_t * node)
@@ -116,7 +450,7 @@ static void alloc_node_entries(tree_node_t * node)
 
 }
 
-static void dp_recurse(tree_node_t * node, long root_height)
+static void dp_recurse_serial(tree_node_t * node)
 {
   static long sum_entries = 0;
 
@@ -129,8 +463,13 @@ static void dp_recurse(tree_node_t * node, long root_height)
   tree_node_t * left;
   tree_node_t * right;
 
-  double rel_age_node, rel_age_left, rel_age_right, age_diff, abs_age_node;
-  double prob_rate_left, prob_rate_right;
+  double rel_age_node;
+  double rel_age_left;
+  double rel_age_right;
+  double age_diff;
+  double abs_age_node;
+  double prob_rate_left;
+  double prob_rate_right;
   double dist_logprob;
   double score;
 
@@ -177,8 +516,8 @@ static void dp_recurse(tree_node_t * node, long root_height)
   left  = node->left;
   right = node->right;
 
-  dp_recurse(left,  root_height);
-  dp_recurse(right, root_height);
+  dp_recurse_serial(left);
+  dp_recurse_serial(right);
 
   low = node->height;
   left_low = left->height;
@@ -278,12 +617,13 @@ static void dp_recurse(tree_node_t * node, long root_height)
                                     params->stdev,
                                     abs_age_node - params->offset);
     }
-    else if (node->prior) assert(0);
+    else if (node->prior)
+      assert(0);
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
 
     /* if it's the root add one more term */
-    if (node->height == root_height)
+    if (node->height == tree_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
         score += bd_relative_root(node->leaves,
@@ -317,8 +657,8 @@ static void dp_backtrack_recursive(tree_node_t * node, long best_entry)
 
 static void dp_backtrack(tree_node_t * root)
 {
-  int i;
-  int best_entry = 0;
+  long i;
+  long best_entry = 0;
   double max_score = -__DBL_MAX__;
   double score;
 
@@ -357,7 +697,15 @@ void dp(tree_node_t * tree)
   alloc_node_entries(tree);
   
   progress_init("Running DP...", (unsigned long)inner_entries);
-  dp_recurse(tree,tree->height);
+  if (opt_threads > 1)
+  {
+    threads_init();
+    dp_recurse_parallel(tree);
+    threads_exit();
+  }
+  else
+    dp_recurse_serial(tree);
+
   progress_done();
 
   if (!opt_quiet)

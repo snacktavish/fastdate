@@ -27,7 +27,7 @@ WARN=-Wall -Wsign-compare
 CC = gcc
 CFLAGS = -g -O3 $(WARN)
 LINKFLAGS=$(PROFILING)
-LIBS=-lm
+LIBS=-lm -lpthread
 
 BISON = bison
 FLEX = flex
