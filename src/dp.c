@@ -202,6 +202,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
   for (i = 0; i < node->entries; ++i)
   {
+/*    printf("CUrrent node label is %s\n", node->label);*/
     rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
     abs_age_node = (low+i)*interval_age;
 
@@ -224,8 +225,9 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
-      PPscore = left->matrix_PP[j] + exp(prob_rate_left); /*Note: PPScore is not LOG*/
-      jsum_score = jsum_score + PPscore;
+      PPscore = left->matrix_PP[j] + prob_rate_left; 
+      jsum_score = -log(exp(-jsum_score) + exp(-PPscore)); /*TODO s thsithe right way to add log probs?! UNDERFLOWWWW*/
+ /*      printf("line 230 %.17f, %.17f, %.17f, %.17f\n", exp(-jsum_score), jsum_score, PPscore, exp(-PPscore));*/
       if (score  > jbest_score)
       {
         jbest = j;
@@ -248,13 +250,11 @@ void dp_recurse(tree_node_t * node, int root_height)
     {
       assert(k+right->height < node->height + i);
       rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
-
       age_diff = rel_age_node - rel_age_right;
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-
       score = right->matrix[k] + prob_rate_right;
-      PPscore = left->matrix_PP[k] + exp(prob_rate_right); /*Note: PPScore is not LOG*/
-      ksum_score = ksum_score + PPscore; /*I deally this is adding the probability from bfore to this one...*/
+      PPscore = right->matrix_PP[k] + prob_rate_right;
+      ksum_score = -log(exp(-ksum_score) + exp(-PPscore)); /*TODO s thsithe right way to add log probs?! UNDERFLOWWWW*/
       if (score > kbest_score)
       {
         kbest = k;
@@ -264,7 +264,9 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     assert(jbest > -1);
     assert(kbest > -1);
-
+/*    assert(jsum_score >= 0);
+    assert(ksum_score >= 0);
+*/
     double bd_term = 0;
     if (opt_method_relative || opt_method_nodeprior)
       bd_term = bd_relative_prod(rel_age_node);
@@ -291,22 +293,33 @@ void dp_recurse(tree_node_t * node, int root_height)
     else if (node->prior) assert(0);
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
-    PPscore = exp(bd_term) + jsum_score + ksum_score + exp(dist_logprob); /*Note: Not LOG*/
+    PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
+  /*  printf("line 301 %.17f, %.17f, %.17f, %.17f\n", exp(bd_term), jsum_score, ksum_score, exp(dist_logprob));*/
     /* if it's the root add one more term */
     if (node->height == root_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
+        {
         score += bd_relative_root(node->leaves,
                                   rel_age_node);
+        PPscore += bd_relative_root(node->leaves,
+                                  rel_age_node); /*TODO double check multiplication here*/
+        printf("root special %f\n", PPscore);
+        }
       else if (opt_method_tipdates)
+        {
         score += bd_tipdates_root(node->leaves,
                                    rel_age_node);
+        PPscore += bd_tipdates_root(node->leaves,
+                                  rel_age_node);
+       }
       else assert(0);
     }
 
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
     node->matrix_PP[i] = PPscore;
+/*    assert(PPscore >= 0);*/
     /*printf("total score %f\n", PPscore);*/
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;

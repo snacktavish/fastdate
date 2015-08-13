@@ -42,7 +42,7 @@ static void recompute_scores(tree_node_t * node,
                              double rel_age_parent,
                              double * vector,
                              int count,
-                             double * sumscore)
+                             double * maxscore)
 {
     int i;
     double score;
@@ -50,7 +50,7 @@ static void recompute_scores(tree_node_t * node,
     double prob_rate_node;
     unsigned int node_low = node->height;
 
-    *sumscore = 0;/*sumscore and score in probability space, NOT LOG*/
+    *maxscore = -__DBL_MAX__;
 
     for (i = 0; i < count; ++i)
     {
@@ -59,9 +59,9 @@ static void recompute_scores(tree_node_t * node,
       prob_rate_node = gamma_dist_logpdf(node->length / 
                                          (rel_age_parent - rel_age_node));
 
-      score = node->matrix_PP[i] + exp(prob_rate_node);
-      *sumscore += score;
-      assert (sumscore > 0);
+      score = node->matrix[i] + prob_rate_node;
+      if (score > *maxscore)
+        *maxscore = score;
       vector[i] = score;
     }
 }
@@ -69,9 +69,31 @@ static void recompute_scores(tree_node_t * node,
 static void normalize_cdf(tree_node_t * node,
                           double * vector,
                           int count,
-                          double sumscore)
+                          double maxscore)
 {
     int i;
+
+    /*Subtract max from all*/
+    for (i = 0; i < count; ++i)
+      vector[i] = vector[i] - maxscore;
+
+    /* Compute threshold for precision */
+    double thresh = log(10e-16) - log(count);
+    double sumscore = 0;
+    
+    /* discarding all scores below threshold and convert the rest to their
+       exponentiations. Store the sum of exponentiations */
+    for (i = 0; i < count; ++i)
+    {
+      if (vector[i] < thresh) 
+        vector[i] = 0;
+      else
+      {
+        vector[i] = exp(vector[i]);
+        sumscore = vector[i] + sumscore;
+      }
+    }
+    assert (sumscore > 0);
 
     /* Normalize and store cumulative probability vector */
     vector[0] /= sumscore;
@@ -85,7 +107,7 @@ static void normalize_cdf(tree_node_t * node,
 
 static void dp_backtrack_sampling_recursive(tree_node_t * node)
 {
-  double sumscore;
+  double maxscore;
 
   if (!node) return;
   assert(node->parent);
@@ -100,8 +122,8 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
 
   assert(entries <= node->entries);
 
-  recompute_scores(node, rel_age_parent, cdf_vector, entries, &sumscore); /*HALP what is in the cdf vector here?! Doesn't matter bc it is overwritten...*/
-  normalize_cdf(node, cdf_vector, entries, sumscore);
+  recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
+  normalize_cdf(node, cdf_vector, entries, maxscore);
   node->sampled_gridline = node->height + 
                            sample_gridline(cdf_vector, entries);
 
@@ -112,17 +134,18 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
 static void dp_backtrack_sampling(tree_node_t * root)
 {
   int i;
-  double sumscore = 0;
+  double maxscore = -__DBL_MAX__;
 
   cdf_vector = (double *)xmalloc(opt_grid_intervals * sizeof(double));
 
   /* copy logscores to cdf vector and get max */
-  memcpy(cdf_vector, root->matrix_PP, root->entries * sizeof(double));
+  memcpy(cdf_vector, root->matrix, root->entries * sizeof(double));
   for (i = 0; i < root->entries; ++i)
-    sumscore += cdf_vector[i];
+    if (cdf_vector[i] > maxscore)
+      maxscore = cdf_vector[i];
 
   /* normalize logscores according to maxscore */
-  normalize_cdf(root, cdf_vector, root->entries, sumscore);
+  normalize_cdf(root, cdf_vector, root->entries, maxscore);
 
   /* select interval line for root */
   root->sampled_gridline = root->height + 
@@ -159,7 +182,7 @@ void sample(tree_node_t * root)
   char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
   double interval_age = opt_max_age / (opt_grid_intervals - 1);
   if (opt_method_relative)
-      interval_age = 1;
+    interval_age =1;
   strcpy(filename, opt_outfile);
   strcat(filename,".sampled");
 
