@@ -27,14 +27,28 @@ static char progheader[80];
 static char * cmdline;
 
 /* number of mandatory options for the user to input */
+
 static const char mand_options_count = 7;
 static const char * mand_options_list = " --tree_file\n --out_file\n --bd_mu\n --bd_lambda\n --bd_rho\n --rate_mean\n --rate_variance\n"
 ;
 
 /* options */
+
+int opt_quiet;
+int opt_outform;
+int opt_help;
+int opt_version;
+int opt_method_relative;
+int opt_method_nodeprior;
+int opt_method_tipdates;
+int opt_showtree;
 char * opt_treefile;
 char * opt_outfile;
 char * opt_priorfile;
+long opt_seed;
+long opt_sample;
+long opt_grid_intervals;
+long opt_threads;
 double opt_max_age;
 double opt_lambda;
 double opt_mu;
@@ -42,19 +56,6 @@ double opt_rho;
 double opt_psi;
 double opt_rate_mean;
 double opt_rate_var;
-int opt_quiet;
-int opt_outform;
-long opt_threads;
-long opt_grid_intervals;
-long opt_help;
-long opt_version;
-long opt_method_relative;
-long opt_method_nodeprior;
-long opt_method_tipdates;
-long opt_showtree;
-long opt_seed;
-long opt_sample;
-
 
 static struct option long_options[] =
 {
@@ -103,7 +104,7 @@ void args_init(int argc, char ** argv)
   opt_grid_intervals = 1000;
   opt_quiet = 0;
   opt_max_age = 0;
-  opt_threads = 0;
+  opt_threads = 1;
   opt_outform = OUTPUT_DATED;
   opt_seed = 0;
   opt_sample = 0;
@@ -463,7 +464,7 @@ void getentirecommandline(int argc, char * argv[])
   for (i = 0; i < argc; ++i)
     len += strlen(argv[i]);
 
-  cmdline = (char *)xmalloc(len + argc + 1);
+  cmdline = (char *)xmalloc((size_t)(len + argc + 1));
   cmdline[0] = 0;
 
   for (i = 0; i < argc; ++i)

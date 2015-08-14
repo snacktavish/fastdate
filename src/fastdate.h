@@ -36,6 +36,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#include <pthread.h>
 
 /* constants */
 
@@ -76,18 +77,19 @@ typedef struct tree_noderec
   struct tree_noderec * left;
   struct tree_noderec * right;
   struct tree_noderec * parent;
-  int height;
-  int leaves;
+  long height;
+  long leaves;
 
   /* grid related data */
-  int entries;
+  long entries;
   double * matrix;
-  int * matrix_left;
-  int * matrix_right;
+  long * matrix_left;
+  long * matrix_right;
   double * matrix_PP;
 
+
   /* age specific */
-  int interval_line;
+  long interval_line;
 
   /* prior specific */
   int prior;
@@ -95,7 +97,7 @@ typedef struct tree_noderec
   void * prior_params;
 
   /* sampling specific */
-  int sampled_gridline;
+  long sampled_gridline;
 
 
 } tree_node_t;
@@ -118,20 +120,19 @@ typedef struct tree_noderec
 
 extern int opt_quiet;
 extern int opt_outform;
+extern int opt_help;
+extern int opt_version;
+extern int opt_method_relative;
+extern int opt_method_nodeprior;
+extern int opt_method_tipdates;
+extern int opt_showtree;
 extern char * opt_treefile;
 extern char * opt_outfile;
 extern char * opt_priorfile;
-extern char * opt_agefile;
-extern long opt_grid_intervals;
-extern long opt_help;
-extern long opt_version;
-extern long opt_method_relative;
-extern long opt_method_nodeprior;
-extern long opt_method_tipdates;
-extern long opt_showtree;
-extern long opt_threads;
 extern long opt_seed;
 extern long opt_sample;
+extern long opt_grid_intervals;
+extern long opt_threads;
 extern double opt_max_age;
 extern double opt_lambda;
 extern double opt_mu;
@@ -143,6 +144,7 @@ extern double opt_rate_var;
 /* matrices */
 
 extern const char map_nt[256];
+extern const char map_bin[256];
 extern const char map_nt_2bit[256];
 
 /* common data */
@@ -160,10 +162,10 @@ extern long avx2_present;
 
 /* functions in util.c */
 
-void fatal(const char * format, ...);
+void fatal(const char * format, ...) __attribute__ ((noreturn));
 void progress_init(const char * prompt, unsigned long size);
-void progress_update(unsigned int progress);
-void progress_done();
+void progress_update(unsigned long progress);
+void progress_done(void);
 void * xmalloc(size_t size);
 void * xrealloc(void *ptr, size_t size);
 char * xstrchrnul(char *s, int c);
@@ -171,24 +173,26 @@ char * xstrdup(const char * s);
 char * xstrndup(const char * s, size_t len);
 void encode_sequence(char * s, const char * map);
 long getusec(void);
-void show_rusage();
+void show_rusage(void);
 
 /* functions in fastdate.c */
 
 void args_init(int argc, char ** argv);
-void cmd_help();
+void cmd_help(void);
 void getentirecommandline(int argc, char * argv[]);
-void fillheader();
-void show_header();
-void cmd_method_relative();
-void set_seed();
+void fillheader(void);
+void show_header(void);
+void cmd_method_relative(void);
+void set_seed(void);
+void cmd_method_nodeprior(void);
+void cmd_method_tipdates(void);
 
 /* functions in tree.c */
 
-tree_node_t * yy_create_tree();
+tree_node_t * yy_create_tree(void);
 void yy_dealloc_tree(tree_node_t * tree);
 void show_ascii_tree(tree_node_t * tree);
-int set_node_heights(tree_node_t * root);
+long set_node_heights(tree_node_t * root);
 void write_newick_tree(tree_node_t * node);
 int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer);
 
@@ -198,15 +202,15 @@ void dp(tree_node_t * tree);
 
 /* functions in gamma.c */
 
-void gamma_dist_init();
+void gamma_dist_init(void);
 double gamma_dist_logpdf(double x);
 
 /* functions in bd.c */
 
 void bd_init(long fossils_count, long extinct_leaves_count);
 double bd_relative_prod(double t);
-double bd_relative_root(int leaves, double t);
-double bd_tipdates_root(int leaves, double t);
+double bd_relative_root(long leaves, double t);
+double bd_tipdates_root(long leaves, double t);
 double bd_tipdates_prod_inner(double t);
 double bd_tipdates_prod_tip(double t);
 
@@ -217,8 +221,8 @@ tree_node_t * yy_parse_tree(const char * filename);
 
 /* functions in arch.c */
 
-unsigned long arch_get_memused();
-unsigned long arch_get_memtotal();
+unsigned long arch_get_memused(void);
+unsigned long arch_get_memtotal(void);
 
 /* functions in exp.c */
 
@@ -240,7 +244,7 @@ void set_node_priors(tree_node_t * root,
 
 void lca_init(tree_node_t * root);
 tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
-void lca_destroy();
+void lca_destroy(void);
 
 /* functions in sample.c */
 

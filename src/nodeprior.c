@@ -26,7 +26,7 @@
 
 static FILE * fp = NULL;
 static char line[LINEALLOC];
-static long lineno = 0;
+static int lineno = 0;
 
 static regex_t regexp_node_exp;
 static regex_t regexp_mrca_exp;
@@ -124,15 +124,18 @@ static void set_node_exp_prior(long * fossils_count,long * extinct_leaves_count)
 
   /* node label */
   len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  char * label = xstrndup(line+pmatch[1].rm_so, len);
+  assert(len >= 0);
+  char * label = xstrndup(line+pmatch[1].rm_so, (size_t)len);
 
   /* mean */
   len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  char * mean = xstrndup(line+pmatch[2].rm_so, len);
+  assert(len >= 0);
+  char * mean = xstrndup(line+pmatch[2].rm_so, (size_t)len);
 
   /* offset */
   len = pmatch[4].rm_eo - pmatch[4].rm_so;
-  char * offset = xstrndup(line+pmatch[4].rm_so, len);
+  assert(len >= 0);
+  char * offset = xstrndup(line+pmatch[4].rm_so, (size_t)len);
 
   node = query_node(label);
   if (!node)
@@ -175,19 +178,23 @@ static void set_node_ln_prior(long * fossils_count, long * extinct_leaves_count)
 
   /* node label */
   len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  char * label = xstrndup(line+pmatch[1].rm_so, len);
+  assert(len >= 0);
+  char * label = xstrndup(line+pmatch[1].rm_so, (size_t)len);
 
   /* mean */
   len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  char * mean = xstrndup(line+pmatch[2].rm_so, len);
+  assert(len >= 0);
+  char * mean = xstrndup(line+pmatch[2].rm_so, (size_t)len);
 
   /* standard deviation */
   len = pmatch[4].rm_eo - pmatch[4].rm_so;
-  char * stdev = xstrndup(line+pmatch[4].rm_so, len);
+  assert(len >= 0);
+  char * stdev = xstrndup(line+pmatch[4].rm_so, (size_t)len);
 
   /* offset */
   len = pmatch[6].rm_eo - pmatch[6].rm_so;
-  char * offset = xstrndup(line+pmatch[6].rm_so, len);
+  assert(len >= 0);
+  char * offset = xstrndup(line+pmatch[6].rm_so, (size_t)len);
 
   node = query_node(label);
   if (!node)
@@ -232,19 +239,23 @@ static void set_mrca_exp_prior(long * fossils_count)
 
   /* node label */
   len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  char * tip1 = xstrndup(line+pmatch[1].rm_so, len);
+  assert(len >= 0);
+  char * tip1 = xstrndup(line+pmatch[1].rm_so, (size_t)len);
 
   /* node label */
   len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  char * tip2 = xstrndup(line+pmatch[2].rm_so, len);
+  assert(len >= 0);
+  char * tip2 = xstrndup(line+pmatch[2].rm_so, (size_t)len);
 
   /* mean */
   len = pmatch[3].rm_eo - pmatch[3].rm_so;
-  char * mean = xstrndup(line+pmatch[3].rm_so, len);
+  assert(len >= 0);
+  char * mean = xstrndup(line+pmatch[3].rm_so, (size_t)len);
 
   /* mean */
   len = pmatch[5].rm_eo - pmatch[5].rm_so;
-  char * offset = xstrndup(line+pmatch[5].rm_so, len);
+  assert(len >= 0);
+  char * offset = xstrndup(line+pmatch[5].rm_so, (size_t)len);
 
   /* match tip1 to its node */
   node1 = query_node(tip1);
@@ -294,23 +305,28 @@ static void set_mrca_ln_prior(long * fossils_count)
 
   /* node label */
   len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  char * tip1 = xstrndup(line+pmatch[1].rm_so, len);
+  assert(len >= 0);
+  char * tip1 = xstrndup(line+pmatch[1].rm_so, (size_t)len);
 
   /* node label */
   len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  char * tip2 = xstrndup(line+pmatch[2].rm_so, len);
+  assert(len >= 0);
+  char * tip2 = xstrndup(line+pmatch[2].rm_so, (size_t)len);
 
   /* mean */
   len = pmatch[3].rm_eo - pmatch[3].rm_so;
-  char * mean = xstrndup(line+pmatch[3].rm_so, len);
+  assert(len >= 0);
+  char * mean = xstrndup(line+pmatch[3].rm_so, (size_t)len);
 
   /* standard deviation */
   len = pmatch[5].rm_eo - pmatch[5].rm_so;
-  char * stdev = xstrndup(line+pmatch[5].rm_so, len);
+  assert(len >= 0);
+  char * stdev = xstrndup(line+pmatch[5].rm_so, (size_t)len);
 
   /* offset */
   len = pmatch[7].rm_eo - pmatch[7].rm_so;
-  char * offset = xstrndup(line+pmatch[7].rm_so, len);
+  assert(len >= 0);
+  char * offset = xstrndup(line+pmatch[7].rm_so, (size_t)len);
 
   /* match tip1 to its node */
   node1 = query_node(tip1);
@@ -381,10 +397,10 @@ static void priorfile_close(void)
   fclose(fp); 
 }
 
-static void hashtable_init(unsigned int node_count, tree_node_t ** nodes)
+static void hashtable_init(size_t node_count, tree_node_t ** nodes)
 {
   ENTRY entry;
-  unsigned int i;
+  size_t i;
 
   hcreate(node_count * 2);
 
@@ -403,7 +419,7 @@ void set_node_priors(tree_node_t * root,
                      long * fossils_count, 
                      long * extinct_leaves_count)
 {
-  unsigned int node_count = 2*root->leaves - 1;
+  size_t node_count = 2*(unsigned long)(root->leaves) - 1;
 
   *fossils_count = 0;
   *extinct_leaves_count = 0;

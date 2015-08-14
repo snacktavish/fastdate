@@ -23,9 +23,9 @@
 
 static double * cdf_vector;
 
-static int sample_gridline(double * vector, int count) 
+static long sample_gridline(double * vector, long count) 
 {
-  int i;
+  long i;
 
   /* draw a random number between [0,1] */
   double r =  drand48();
@@ -41,14 +41,14 @@ static int sample_gridline(double * vector, int count)
 static void recompute_scores(tree_node_t * node,
                              double rel_age_parent,
                              double * vector,
-                             int count,
+                             long count,
                              double * maxscore)
 {
     int i;
     double score;
     double rel_age_node;
     double prob_rate_node;
-    unsigned int node_low = node->height;
+    long node_low = node->height;
 
     *maxscore = -__DBL_MAX__;
 
@@ -66,12 +66,11 @@ static void recompute_scores(tree_node_t * node,
     }
 }
 
-static void normalize_cdf(tree_node_t * node,
-                          double * vector,
-                          int count,
+static void normalize_cdf(double * vector,
+                          long count,
                           double maxscore)
 {
-    int i;
+    long i;
 
     /*Subtract max from all*/
     for (i = 0; i < count; ++i)
@@ -117,13 +116,13 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
   double rel_age_parent = (1.0 / opt_grid_intervals) *
                           (parent->sampled_gridline);
 
-  int entries = (node->left) ? 
-                (parent->sampled_gridline - node->height) : 1;
+  long entries = (node->left) ? 
+                 (parent->sampled_gridline - node->height) : 1;
 
   assert(entries <= node->entries);
 
   recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
-  normalize_cdf(node, cdf_vector, entries, maxscore);
+  normalize_cdf(cdf_vector, entries, maxscore);
   node->sampled_gridline = node->height + 
                            sample_gridline(cdf_vector, entries);
 
@@ -136,16 +135,16 @@ static void dp_backtrack_sampling(tree_node_t * root)
   int i;
   double maxscore = -__DBL_MAX__;
 
-  cdf_vector = (double *)xmalloc(opt_grid_intervals * sizeof(double));
+  cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
 
   /* copy logscores to cdf vector and get max */
-  memcpy(cdf_vector, root->matrix, root->entries * sizeof(double));
+  memcpy(cdf_vector, root->matrix, (size_t)(root->entries) * sizeof(double));
   for (i = 0; i < root->entries; ++i)
     if (cdf_vector[i] > maxscore)
       maxscore = cdf_vector[i];
 
   /* normalize logscores according to maxscore */
-  normalize_cdf(root, cdf_vector, root->entries, maxscore);
+  normalize_cdf(cdf_vector, root->entries, maxscore);
 
   /* select interval line for root */
   root->sampled_gridline = root->height + 
@@ -177,7 +176,7 @@ static void output_sample_tree_recursive(tree_node_t * node,
 
 void sample(tree_node_t * root)
 {
-  int i;
+  long i;
 
   char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
   double interval_age = opt_max_age / (opt_grid_intervals - 1);
@@ -188,13 +187,13 @@ void sample(tree_node_t * root)
 
   FILE * fp_out = fopen(filename, "w");
 
-  progress_init("Sampling...", opt_sample);
+  progress_init("Sampling...", (unsigned long)opt_sample);
   for (i = 0; i < opt_sample; ++i)
   {
     dp_backtrack_sampling(root);
     output_sample_tree_recursive(root, interval_age, fp_out);
     fprintf(fp_out, ";\n");
-    progress_update(i);
+    progress_update((unsigned long)i);
   }
   progress_done();
 

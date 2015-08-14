@@ -26,7 +26,7 @@ static int indend_space = 4;
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out);
 static void output_um_tree_recursive(tree_node_t * node, 
                                      FILE * fp_out, 
-                                     int prev_age);
+                                     long prev_age);
 
 static double interval_age = 0;
 
@@ -86,7 +86,7 @@ static void print_tree_recurse(tree_node_t * tree,
     printf ("-");
   if (tree->left || tree->right) printf("+");
 
-  printf (" %s:%f (age: %d)\n", tree->label, tree->length, tree->interval_line);
+  printf (" %s:%f (age: %ld)\n", tree->label, tree->length, tree->interval_line);
 
   if (active_node_order[indend_level-1] == 2) 
     active_node_order[indend_level-1] = 0;
@@ -98,11 +98,11 @@ static void print_tree_recurse(tree_node_t * tree,
 
 }
 
-int tree_indend_level(tree_node_t * tree, int indend)
+static unsigned int tree_indend_level(tree_node_t * tree, unsigned int indend)
 {
   if (!tree) return indend;
 
-  int a, b;
+  unsigned int a, b;
 
   a = tree_indend_level(tree->left, indend+1);
   b = tree_indend_level(tree->right, indend+1);
@@ -112,22 +112,22 @@ int tree_indend_level(tree_node_t * tree, int indend)
 
 void show_ascii_tree(tree_node_t * tree)
 {
-  int indend_max = tree_indend_level(tree,0);
+  unsigned int indend_max = tree_indend_level(tree,0);
   int * active_node_order = (int *)malloc((indend_max+1) * sizeof(int));
   active_node_order[0] = 1;
   active_node_order[1] = 1;
 
-  printf (" %s:%f (age: %d)\n", tree->label, tree->length, tree->interval_line);
+  printf (" %s:%f (age: %ld)\n", tree->label, tree->length, tree->interval_line);
   print_tree_recurse(tree->left, 1, active_node_order);
   print_tree_recurse(tree->right, 1, active_node_order);
   free(active_node_order);
 }
 
-int set_node_heights(tree_node_t * root)
+long set_node_heights(tree_node_t * root)
 {
   if (!root) return (0);
 
-  int a,b;
+  long a,b;
 
   a = set_node_heights(root->left);
   b = set_node_heights(root->right);
@@ -155,7 +155,7 @@ static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
 
 static void output_um_tree_recursive(tree_node_t * node, 
                                      FILE * fp_out, 
-                                     int prev_age)
+                                     long prev_age)
 {
   if (!node->left || !node->right)
     fprintf(fp_out, "%s:%f", node->label, 

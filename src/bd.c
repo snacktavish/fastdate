@@ -39,7 +39,7 @@ void bd_init(long fossils_count, long extinct_leaves_count)
 /* Computes the first part (before the products) of the special case of
  * Equation (9) from (Stadler 2010) for which no fossil information is
  * available as part of the tree */
-double bd_relative_root(int leaves, double t)
+double bd_relative_root(long leaves, double t)
 {
   double terma = leaves * (opt_lambda - opt_mu) * exp(diff * t);
   double termb = opt_rho*opt_lambda + (opt_lambda*(1 - opt_rho) - opt_mu) *
@@ -86,7 +86,7 @@ double bd_tipdates_prod_tip(double t)
   return log(p0/p1);
 }
 
-double bd_tipdates_root(int leaves, double t)
+double bd_tipdates_root(long leaves, double t)
 {
   double terma = log(4 * leaves * opt_rho) + (k+m)*log(opt_psi);
   double termb = log(c1*(c2+1)*(1 - c2 + (1+c2)*exp(c1*t)));
