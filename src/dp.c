@@ -457,7 +457,6 @@ static void alloc_node_entries(tree_node_t * node)
 
 }
 
-<<<<<<< HEAD
 
 double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowdate.py*/
  /*Avoid underflow/overflow, but return:
@@ -663,7 +662,7 @@ static void dp_recurse_serial(tree_node_t * node)
     score = bd_term + jbest_score + kbest_score + dist_logprob;
     PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
         /* if it's the root add one more term */
-    if (node->height == root_height)
+    if (node->height == tree_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
         {
