@@ -120,6 +120,31 @@ static void alloc_node_entries(tree_node_t * node)
 
 }
 
+
+double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowdate.py*/
+ /*Avoid underflow/overflow, but return:
+      log(x + y)
+  where x = exp(prev_ln_sum) and y = exp(new_ln_term)
+  */
+{
+  double ln_m, exp_sum;
+  if ( !prev_ln_sum  || ((new_ln_term - prev_ln_sum) > 30) )
+    return new_ln_term; /* first term, or previous is lost in rounding error*/
+  if ( prev_ln_sum - new_ln_term > 30)
+    return prev_ln_sum; /* new term is lost in rounding error*/
+  if (prev_ln_sum <new_ln_term)
+    ln_m = prev_ln_sum;
+  else
+    ln_m = new_ln_term;
+  prev_ln_sum -= ln_m;
+  new_ln_term -= ln_m;
+  /* one is now 0 and the other is no greater than 30*/
+  exp_sum = exp(prev_ln_sum) + exp(new_ln_term);
+  return log(exp_sum) + ln_m;
+}
+
+
+
 void dp_recurse(tree_node_t * node, int root_height)
 {
   static long sum_entries = 0;
@@ -202,7 +227,6 @@ void dp_recurse(tree_node_t * node, int root_height)
 
   for (i = 0; i < node->entries; ++i)
   {
-/*    printf("CUrrent node label is %s\n", node->label);*/
     rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
     abs_age_node = (low+i)*interval_age;
 
@@ -226,8 +250,7 @@ void dp_recurse(tree_node_t * node, int root_height)
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
       PPscore = left->matrix_PP[j] + prob_rate_left; 
-      jsum_score = -log(exp(-jsum_score) + exp(-PPscore)); /*TODO s thsithe right way to add log probs?! UNDERFLOWWWW*/
- /*      printf("line 230 %.17f, %.17f, %.17f, %.17f\n", exp(-jsum_score), jsum_score, PPscore, exp(-PPscore));*/
+      jsum_score = calc_log_sum(jsum_score, PPscore);
       if (score  > jbest_score)
       {
         jbest = j;
@@ -254,7 +277,7 @@ void dp_recurse(tree_node_t * node, int root_height)
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
       score = right->matrix[k] + prob_rate_right;
       PPscore = right->matrix_PP[k] + prob_rate_right;
-      ksum_score = -log(exp(-ksum_score) + exp(-PPscore)); /*TODO s thsithe right way to add log probs?! UNDERFLOWWWW*/
+      ksum_score = calc_log_sum(ksum_score, PPscore); 
       if (score > kbest_score)
       {
         kbest = k;
@@ -264,7 +287,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     assert(jbest > -1);
     assert(kbest > -1);
-/*    assert(jsum_score >= 0);
+/*  assert(jsum_score >= 0);
     assert(ksum_score >= 0);
 */
     double bd_term = 0;
@@ -294,8 +317,7 @@ void dp_recurse(tree_node_t * node, int root_height)
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
     PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
-  /*  printf("line 301 %.17f, %.17f, %.17f, %.17f\n", exp(bd_term), jsum_score, ksum_score, exp(dist_logprob));*/
-    /* if it's the root add one more term */
+        /* if it's the root add one more term */
     if (node->height == root_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
@@ -303,8 +325,7 @@ void dp_recurse(tree_node_t * node, int root_height)
         score += bd_relative_root(node->leaves,
                                   rel_age_node);
         PPscore += bd_relative_root(node->leaves,
-                                  rel_age_node); /*TODO double check multiplication here*/
-        printf("root special %f\n", PPscore);
+                                  rel_age_node); 
         }
       else if (opt_method_tipdates)
         {
@@ -319,8 +340,6 @@ void dp_recurse(tree_node_t * node, int root_height)
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
     node->matrix_PP[i] = PPscore;
-/*    assert(PPscore >= 0);*/
-    /*printf("total score %f\n", PPscore);*/
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
