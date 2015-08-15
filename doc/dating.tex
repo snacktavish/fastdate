@@ -447,6 +447,51 @@ Thus, a realization can be quickly sampled by:
 
 Then $\contTime{u}$ would be drawn from the selected bin for times for each node $u$.
 
+\subsection{Statistical notation for the previous section}
+Let $a_i$ be the age (in continuous time) of node $i$.
+\begin{eqnarray}
+\Pr(\mathbf{a} \mid T, D, \theta) & = & \int \frac{\Pr(D \mid \mathbf{a}, \mathbf{r}, T, \theta) h^{\prime}(\mathbf{a})g(\mathbf{r})}{\Pr(D)} d\mathbf{r} \\
+   & \appropto & h^{\prime}(\mathbf{a})g(\hat{\mathbf{r}}) = \Pr^{\ast}(\mathbf{a} \mid T, D, \theta)
+\end{eqnarray}
+by the asssumption that we can use the MLE of the rate for each combination of ages (rather than integrating out 
+uncertainty about the rate conditional on a set of ages).
+
+If we are interested in the probability density of some node specific node, $i$, having an age in within a range,
+ then we would integrate over all ages:
+\begin{eqnarray}
+    \Pr^{\ast}(b_l \leq a_i \leq b_u \mid T, D, \theta) & = & \int_{b_l}^{u_l} \int \Pr^{\ast}(\mathbf{a} \mid T, D, \theta) d a_{\sim i} d a_i
+\end{eqnarray}
+where the inner integration over $a_{\sim i}$ represents the definite integral over all 
+    ages for all node other than $i$ for all legal values of those ages, and the outer
+    intergral is over the age of node $i$.
+In the algorithms explored here, we discretize times into bins, which converts the integral
+    above into a summation.
+If $b_l$ and $b_u$ are the lower and upper bound of a particular time bin, $\tau^{\ast}$, then we get
+\begin{eqnarray}
+    \Pr^{\ast}(a_i = \tau^{\ast} \mid T, D, \theta) & = & \sum_{a_{\sim i}} \Pr^{\ast}\left(\mathbf{a} = \{a_{\sim i}, a_i = \tau^{\ast}\} \mid T, D, \theta\right)
+\end{eqnarray}
+where the $\mathbf{a} = \{a_{\sim i}, a_i = \tau^{\ast}\}$ notation indicates that the $i$th element of $\mathbf{a}$
+    is set to $\tau^{\ast}$ and all other legal values are summed for the other ages.
+This summation is actually $s-2$ summations over the ages of the other $s-2$ internal node ages (assuming that we do 
+    not have any tips of uncertain age which require marginalization).
+The ``legality'' constraints mentioned aboved is simply the requirement that each node age is on one of the 
+    time bins of the table, and the age of any parent node is at least 1 greater than either of its children.
+A clearer notation is perhaps to introduce $\mathcal{A}\left(i,\tau^{\ast}\right)$ as the set of all legal
+    vectors of node ages such that $a_i = \tau^{\ast}$.
+Then we have:
+\begin{eqnarray}
+    \Pr^{\ast}(a_i = \tau^{\ast} \mid T, D, \theta) & = & \sum_{\mathbf{a} \in \mathcal{A}\left(i,\tau^{\ast}\right)}\Pr^{\ast}\left(\mathbf{a} \mid T, D, \theta\right).
+\end{eqnarray}
+If we are assuming independent rates across branches (and have an age prior that can be expressed as a factor for each internal node age), then:
+\begin{eqnarray}
+     \Pr^{\ast}\left(\mathbf{a} \mid T, D, \theta\right) = \prod_{j=s}^{2s-1} h^{\ast}(a_j)g(\hat{r}_{\mbox{left}(j)})g(\hat{r}_{\mbox{right}(j)})
+\end{eqnarray}
+(if the first $s$ indices are the leaves and $s$ to $2s-1$ index the internals and the left($j$) and right($j$) denote the left and right child edges of node $j$).
+Note that this deals with the fact that each internal node has an age prior, and
+    each edge has a rate prior (because every edge's parent node is an internal node, and the root node does not 
+    have an edge to it's parent).
+
+
 \section{Interval estimation}
 The previous section discusses drawing realizations from an approximation to the joint posterior distribution on node ages.
 This imply that one should also be able to use the same approximation for an approximate 95\%-HPD or some other
