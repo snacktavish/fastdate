@@ -480,7 +480,7 @@ A clearer notation is perhaps to introduce $\mathcal{A}\left(i,\tau^{\ast}\right
     vectors of node ages such that $a_i = \tau^{\ast}$.
 Then we have:
 \begin{eqnarray}
-    \Pr^{\ast}(a_i = \tau^{\ast} \mid T, D, \theta) & = & \sum_{\mathbf{a} \in \mathcal{A}\left(i,\tau^{\ast}\right)}\Pr^{\ast}\left(\mathbf{a} \mid T, D, \theta\right).
+    \Pr^{\ast}(a_i = \tau^{\ast} \mid T, D, \theta) & = & \sum_{\mathbf{a} \in \mathcal{A}\left(i,\tau^{\ast}\right)}\Pr^{\ast}\left(\mathbf{a} \mid T, D, \theta\right). \label{ageSum}
 \end{eqnarray}
 If we are assuming independent rates across branches (and have an age prior that can be expressed as a factor for each internal node age), then:
 \begin{eqnarray}
@@ -491,6 +491,8 @@ Note that this deals with the fact that each internal node has an age prior, and
     each edge has a rate prior (because every edge's parent node is an internal node, and the root node does not 
     have an edge to it's parent).
 
+The summation in eqn (\ref{ageSum}) ia over an exponentially large state space of ages for all nodes.
+However, we can use the standard pruning tricks to make this polynomial.
 
 \section{Interval estimation}
 The previous section discusses drawing realizations from an approximation to the joint posterior distribution on node ages.
