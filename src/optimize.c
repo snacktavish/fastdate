@@ -29,48 +29,86 @@
 #define LBFGSB_BOUND_BOTH  2
 #define LBFGSB_BOUND_UPPER 3
 
+#define ERROR_X 1.0e-2
+
+/* information for parameter optimization */
+typedef struct
+{
+  /* which parameter to optimize */
+  int which_parameters;
+  int num_variables;
+
+  tree_node_t * tree;
+
+  /* optimization level */
+  double factr;
+  double pgtol;
+} optimize_options_t;
+
 static int count_bits(int i)
 {
-     i = i - ((i >> 1) & 0x55555555);
-     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
-     return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
+  i = i - ((i >> 1) & 0x55555555);
+  i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+  return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
 }
 
-static double compute_score( optimize_options_t * params,
-                             double * x
-                           )
+static double compute_score(optimize_options_t * params, double * x)
 {
-  double next_score = 0.0;
+  int i;
+  double score;
 
-  /* TODO: implement */
+  /* set parameters */
+  /* set variables and bounds */
+  i = 0;
+  if (params->which_parameters & PARAM_LAMBDA)
+  {
+    opt_lambda = x[i];
+    i++;
+  }
+  if (params->which_parameters & PARAM_MU)
+  {
+    opt_mu = x[i];
+    i++;
+  }
+  if (params->which_parameters & PARAM_PSI)
+  {
+    opt_psi = x[i];
+    i++;
+  }
+  assert(i == params->num_variables);
 
-  return next_score;
+  assert (opt_lambda > opt_mu);
+
+  /* evaluate proposal */
+  score = dp_evaluate(params->tree) * -1;
+
+  /* we assert this again, double security */
+  assert(score > 0);
+
+  return score;
 }
 
-static void compute_gradients( optimize_options_t * params,
-                               double * x,
-                               double * g,
-                               int n
-                             )
+static void compute_gradients(optimize_options_t * params, double * x,
+    double * g, int n)
 {
   int i;
   double h, temp;
   double local_score;
 
-  local_score = compute_score (params, x);
+  local_score = compute_score(params, x);
 
   for (i = 0; i < n; i++)
   {
-    double ERROR_X = 1.0e-4;
     temp = x[i];
-    h = ERROR_X * fabs (temp);
+    h = ERROR_X * fabs(temp);
     if (h < 1e-12)
       h = ERROR_X;
 
     x[i] = temp + h;
     h = x[i] - temp;
-    double lnderiv = compute_score (params, x);
+    double lnderiv = compute_score(params, x);
 
+    /* compute gradient */
     g[i] = (lnderiv - local_score) / h;
 
     /* reset variable */
@@ -78,15 +116,15 @@ static void compute_gradients( optimize_options_t * params,
   }
 }
 
-double optimize_parameters(optimize_options_t * params)
+double opt_parameters(tree_node_t * tree, int which, double factr,
+    double pgtol)
 {
   int i;
   int continue_opt;
   int iprint = -1;
 
   /* L-BFGS-B */
-  int max_corrections;
-  int num_variables;
+  int max_corrections = 10;
   double score = 0;
   double *x, *g, *lower_bounds, *upper_bounds, *wa;
   int *bound_type, *iwa;
@@ -98,53 +136,62 @@ double optimize_parameters(optimize_options_t * params)
   int isave[44];
   logical lsave[4];
 
-  num_variables = count_bits(params->which_parameters);
-  if (!num_variables)
+  optimize_options_t * params = (optimize_options_t *) malloc(
+      sizeof(optimize_options_t));
+
+  params->tree = tree;
+  params->factr = factr;
+  params->pgtol = pgtol;
+  params->which_parameters = which;
+  params->num_variables = count_bits(params->which_parameters);
+  if (!params->num_variables)
   {
     /* nothing to optimize */
     return 0;
   }
 
   /* memory allocation */
-  x = (double *) calloc ((size_t) num_variables, sizeof(double));
-  g = (double *) calloc ((size_t) num_variables, sizeof(double));
-  lower_bounds = (double *) calloc ((size_t) num_variables, sizeof(double));
-  upper_bounds = (double *) calloc ((size_t) num_variables, sizeof(double));
-  bound_type = (int *) calloc ((size_t) num_variables, sizeof(int));
-  iwa = (int *) calloc (3 * (size_t)num_variables, sizeof(int));
-  wa = (double *) calloc (
-      (2 * (size_t)max_corrections + 5) * (size_t)num_variables
-      + 12 * (size_t)max_corrections * ((size_t)max_corrections + 1),
+  x = (double *) calloc((size_t) params->num_variables, sizeof(double));
+  g = (double *) calloc((size_t) params->num_variables, sizeof(double));
+  lower_bounds = (double *) calloc((size_t) params->num_variables,
+      sizeof(double));
+  upper_bounds = (double *) calloc((size_t) params->num_variables,
+      sizeof(double));
+  bound_type = (int *) calloc((size_t) params->num_variables, sizeof(int));
+  iwa = (int *) calloc(3 * (size_t) params->num_variables, sizeof(int));
+  wa = (double *) calloc(
+      (2 * (size_t) max_corrections + 5) * (size_t) params->num_variables
+          + 12 * (size_t) max_corrections * ((size_t) max_corrections + 1),
       sizeof(double));
 
   /* set variables and bounds */
-  i=0;
+  i = 0;
   if (params->which_parameters & PARAM_LAMBDA)
-    {
-      x[i] = params->lambda;
-      lower_bounds[i] = params->mu;
-      bound_type[i] = LBFGSB_BOUND_LOWER;
-      i++;
-    }
-  else if (params->which_parameters & PARAM_MU)
-    {
-      x[i] = params->mu;
-      lower_bounds[i] = 1e-8;
-      upper_bounds[i] = params->lambda;
-      bound_type[i] = LBFGSB_BOUND_BOTH;
-      i++;
-    }
+  {
+    x[i] = (opt_lambda > ERROR_X) ? opt_lambda : ERROR_X;
+    lower_bounds[i] = opt_mu + 2*ERROR_X;
+    bound_type[i] = LBFGSB_BOUND_LOWER;
+    i++;
+  }
+  if (params->which_parameters & PARAM_MU)
+  {
+    x[i] = (opt_mu > ERROR_X) ? opt_mu : ERROR_X;
+    lower_bounds[i] = ERROR_X;
+    upper_bounds[i] = opt_lambda - 2*ERROR_X;
+    bound_type[i] = LBFGSB_BOUND_BOTH;
+    i++;
+  }
   if (params->which_parameters & PARAM_PSI)
-    {
-      x[i] = params->psi;
-      lower_bounds[i] = 0;
-      upper_bounds[i] = 1;
-      bound_type[i] = LBFGSB_BOUND_BOTH;
-      i++;
-    }
+  {
+    x[i] = (opt_psi > ERROR_X) ? opt_psi : ERROR_X;
+    lower_bounds[i] = ERROR_X;
+    upper_bounds[i] = 1;
+    bound_type[i] = LBFGSB_BOUND_BOTH;
+    i++;
+  }
 
   /* check all free variables are set */
-  assert(i == num_variables);
+  assert(i == params->num_variables);
 
   /* start the iteration by initializing task */
   *task = (int) START;
@@ -153,9 +200,9 @@ double optimize_parameters(optimize_options_t * params)
   while (continue_opt)
   {
     /* this is the call to the L-BFGS-B code */
-    setulb (&num_variables, &max_corrections, x, lower_bounds, upper_bounds,
-            bound_type, &score, g, &(params->factr), &(params->pgtol), wa, iwa,
-            task, &iprint, csave, lsave, isave, dsave);
+    setulb(&params->num_variables, &max_corrections, x, lower_bounds,
+        upper_bounds, bound_type, &score, g, &(params->factr), &(params->pgtol),
+        wa, iwa, task, &iprint, csave, lsave, isave, dsave);
     if (IS_FG(*task))
     {
       /*
@@ -164,19 +211,27 @@ double optimize_parameters(optimize_options_t * params)
        * Compute function value f for the sample problem.
        */
 
-       /* reset bounds */
-       if ((params->which_parameters & PARAM_LAMBDA) && (params->which_parameters & PARAM_MU))
-         {
-           params->lambda = x[0];
-           params->mu = x[1];
-           lower_bounds[0] = params->mu;
-           upper_bounds[1] = params->lambda;
-         }
+      /* reset bounds */
+      if ((params->which_parameters & PARAM_LAMBDA)
+          && (params->which_parameters & PARAM_MU))
+      {
+        opt_lambda = x[0];
+        opt_mu = x[1];
+        if (opt_lambda < opt_mu)
+        {
+          x[0] = opt_mu;
+          x[1] = opt_lambda;
+          opt_lambda = x[0];
+          opt_mu = x[1];
+        }
+        lower_bounds[0] = opt_mu + ERROR_X;
+        upper_bounds[1] = opt_lambda - ERROR_X;
+      }
 
-       /* TODO: compute score and gradient */
-      score = compute_score (params, x);
+      /* TODO: compute score and gradient */
+      score = compute_score(params, x);
 
-      compute_gradients(params, x, g, num_variables);
+      compute_gradients(params, x, g, params->num_variables);
     }
     else if (*task != NEW_X)
     {
@@ -184,13 +239,13 @@ double optimize_parameters(optimize_options_t * params)
     }
   }
 
-  free (iwa);
-  free (wa);
-  free (x);
-  free (g);
-  free (lower_bounds);
-  free (upper_bounds);
-  free (bound_type);
+  free(iwa);
+  free(wa);
+  free(x);
+  free(g);
+  free(lower_bounds);
+  free(upper_bounds);
+  free(bound_type);
 
-  return score;
+  return -1 * score;
 } /* optimize_parameters */

@@ -170,6 +170,7 @@ static inline void dp_recurse_worker(long t)
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
+
 }
 
 static void * threads_worker(void *vp)
@@ -639,6 +640,7 @@ static void dp_recurse_serial(tree_node_t * node)
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
+
   sum_entries += node->entries;
   progress_update((unsigned long)sum_entries);
 }
@@ -655,12 +657,12 @@ static void dp_backtrack_recursive(tree_node_t * node, long best_entry)
   }
 }
 
-static void dp_backtrack(tree_node_t * root)
+static double dp_backtrack(tree_node_t * root)
 {
   long i;
   long best_entry = 0;
   double max_score = -__DBL_MAX__;
-  double score;
+  double score = 0.0;
 
   for (i = 0; i < root->entries; ++i)
   {
@@ -675,6 +677,31 @@ static void dp_backtrack(tree_node_t * root)
   root->interval_line = root->height + best_entry;
 
   dp_backtrack_recursive(root, best_entry);
+
+  return score;
+}
+
+double dp_evaluate(tree_node_t * tree)
+{
+  double score = 0.0;
+
+  gamma_dist_init();
+  bd_init(0, 0);
+
+  progress_init("Running DP...", (unsigned long)inner_entries);
+  if (opt_threads > 1)
+  {
+    //TODO: assert that pthreads is initialized
+    dp_recurse_parallel(tree);
+  }
+  else
+    dp_recurse_serial(tree);
+
+  score = dp_backtrack(tree);
+
+  assert(score < 0);
+
+  return score;
 }
 
 void dp(tree_node_t * tree)
@@ -711,6 +738,42 @@ void dp(tree_node_t * tree)
   if (!opt_quiet)
     printf ("Backtracking...\n");
 
-  dp_backtrack(tree);
 
+  printf("\n\n*** RATES OPTIMIZATION ***\n\n");
+  double score;
+  score = dp_backtrack(tree);
+  printf("Score with user-defined parameters: %f\n\n", score);
+
+  opt_quiet = 1;
+
+  printf(" lambda: %f\n", opt_lambda);
+  printf(" mu:     %f\n", opt_mu);
+  printf(" psi:    %f\n\n", opt_psi);
+
+  /* double param optimization */
+//  optimize_parameters(tree,
+//        PARAM_LAMBDA | PARAM_MU,
+//        1e8,
+//        0.1);
+
+  /* single param iterative optimization */
+  if (opt_threads > 1)
+    threads_init();
+  double cur_score = score + 1;
+  double opt_factor = 1e8;
+  double opt_pgtol = 0.1;
+  int i = 0;
+  while (fabs(cur_score - score) > 1e-2)
+  {
+    cur_score = score;
+    opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
+    score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
+
+    printf("[%2d]%15.4f lambda: %6.4f mu: %6.4f\n", i++, score, opt_lambda, opt_mu);
+  }
+  if (opt_threads > 1)
+    threads_exit();
+
+  printf("\nScore after optimization %f\n", score);
+  printf("\n*** ***** ************ ***\n\n");
 }

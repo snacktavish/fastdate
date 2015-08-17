@@ -100,20 +100,6 @@ typedef struct tree_noderec
 
 } tree_node_t;
 
-/* information for parameter optimization */
-typedef struct
-{
-  /* which parameter to optimize */
-  int which_parameters;
-  double lambda;
-  double mu;
-  double psi;
-
-  /* optimization level */
-  double factr;
-  double pgtol;
-} optimize_options_t;
-
 /* definitions */
 
 #define OUTPUT_ULTRAMETRIC      0
@@ -215,6 +201,7 @@ int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer);
 /* functions in dp.c */
 
 void dp(tree_node_t * tree);
+double dp_evaluate(tree_node_t * tree);
 
 /* functions in gamma.c */
 
@@ -261,6 +248,9 @@ void set_node_priors(tree_node_t * root,
 void lca_init(tree_node_t * root);
 tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
 void lca_destroy(void);
+
+/* functions in optimize.c */
+double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
 
 /* functions in sample.c */
 
