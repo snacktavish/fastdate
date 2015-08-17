@@ -37,7 +37,8 @@ PROG=fastdate
 all: $(PROG)
 
 OBJS=util.o maps.o fastdate.o tree.o dp.o gamma.o bd.o newick.o lex.o arch.o exp.o ln.o nodeprior.o lca.o \
-		 optimize.o lbfgsb/lbfgsb.o lbfgsb/linesearch.o lbfgsb/linpack.o lbfgsb/miniCBLAS.o lbfgsb/subalgorithms.o
+		 optimize.o lbfgsb/lbfgsb.o lbfgsb/linesearch.o lbfgsb/linpack.o lbfgsb/miniCBLAS.o lbfgsb/subalgorithms.o \
+		 sample.o
 
 $(PROG): $(OBJS)
 	$(CC) -Wall $(LINKFLAGS) $+ -o $@ $(LIBS)
