@@ -96,6 +96,20 @@ typedef struct tree_noderec
 
 } tree_node_t;
 
+/* information for parameter optimization */
+typedef struct
+{
+  /* which parameter to optimize */
+  int which_parameters;
+  double lambda;
+  double mu;
+  double psi;
+
+  /* optimization level */
+  double factr;
+  double pgtol;
+} optimize_options_t;
+
 /* definitions */
 
 #define OUTPUT_ULTRAMETRIC      0
@@ -104,6 +118,10 @@ typedef struct tree_noderec
 #define NODEPRIOR_NONE  0
 #define NODEPRIOR_EXP   1
 #define NODEPRIOR_LN    2
+
+#define PARAM_LAMBDA   1
+#define PARAM_MU       2
+#define PARAM_PSI      4
 
 /* macros */
 
@@ -234,4 +252,3 @@ void set_node_priors(tree_node_t * root,
 void lca_init(tree_node_t * root);
 tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
 void lca_destroy();
-
