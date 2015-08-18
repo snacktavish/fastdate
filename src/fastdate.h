@@ -112,6 +112,12 @@ typedef struct tree_noderec
 #define PARAM_LAMBDA   1
 #define PARAM_MU       2
 #define PARAM_PSI      4
+#define PARAM_RHO      8
+
+#define DEFAULT_LAMBDA 10.0
+#define DEFAULT_MU     0.001
+#define DEFAULT_PSI    0.5
+#define DEFAULT_RHO    0.5
 
 /* macros */
 
@@ -142,6 +148,8 @@ extern double opt_rho;
 extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
+
+extern unsigned int opt_parameters_bitv;
 
 /* matrices */
 

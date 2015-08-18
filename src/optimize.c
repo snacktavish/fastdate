@@ -52,8 +52,11 @@ static int count_bits(int i)
   return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
 }
 
+//static int n_comp = 0;
+
 static double compute_score(optimize_options_t * params, double * x)
 {
+  //printf("BDG compute %d\n", n_comp++);
   int i;
   double score;
 
@@ -75,6 +78,13 @@ static double compute_score(optimize_options_t * params, double * x)
     opt_psi = x[i];
     i++;
   }
+  if (params->which_parameters & PARAM_RHO)
+  {
+    opt_rho = x[i];
+    i++;
+  }
+
+  /* assert that all free variables are set */
   assert(i == params->num_variables);
 
   assert (opt_lambda > opt_mu);
@@ -136,7 +146,7 @@ double opt_parameters(tree_node_t * tree, int which, double factr,
   int isave[44];
   logical lsave[4];
 
-  optimize_options_t * params = (optimize_options_t *) malloc(
+  optimize_options_t * params = (optimize_options_t *) calloc(1,
       sizeof(optimize_options_t));
 
   params->tree = tree;
@@ -189,8 +199,16 @@ double opt_parameters(tree_node_t * tree, int which, double factr,
     bound_type[i] = LBFGSB_BOUND_BOTH;
     i++;
   }
+  if (params->which_parameters & PARAM_RHO)
+  {
+    x[i] = (opt_psi > ERROR_X) ? opt_psi : ERROR_X;
+    lower_bounds[i] = ERROR_X;
+    upper_bounds[i] = 1;
+    bound_type[i] = LBFGSB_BOUND_BOTH;
+    i++;
+  }
 
-  /* check all free variables are set */
+  /* assert that all free variables are set */
   assert(i == params->num_variables);
 
   /* start the iteration by initializing task */
@@ -246,6 +264,8 @@ double opt_parameters(tree_node_t * tree, int which, double factr,
   free(lower_bounds);
   free(upper_bounds);
   free(bound_type);
+
+  free(params);
 
   return -1 * score;
 } /* optimize_parameters */
