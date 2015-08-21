@@ -38,15 +38,42 @@ typedef struct thread_info_s
   long entry_count;
 } thread_info_t;
 
-static thread_info_t * ti;
 
-static inline void dp_recurse_worker(long t)
+double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowdate.py*/
+ /*Avoid underflow/overflow, but return:
+      log(x + y)
+  where x = exp(prev_ln_sum) and y = exp(new_ln_term)
+  */
+{
+  double ln_m, exp_sum;
+  if ( !prev_ln_sum  || ((new_ln_term - prev_ln_sum) > 30) )
+    return new_ln_term; /* first term, or previous is lost in rounding error*/
+  if ( prev_ln_sum - new_ln_term > 30)
+    return prev_ln_sum; /* new term is lost in rounding error*/
+  if (prev_ln_sum <new_ln_term)
+    ln_m = prev_ln_sum;
+  else
+    ln_m = new_ln_term;
+  prev_ln_sum -= ln_m;
+  new_ln_term -= ln_m;
+  /* one is now 0 and the other is no greater than 30*/
+  exp_sum = exp(prev_ln_sum) + exp(new_ln_term);
+  return log(exp_sum) + ln_m;
+}
+
+
+
+static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
 {
   long i,j,k;
   long jmax, kmax;
   long low;
   long left_low;
   long right_low;
+  
+  tree_node_t * left;
+  tree_node_t * right;
+
   double rel_age_node;
   double rel_age_left;
   double rel_age_right;
@@ -55,18 +82,16 @@ static inline void dp_recurse_worker(long t)
   double prob_rate_left;
   double prob_rate_right;
   double dist_logprob;
-  double score;
+  double score, PPscore;
 
-  thread_info_t * tip = ti + t;
-  tree_node_t * node  = tip->node;
-  tree_node_t * left  = node->left;
-  tree_node_t * right = node->right;
+  left  = node->left;
+  right = node->right;
 
   low = node->height;
   left_low = left->height;
   right_low = right->height;
 
-  for (i = tip->entry_first; i < tip->entry_first + tip->entry_count; ++i)
+  for (i = i_min; i < i_max; ++i)
   {
     rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
     abs_age_node = (low+i)*interval_age;
@@ -81,6 +106,7 @@ static inline void dp_recurse_worker(long t)
 
     long jbest = -1;
     double jbest_score = -__DBL_MAX__;
+    double jsum_score = 0;
     for (j = 0; j < jmax; ++j)
     {
       assert(j+left->height < node->height + i);
@@ -89,6 +115,8 @@ static inline void dp_recurse_worker(long t)
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (rel_age_node - rel_age_left));
       score = left->matrix[j] + prob_rate_left;
+      PPscore = left->matrix_PP[j] + prob_rate_left; 
+      jsum_score = calc_log_sum(jsum_score, PPscore);
       if (score  > jbest_score)
       {
         jbest = j;
@@ -106,15 +134,16 @@ static inline void dp_recurse_worker(long t)
 
     long kbest = -1;
     double kbest_score = -__DBL_MAX__;
+    double ksum_score = 0;
     for (k = 0; k < kmax; ++k)
     {
       assert(k+right->height < node->height + i);
       rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
-
       age_diff = rel_age_node - rel_age_right;
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-
       score = right->matrix[k] + prob_rate_right;
+      PPscore = right->matrix_PP[k] + prob_rate_right;
+      ksum_score = calc_log_sum(ksum_score, PPscore); 
       if (score > kbest_score)
       {
         kbest = k;
@@ -152,24 +181,46 @@ static inline void dp_recurse_worker(long t)
       assert(0);
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
-
-    /* if it's the root add one more term */
+    PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
+        /* if it's the root add one more term */
     if (node->height == tree_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
+        {
         score += bd_relative_root(node->leaves,
                                   rel_age_node);
+        PPscore += bd_relative_root(node->leaves,
+                                  rel_age_node); 
+        }
       else if (opt_method_tipdates)
+        {
         score += bd_tipdates_root(node->leaves,
                                    rel_age_node);
+        PPscore += bd_tipdates_root(node->leaves,
+                                  rel_age_node);
+       }
       else assert(0);
     }
 
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
+    node->matrix_PP[i] = PPscore;
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
+}
+
+
+static thread_info_t * ti;
+
+static inline void dp_recurse_worker(long t)
+{
+
+  thread_info_t * tip = ti + t;
+  tree_node_t * node  = tip->node;
+
+  calc_interval_scores(node, tip->entry_first, tip->entry_first + tip->entry_count);
+  
 }
 
 static void * threads_worker(void *vp)
@@ -458,53 +509,18 @@ static void alloc_node_entries(tree_node_t * node)
 }
 
 
-double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowdate.py*/
- /*Avoid underflow/overflow, but return:
-      log(x + y)
-  where x = exp(prev_ln_sum) and y = exp(new_ln_term)
-  */
-{
-  double ln_m, exp_sum;
-  if ( !prev_ln_sum  || ((new_ln_term - prev_ln_sum) > 30) )
-    return new_ln_term; /* first term, or previous is lost in rounding error*/
-  if ( prev_ln_sum - new_ln_term > 30)
-    return prev_ln_sum; /* new term is lost in rounding error*/
-  if (prev_ln_sum <new_ln_term)
-    ln_m = prev_ln_sum;
-  else
-    ln_m = new_ln_term;
-  prev_ln_sum -= ln_m;
-  new_ln_term -= ln_m;
-  /* one is now 0 and the other is no greater than 30*/
-  exp_sum = exp(prev_ln_sum) + exp(new_ln_term);
-  return log(exp_sum) + ln_m;
-}
-
-
-
-
 static void dp_recurse_serial(tree_node_t * node)
 {
   static long sum_entries = 0;
 
-  long i,j,k;
-  long jmax, kmax;
-  long low;
-  long left_low;
-  long right_low;
+  long i;
 
   tree_node_t * left;
   tree_node_t * right;
 
   double rel_age_node;
-  double rel_age_left;
-  double rel_age_right;
-  double age_diff;
   double abs_age_node;
-  double prob_rate_left;
-  double prob_rate_right;
   double dist_logprob;
-  double score, PPscore;
 
   if (!node) return;
 
@@ -552,10 +568,6 @@ static void dp_recurse_serial(tree_node_t * node)
   dp_recurse_serial(left);
   dp_recurse_serial(right);
 
-  low = node->height;
-  left_low = left->height;
-  right_low = right->height;
-
   /* run DP */
 
   /*
@@ -567,129 +579,12 @@ static void dp_recurse_serial(tree_node_t * node)
                             o (rel_age_right)
                     
   */
+  calc_interval_scores(node,0,node->entries);
 
-  for (i = 0; i < node->entries; ++i)
-  {
-    rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
-    abs_age_node = (low+i)*interval_age;
-
-    /* check the ages of the left child */
-    if (!left->left)
-      jmax = 1;
-    else
-      jmax = (node->height + i - left->height);
-    
-    assert(jmax <= left->entries);
-
-    long jbest = -1;
-    double jbest_score = -__DBL_MAX__;
-    double jsum_score = 0;
-    for (j = 0; j < jmax; ++j)
-    {
-      assert(j+left->height < node->height + i);
-      rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
-
-      prob_rate_left = gamma_dist_logpdf(left->length / 
-                                         (rel_age_node - rel_age_left));
-      score = left->matrix[j] + prob_rate_left;
-      PPscore = left->matrix_PP[j] + prob_rate_left; 
-      jsum_score = calc_log_sum(jsum_score, PPscore);
-      if (score  > jbest_score)
-      {
-        jbest = j;
-        jbest_score = score;
-      }
-    }
-
-    /* check the ages of right child */
-    if (!right->left)
-      kmax = 1;
-    else
-      kmax = (node->height + i - right->height);
-
-    assert(kmax <= right->entries);
-
-    long kbest = -1;
-    double kbest_score = -__DBL_MAX__;
-    double ksum_score = 0;
-    for (k = 0; k < kmax; ++k)
-    {
-      assert(k+right->height < node->height + i);
-      rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
-      age_diff = rel_age_node - rel_age_right;
-      prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-      score = right->matrix[k] + prob_rate_right;
-      PPscore = right->matrix_PP[k] + prob_rate_right;
-      ksum_score = calc_log_sum(ksum_score, PPscore); 
-      if (score > kbest_score)
-      {
-        kbest = k;
-        kbest_score = score;
-      }
-    }
-
-    assert(jbest > -1);
-    assert(kbest > -1);
-/*  assert(jsum_score >= 0);
-    assert(ksum_score >= 0);
-*/
-    double bd_term = 0;
-    if (opt_method_relative || opt_method_nodeprior)
-      bd_term = bd_relative_prod(rel_age_node);
-    else if (opt_method_tipdates)
-      bd_term = bd_tipdates_prod_inner(rel_age_node);
-    else assert(0);
-
-
-    /* if estimating absolute ages check for node priors and compute PDF */
-    dist_logprob = 0;
-    if (node->prior == NODEPRIOR_EXP)
-    {
-      exp_params_t * params = (exp_params_t *)(node->prior_params);
-      dist_logprob = exp_dist_logpdf(1/params->mean, 
-                                     abs_age_node - params->offset);
-    }
-    else if (node->prior == NODEPRIOR_LN)
-    {
-      ln_params_t * params = (ln_params_t *)(node->prior_params);
-      dist_logprob = ln_dist_logpdf(params->mean,
-                                    params->stdev,
-                                    abs_age_node - params->offset);
-    }
-    else if (node->prior)
-      assert(0);
-
-    score = bd_term + jbest_score + kbest_score + dist_logprob;
-    PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
-        /* if it's the root add one more term */
-    if (node->height == tree_height)
-    {
-      if (opt_method_relative || opt_method_nodeprior)
-        {
-        score += bd_relative_root(node->leaves,
-                                  rel_age_node);
-        PPscore += bd_relative_root(node->leaves,
-                                  rel_age_node); 
-        }
-      else if (opt_method_tipdates)
-        {
-        score += bd_tipdates_root(node->leaves,
-                                   rel_age_node);
-        PPscore += bd_tipdates_root(node->leaves,
-                                  rel_age_node);
-       }
-      else assert(0);
-    }
-
-    /* store best placement of children and likelihood for interval line i */
-    node->matrix[i] = score;
-    node->matrix_PP[i] = PPscore;
-    node->matrix_left[i] = jbest;
-    node->matrix_right[i] = kbest;
-  }
   sum_entries += node->entries;
   progress_update((unsigned long)sum_entries);
 }
+
 
 
 static void dp_backtrack_recursive(tree_node_t * node, long best_entry)
