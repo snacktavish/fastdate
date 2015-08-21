@@ -39,6 +39,57 @@ typedef struct thread_info_s
 } thread_info_t;
 
 
+
+double check_prior(tree_node_t * node, double abs_age_node)
+{
+    double dist_logprob;
+    /* if estimating absolute ages check for node priors and compute PDF */
+    dist_logprob = 0;
+    if (node->prior == NODEPRIOR_EXP)
+    {
+      exp_params_t * params = (exp_params_t *)(node->prior_params);
+      dist_logprob = exp_dist_logpdf(1/params->mean, 
+                                     abs_age_node - params->offset);
+    }
+    else if (node->prior == NODEPRIOR_LN)
+    {
+      ln_params_t * params = (ln_params_t *)(node->prior_params);
+      dist_logprob = ln_dist_logpdf(params->mean,
+                                    params->stdev,
+                                    abs_age_node - params->offset);
+    }
+    else if (node->prior)
+      assert(0);
+    return dist_logprob;
+}
+
+static void calc_tip(tree_node_t * node)
+{
+
+  long i;
+  double rel_age_node;
+  double abs_age_node;
+  double dist_logprob;
+  if (!node->prior)
+  {
+    node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
+    return;
+  }
+
+  /* tip fossil case*/
+  for (i = 0; i < node->entries; ++i)
+  {
+    rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
+    abs_age_node = (node->height+i)*interval_age;
+    /* if estimating absolute ages check for node priors and compute PDF */
+    dist_logprob = 0;
+    dist_logprob = check_prior(node, abs_age_node);
+    
+    node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
+    node->matrix_PP[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
+  }
+}
+
 double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowdate.py*/
  /*Avoid underflow/overflow, but return:
       log(x + y)
@@ -62,7 +113,6 @@ double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowd
 }
 
 
-
 static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
 {
   long i,j,k;
@@ -79,9 +129,13 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
   double rel_age_right;
   double age_diff;
   double abs_age_node;
+  double abs_age_left;
+  double abs_age_right;
   double prob_rate_left;
   double prob_rate_right;
   double dist_logprob;
+  double dist_logprob_left;
+  double dist_logprob_right;
   double score, PPscore;
 
   left  = node->left;
@@ -111,11 +165,12 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
     {
       assert(j+left->height < node->height + i);
       rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
-
-      prob_rate_left = gamma_dist_logpdf(left->length / 
-                                         (rel_age_node - rel_age_left));
-      score = left->matrix[j] + prob_rate_left;
-      PPscore = left->matrix_PP[j] + prob_rate_left; 
+      abs_age_left = (left_low+j)*interval_age;
+      age_diff = rel_age_node - rel_age_left;
+      prob_rate_left = gamma_dist_logpdf(left->length / age_diff);
+      dist_logprob_left = check_prior(left, abs_age_left);
+      score = left->matrix[j] + prob_rate_left + dist_logprob_left;
+      PPscore = left->matrix_PP[j] + prob_rate_left + dist_logprob_left; 
       jsum_score = calc_log_sum(jsum_score, PPscore);
       if (score  > jbest_score)
       {
@@ -139,10 +194,12 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
     {
       assert(k+right->height < node->height + i);
       rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
+      abs_age_right = (right_low+k)*interval_age;
       age_diff = rel_age_node - rel_age_right;
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-      score = right->matrix[k] + prob_rate_right;
-      PPscore = right->matrix_PP[k] + prob_rate_right;
+      dist_logprob_right = check_prior(right, abs_age_right);
+      score = right->matrix[k] + prob_rate_right + dist_logprob_right;
+      PPscore = right->matrix_PP[k] + prob_rate_right + dist_logprob_right;
       ksum_score = calc_log_sum(ksum_score, PPscore); 
       if (score > kbest_score)
       {
@@ -162,26 +219,8 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
     else assert(0);
 
 
-    /* if estimating absolute ages check for node priors and compute PDF */
-    dist_logprob = 0;
-    if (node->prior == NODEPRIOR_EXP)
-    {
-      exp_params_t * params = (exp_params_t *)(node->prior_params);
-      dist_logprob = exp_dist_logpdf(1/params->mean, 
-                                     abs_age_node - params->offset);
-    }
-    else if (node->prior == NODEPRIOR_LN)
-    {
-      ln_params_t * params = (ln_params_t *)(node->prior_params);
-      dist_logprob = ln_dist_logpdf(params->mean,
-                                    params->stdev,
-                                    abs_age_node - params->offset);
-    }
-    else if (node->prior)
-      assert(0);
-
-    score = bd_term + jbest_score + kbest_score + dist_logprob;
-    PPscore = bd_term + jsum_score + ksum_score + dist_logprob;
+    score = bd_term + jbest_score + kbest_score;/*TODO: the prior is now only added at the children and when you hit the root. Double check this is correct!*/
+    PPscore = bd_term + jsum_score + ksum_score;
         /* if it's the root add one more term */
     if (node->height == tree_height)
     {
@@ -200,6 +239,9 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
                                   rel_age_node);
        }
       else assert(0);
+      dist_logprob = check_prior(node, abs_age_node);
+      score += dist_logprob;
+      PPscore += dist_logprob;
     }
 
     /* store best placement of children and likelihood for interval line i */
@@ -352,51 +394,20 @@ static void threads_exit()
   pthread_attr_destroy(&attr);
 }
 
+
+
+
 static void dp_recurse_parallel(tree_node_t * node)
 {
   static long sum_entries = 0;
 
-  long i;
-  double rel_age_node;
-  double abs_age_node;
-  double dist_logprob;
 
   if (!node) return;
 
   /* leaves case */
   if (!node->left)
   {
-    if (!node->prior)
-    {
-      node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
-      return;
-    }
-
-    /* tip fossil case */
-    for (i = 0; i < node->entries; ++i)
-    {
-      rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
-      abs_age_node = (node->height+i)*interval_age;
-      /* if estimating absolute ages check for node priors and compute PDF */
-      dist_logprob = 0;
-      if (node->prior == NODEPRIOR_EXP)
-      {
-        exp_params_t * params = (exp_params_t *)(node->prior_params);
-        dist_logprob = exp_dist_logpdf(1/params->mean, 
-                                       abs_age_node - params->offset);
-      }
-      else if (node->prior == NODEPRIOR_LN)
-      {
-        ln_params_t * params = (ln_params_t *)(node->prior_params);
-        dist_logprob = ln_dist_logpdf(params->mean,
-                                      params->stdev,
-                                      abs_age_node - params->offset);
-      }
-      else assert(0);
-
-      node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
-    }
-
+    calc_tip(node);
     return;
   }
 
@@ -508,57 +519,22 @@ static void alloc_node_entries(tree_node_t * node)
 
 }
 
-
 static void dp_recurse_serial(tree_node_t * node)
 {
   static long sum_entries = 0;
 
-  long i;
 
   tree_node_t * left;
   tree_node_t * right;
 
-  double rel_age_node;
-  double abs_age_node;
-  double dist_logprob;
 
   if (!node) return;
 
   /* leaves case */
   if (!node->left)
   {
-    if (!node->prior)
-    {
-      node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
-      return;
-    }
-
-    /* tip fossil case*/
-    for (i = 0; i < node->entries; ++i)
-    {
-      rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
-      abs_age_node = (node->height+i)*interval_age;
-      /* if estimating absolute ages check for node priors and compute PDF */
-      dist_logprob = 0;
-      if (node->prior == NODEPRIOR_EXP)
-      {
-        exp_params_t * params = (exp_params_t *)(node->prior_params);
-        dist_logprob = exp_dist_logpdf(1/params->mean, 
-                                       abs_age_node - params->offset);
-      }
-      else if (node->prior == NODEPRIOR_LN)
-      {
-        ln_params_t * params = (ln_params_t *)(node->prior_params);
-        dist_logprob = ln_dist_logpdf(params->mean,
-                                      params->stdev,
-                                      abs_age_node - params->offset);
-      }
-      else assert(0);
-
-      node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
-    }
-
-    return;
+     calc_tip(node);
+     return;
   }
   
   /* inner nodes case */
