@@ -44,7 +44,7 @@ static void recompute_scores(tree_node_t * node,
                              long count,
                              double * maxscore)
 {
-    int i;
+    int i; /*TODO: Is this supposed to be a long or an int?*/
     double score;
     double rel_age_node;
     double prob_rate_node;
@@ -116,10 +116,9 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
   double rel_age_parent = (1.0 / opt_grid_intervals) *
                           (parent->sampled_gridline);
 
-  long entries = (node->left) ? 
-                 (parent->sampled_gridline - node->height) : 1;
-
-  assert(entries <= node->entries);
+  long entries = parent->sampled_gridline - node->height;
+  if (entries > node->entries)
+    entries = node->entries;
 
   recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
   normalize_cdf(cdf_vector, entries, maxscore);
