@@ -481,7 +481,7 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix_left  = (long *)xmalloc(sizeof(long));
       node->matrix_right = (long *)xmalloc(sizeof(long));
       node->matrix_PP       = (double *)xmalloc(sizeof(double));
-
+      node->interval_weights = (double *)xmalloc(sizeof(double));
 
     }
     else
@@ -492,8 +492,7 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
       node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
       node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
-
-
+      node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
     }
     return;
   }
@@ -509,6 +508,7 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
   node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
   node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
+  node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
 
   /* for progress bar indication */
   inner_entries += entries;

@@ -99,6 +99,13 @@ typedef struct tree_noderec
   /* sampling specific */
   long sampled_gridline;
 
+  /*Interval specific*/
+  long lowerbound;
+  long upperbound;
+  double * interval_weights;
+
+
+
 
 } tree_node_t;
 
@@ -140,6 +147,7 @@ extern double opt_rho;
 extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
+extern double opt_conf_interval;
 
 /* matrices */
 
@@ -249,3 +257,4 @@ void lca_destroy(void);
 /* functions in sample.c */
 
 void sample(tree_node_t * root);
+void interval(tree_node_t * root);

@@ -56,6 +56,7 @@ double opt_rho;
 double opt_psi;
 double opt_rate_mean;
 double opt_rate_var;
+double opt_conf_interval;
 
 static struct option long_options[] =
 {
@@ -81,6 +82,7 @@ static struct option long_options[] =
   {"threads",            required_argument, 0, 0 },  /* 19 */
   {"seed",               required_argument, 0, 0 },  /* 20 */
   {"sample",             required_argument, 0, 0 },  /* 21 */
+  {"conf_intervals",             required_argument, 0, 0 },  /* 21 */
   { 0, 0, 0, 0 }
 };
 
@@ -108,6 +110,7 @@ void args_init(int argc, char ** argv)
   opt_outform = OUTPUT_DATED;
   opt_seed = 0;
   opt_sample = 0;
+  opt_conf_interval = 0;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -217,6 +220,11 @@ void args_init(int argc, char ** argv)
       case 21:
         opt_sample = atol(optarg);
         break;
+
+      case 22:
+        opt_conf_interval = atol(optarg);
+        break;
+
 
       default:
         fatal("Internal error in option parsing");
@@ -382,6 +390,9 @@ void cmd_method_relative()
   if (opt_sample)
     sample(tree);
 
+  if (opt_conf_interval)
+    interval(tree);
+
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
 
@@ -416,6 +427,9 @@ void cmd_method_nodeprior()
   if (opt_sample)
     sample(tree);
 
+  if (opt_conf_interval)
+    interval(tree);
+
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
 
@@ -449,6 +463,9 @@ void cmd_method_tipdates()
 
   if (opt_sample)
     sample(tree);
+
+ /* if (opt_conf_interval)*/
+    interval(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");

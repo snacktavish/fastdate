@@ -131,7 +131,7 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
 
 static void dp_backtrack_sampling(tree_node_t * root)
 {
-  int i;
+  int i, upperbound, lowerbound;
   double maxscore = -__DBL_MAX__;
 
   cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
@@ -144,7 +144,23 @@ static void dp_backtrack_sampling(tree_node_t * root)
 
   /* normalize logscores according to maxscore */
   normalize_cdf(cdf_vector, root->entries, maxscore);
-
+  for (i = 0; i < root->entries; ++i)
+    {
+        if (cdf_vector[i] > 0.025)
+        {
+          lowerbound = i + root->height;
+          break;
+        }
+  }
+  for (i = 0; i < root->entries; ++i)
+  {
+        if (cdf_vector[i] > 0.975)
+        {
+          upperbound = i + root->height;
+          break;
+        }
+    }
+    printf("root upperbound is %i, lower bound is %i\n", upperbound, lowerbound);
   /* select interval line for root */
   root->sampled_gridline = root->height + 
                            sample_gridline(cdf_vector, root->entries);
@@ -199,3 +215,149 @@ void sample(tree_node_t * root)
   fclose(fp_out);
   free(filename);
 }
+
+
+
+static void dp_backtrack_interval_recursive(tree_node_t * node)
+{
+  double maxscore;
+
+  if (!node) return;
+
+  assert(node->parent);
+
+  tree_node_t * parent = node->parent;
+  int par_lowerbound = parent->lowerbound;
+  int par_upperbound = parent->upperbound;
+
+
+  long entries = parent->sampled_gridline - node->height;
+  if (entries > node->entries)
+    entries = node->entries;
+ 
+  int i,z;
+  double * mult_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
+
+  for (z = 0; z < entries; ++z)
+          mult_vector[z] = 0;
+
+  for (i = par_lowerbound; i < par_upperbound; ++i)
+  {
+      double rel_age_parent = (1.0 / opt_grid_intervals) * i;
+      recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
+      normalize_cdf(cdf_vector, entries, maxscore);  
+      for (z = 0; z < entries; ++z)
+          mult_vector[z] = (cdf_vector[z] * node->interval_weights[i]) +  mult_vector[z];
+   }
+
+  for (i = 0; i < node->entries; ++i)
+    {
+        if (cdf_vector[i] > ((1 - opt_conf_interval)/2))
+        {
+          node->lowerbound = i + node->height;
+          break;
+        }
+  }
+  for (i = 0; i < node->entries; ++i)
+  {
+        if (cdf_vector[i] > (1 - (1 - opt_conf_interval)/2))
+        {
+          node->upperbound = i + node->height;
+          break;
+        }
+    }  
+  for (i = 0; i < node->upperbound - node->lowerbound; ++i)
+  {
+     node->interval_weights[i] = cdf_vector[i + node->lowerbound]/opt_conf_interval;   
+  }
+    printf("node %s upperbound is %li, lower bound is %li\n", node->label, node->upperbound, node->lowerbound);
+
+  dp_backtrack_interval_recursive(node->left);
+  dp_backtrack_interval_recursive(node->right);
+  free(mult_vector);
+}
+
+
+
+static void dp_backtrack_interval(tree_node_t * root)
+{
+  int i;
+  double maxscore = -__DBL_MAX__;
+
+  cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
+
+  /* copy logscores to cdf vector and get max */
+  memcpy(cdf_vector, root->matrix, (size_t)(root->entries) * sizeof(double));
+  for (i = 0; i < root->entries; ++i)
+    if (cdf_vector[i] > maxscore)
+      maxscore = cdf_vector[i];
+  printf("%f upper bound %f\n", opt_conf_interval, (1 - opt_conf_interval)/2);
+  /* normalize logscores according to maxscore */
+  normalize_cdf(cdf_vector, root->entries, maxscore);
+  for (i = 0; i < root->entries; ++i)
+    {
+        if (cdf_vector[i] > ((1 - opt_conf_interval)/2))
+        {
+          root->lowerbound = i + root->height;
+          break;
+        }
+  }
+  for (i = 0; i < root->entries; ++i)
+  {
+        if (cdf_vector[i] > (1 - (1 - opt_conf_interval)/2))
+        {
+          root->upperbound = i + root->height;
+          break;
+        }
+    }  
+  for (i = 0; i < root->upperbound - root->lowerbound; ++i)
+  {
+     root->interval_weights[i] = cdf_vector[i + root->lowerbound]/opt_conf_interval;   
+  }
+    printf("root upperbound is %li, lower bound is %li\n", root->upperbound, root->lowerbound);
+  /* select interval line for root */
+
+  dp_backtrack_interval_recursive(root->left);
+  dp_backtrack_interval_recursive(root->right);
+
+  free(cdf_vector);
+}
+
+
+static void output_intervals_tree_recursive(tree_node_t * node,
+                                         double interval_age,
+                                         FILE * fp_out)
+{
+  if (!node->left || !node->right)
+    fprintf(fp_out, "%s[&age=%f-%f]:%f",
+            node->label, node->lowerbound * interval_age, node->upperbound * interval_age, node->length);
+  else
+  {
+    fprintf(fp_out, "(");
+    output_sample_tree_recursive(node->left, interval_age, fp_out);
+    fprintf(fp_out, ",");
+    output_sample_tree_recursive(node->right, interval_age, fp_out);
+    fprintf(fp_out, ")%s[&age=%f-%f]:%f", node->label ? node->label : "",
+                    node->lowerbound * interval_age, node->upperbound * interval_age, node->length);
+  }
+}
+
+
+void interval(tree_node_t * root)
+{
+  char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
+  double interval_age = opt_max_age / (opt_grid_intervals - 1);
+  if (opt_method_relative)
+    interval_age =1;
+  strcpy(filename, opt_outfile);
+  strcat(filename,".intervals");
+
+  FILE * fp_out = fopen(filename, "w");
+  dp_backtrack_interval(root);
+  output_intervals_tree_recursive(root, interval_age, fp_out);
+
+  fclose(fp_out);
+  free(filename);
+}
+
+ 
