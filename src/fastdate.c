@@ -82,7 +82,7 @@ static struct option long_options[] =
   {"threads",            required_argument, 0, 0 },  /* 19 */
   {"seed",               required_argument, 0, 0 },  /* 20 */
   {"sample",             required_argument, 0, 0 },  /* 21 */
-  {"conf_intervals",             required_argument, 0, 0 },  /* 21 */
+  {"conf_interval",             required_argument, 0, 0 },  /* 21 */
   { 0, 0, 0, 0 }
 };
 
@@ -222,7 +222,7 @@ void args_init(int argc, char ** argv)
         break;
 
       case 22:
-        opt_conf_interval = atol(optarg);
+        opt_conf_interval = atof(optarg);
         break;
 
 
@@ -380,9 +380,6 @@ void cmd_method_relative()
 
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
@@ -392,6 +389,9 @@ void cmd_method_relative()
 
   if (opt_conf_interval)
     interval(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
@@ -417,9 +417,6 @@ void cmd_method_nodeprior()
   assert(extinct_leaves_count == 0);
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
@@ -429,6 +426,9 @@ void cmd_method_nodeprior()
 
   if (opt_conf_interval)
     interval(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
@@ -454,9 +454,6 @@ void cmd_method_tipdates()
   assert(extinct_leaves_count > 0);
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
@@ -464,8 +461,11 @@ void cmd_method_tipdates()
   if (opt_sample)
     sample(tree);
 
- /* if (opt_conf_interval)*/
+  if (opt_conf_interval)
     interval(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");

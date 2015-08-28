@@ -131,7 +131,7 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
 
 static void dp_backtrack_sampling(tree_node_t * root)
 {
-  int i, upperbound, lowerbound;
+  int i;
   double maxscore = -__DBL_MAX__;
 
   cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
@@ -144,23 +144,6 @@ static void dp_backtrack_sampling(tree_node_t * root)
 
   /* normalize logscores according to maxscore */
   normalize_cdf(cdf_vector, root->entries, maxscore);
-  for (i = 0; i < root->entries; ++i)
-    {
-        if (cdf_vector[i] > 0.025)
-        {
-          lowerbound = i + root->height;
-          break;
-        }
-  }
-  for (i = 0; i < root->entries; ++i)
-  {
-        if (cdf_vector[i] > 0.975)
-        {
-          upperbound = i + root->height;
-          break;
-        }
-    }
-    printf("root upperbound is %i, lower bound is %i\n", upperbound, lowerbound);
   /* select interval line for root */
   root->sampled_gridline = root->height + 
                            sample_gridline(cdf_vector, root->entries);
@@ -229,52 +212,95 @@ static void dp_backtrack_interval_recursive(tree_node_t * node)
   tree_node_t * parent = node->parent;
   int par_lowerbound = parent->lowerbound;
   int par_upperbound = parent->upperbound;
-
-
-  long entries = parent->sampled_gridline - node->height;
-  if (entries > node->entries)
-    entries = node->entries;
- 
-  int i,z;
+  int i,z,x;
   double * mult_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
 
-  for (z = 0; z < entries; ++z)
+
+  long poss_entries = (par_upperbound + parent->height) - node->height; /*the maximum range of locations for the child*/
+  if (poss_entries > node->entries)
+    poss_entries = node->entries;
+
+  for (z = 0; z < poss_entries; ++z) /*TODO is this entirely uneccessary? is vector allocated as 0's*/
           mult_vector[z] = 0;
 
-  for (i = par_lowerbound; i < par_upperbound; ++i)
-  {
-      double rel_age_parent = (1.0 / opt_grid_intervals) * i;
-      recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
-      normalize_cdf(cdf_vector, entries, maxscore);  
-      for (z = 0; z < entries; ++z)
-          mult_vector[z] = (cdf_vector[z] * node->interval_weights[i]) +  mult_vector[z];
-   }
+  for (i = par_lowerbound; i < par_upperbound; ++i) /*loops through 95% comfidence intevral for parent*/
+  { 
+      double rel_age_parent = (1.0 / opt_grid_intervals) * (i + parent->height);
+      double par_factor = parent->interval_weights[i - par_lowerbound];
+      long entries = (i + parent->height) - node->height;
+      if (entries > node->entries)
+           entries = node->entries; /*Should probbaly special case the tips, because this will loop through all parent pos even though there si only one possible position..;.*/
+      recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore); /*compute the scores given this parental position*/
+      normalize_cdf(cdf_vector, entries, maxscore);  /*rescale */
+      for (x = 0; x < entries; ++x)
+        {
+          assert(x < poss_entries);
+/*          printf("node %s, parent is %s, parent at %i, child at %i, par weight is %f, child weight is %f\n", node->label, parent->label, i, z, parent->interval_weights[i - par_lowerbound],  cdf_vector[z]);*/
+          assert(cdf_vector[x] >= 0);
+          double local_prob;
+          if (x > 0)
+            local_prob = cdf_vector[x] - cdf_vector[x-1]; /*de-cumulate*/
+          else
+          {
+            local_prob = cdf_vector[x];
+          }
+          mult_vector[x] = ((local_prob * par_factor) +  mult_vector[x]); /*sum the probability weight fo those positions, geven the weight of the parent being at that position, this is not a cumulative probability density!*/
+          assert(mult_vector[x]>=0);
+        } 
+    }
 
-  for (i = 0; i < node->entries; ++i)
+    /*Now re-normalize the vector across probabilities TODO risk of underflow?*/
+    double mult_vector_sum = 0;
+    for (i = 0; i < poss_entries; ++i)
     {
-        if (cdf_vector[i] > ((1 - opt_conf_interval)/2))
+       mult_vector_sum += mult_vector[i];
+    }
+    if (poss_entries == 1) /*should probably handle tips better...*/
+      {
+        mult_vector[poss_entries-1] = 1;
+      }
+    else
+       { mult_vector[0] /= mult_vector_sum;
+        for (i = 1; i < poss_entries; ++i)
         {
-          node->lowerbound = i + node->height;
-          break;
+          mult_vector[i] = (mult_vector[i] / mult_vector_sum) + mult_vector[i-1];
         }
-  }
-  for (i = 0; i < node->entries; ++i)
-  {
-        if (cdf_vector[i] > (1 - (1 - opt_conf_interval)/2))
+      }
+    assert(0.9999 < mult_vector[poss_entries-1]);
+    assert(mult_vector[poss_entries-1] < 1.0001);
+
+   node->lowerbound = -1;
+   node->upperbound = -1;
+   double upper_thresh = mult_vector[node->interval_line - node->height] + (opt_conf_interval/2); /*cumulative probability density of the upper conf*/
+   double lower_thresh = mult_vector[node->interval_line - node->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf*/
+   for (i = 0; i < poss_entries; ++i)
+    {   
+        if (upper_thresh > 1)
         {
-          node->upperbound = i + node->height;
-          break;
+          node->upperbound = poss_entries; /* TODO Confidence interval of node label %s exceeded the upper bound, how should this be handled?*/
         }
-    }  
-  for (i = 0; i < node->upperbound - node->lowerbound; ++i)
-  {
-     node->interval_weights[i] = cdf_vector[i + node->lowerbound]/opt_conf_interval;   
+        if (node->entries == 1)
+        {
+            node->lowerbound = 0;
+            node->upperbound = 0;
+        }
+        if ((mult_vector[i] > lower_thresh) && (node->lowerbound == -1))
+          node->lowerbound = i;
+        if ((mult_vector[i] > upper_thresh) && (node->upperbound == -1))
+          node->upperbound = i;
+    }
+    assert(node->lowerbound != -1);
+    assert(node->upperbound != -1);
+  node->interval_weights[0] = 0;
+  for (i = node->lowerbound + 1; i < node->upperbound; ++i)
+  {  
+     node->interval_weights[i - node->lowerbound] = (mult_vector[i]-mult_vector[i-1])/opt_conf_interval;   /*Making it non-cumulative, TODO off by one?!*/
   }
-    printf("node %s upperbound is %li, lower bound is %li\n", node->label, node->upperbound, node->lowerbound);
 
   dp_backtrack_interval_recursive(node->left);
   dp_backtrack_interval_recursive(node->right);
   free(mult_vector);
+
 }
 
 
@@ -291,31 +317,32 @@ static void dp_backtrack_interval(tree_node_t * root)
   for (i = 0; i < root->entries; ++i)
     if (cdf_vector[i] > maxscore)
       maxscore = cdf_vector[i];
-  printf("%f upper bound %f\n", opt_conf_interval, (1 - opt_conf_interval)/2);
   /* normalize logscores according to maxscore */
   normalize_cdf(cdf_vector, root->entries, maxscore);
+
+  root->lowerbound = -1;
+  root->upperbound = -1;
+  double upper_thresh = cdf_vector[root->interval_line - root->height] + (opt_conf_interval/2); /*cumulative probability density of the upper conf*/
+  double lower_thresh = cdf_vector[root->interval_line - root->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf*/
   for (i = 0; i < root->entries; ++i)
     {
-        if (cdf_vector[i] > ((1 - opt_conf_interval)/2))
+        if (upper_thresh > 1)
         {
-          root->lowerbound = i + root->height;
-          break;
+          root->upperbound = root->entries; /* TODO Confidence interval of node label %s exceeded the upper bound, how should this be handled?*/
         }
-  }
-  for (i = 0; i < root->entries; ++i)
-  {
-        if (cdf_vector[i] > (1 - (1 - opt_conf_interval)/2))
-        {
-          root->upperbound = i + root->height;
-          break;
-        }
+        if ((cdf_vector[i] > lower_thresh) && (root->lowerbound == -1))
+          root->lowerbound = i;
+        if ((cdf_vector[i] > upper_thresh) && (root->upperbound == -1))
+          root->upperbound = i;
     }  
-  for (i = 0; i < root->upperbound - root->lowerbound; ++i)
-  {
-     root->interval_weights[i] = cdf_vector[i + root->lowerbound]/opt_conf_interval;   
+    assert(root->lowerbound != -1);
+    assert(root->upperbound != -1);
+  root->interval_weights[0] = 0;
+  for (i = root->lowerbound + 1; i < root->upperbound; ++i)
+  {  
+    root->interval_weights[i - root->lowerbound] = (cdf_vector[i]-cdf_vector[i-1])/opt_conf_interval;   /*Making it non-cumulative, TODO off by one?!*/
+    assert(root->interval_weights[i - root->lowerbound] >= 0);
   }
-    printf("root upperbound is %li, lower bound is %li\n", root->upperbound, root->lowerbound);
-  /* select interval line for root */
 
   dp_backtrack_interval_recursive(root->left);
   dp_backtrack_interval_recursive(root->right);
@@ -330,15 +357,15 @@ static void output_intervals_tree_recursive(tree_node_t * node,
 {
   if (!node->left || !node->right)
     fprintf(fp_out, "%s[&age=%f-%f]:%f",
-            node->label, node->lowerbound * interval_age, node->upperbound * interval_age, node->length);
+            node->label, (node->lowerbound + node->height) * interval_age, (node->upperbound + node->height) * interval_age, node->length);
   else
   {
     fprintf(fp_out, "(");
-    output_sample_tree_recursive(node->left, interval_age, fp_out);
+    output_intervals_tree_recursive(node->left, interval_age, fp_out);
     fprintf(fp_out, ",");
-    output_sample_tree_recursive(node->right, interval_age, fp_out);
+    output_intervals_tree_recursive(node->right, interval_age, fp_out);
     fprintf(fp_out, ")%s[&age=%f-%f]:%f", node->label ? node->label : "",
-                    node->lowerbound * interval_age, node->upperbound * interval_age, node->length);
+                    (node->lowerbound + node->height) * interval_age, (node->upperbound + node->height) * interval_age, node->length);
   }
 }
 
