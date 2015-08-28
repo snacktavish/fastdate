@@ -97,11 +97,11 @@ double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowd
   */
 {
   double ln_m, exp_sum;
-  if ( !prev_ln_sum  || ((new_ln_term - prev_ln_sum) > 30) )
+  if ((new_ln_term - prev_ln_sum) > 30)
     return new_ln_term; /* first term, or previous is lost in rounding error*/
   if ( prev_ln_sum - new_ln_term > 30)
     return prev_ln_sum; /* new term is lost in rounding error*/
-  if (prev_ln_sum <new_ln_term)
+  if (prev_ln_sum < new_ln_term)
     ln_m = prev_ln_sum;
   else
     ln_m = new_ln_term;
@@ -109,7 +109,7 @@ double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowd
   new_ln_term -= ln_m;
   /* one is now 0 and the other is no greater than 30*/
   exp_sum = exp(prev_ln_sum) + exp(new_ln_term);
-  return log(exp_sum) + ln_m;
+  return (log(exp_sum) + ln_m);
 }
 
 
