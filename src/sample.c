@@ -273,12 +273,17 @@ static void dp_backtrack_interval_recursive(tree_node_t * node)
    node->upperbound = -1;
    double upper_thresh = mult_vector[node->interval_line - node->height] + (opt_conf_interval/2); /*cumulative probability density of the upper conf*/
    double lower_thresh = mult_vector[node->interval_line - node->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf*/
-   for (i = 0; i < poss_entries; ++i)
-    {   
-        if (upper_thresh > 1)
+   if (upper_thresh > 1)
         {
           node->upperbound = poss_entries; /* TODO Confidence interval of node label %s exceeded the upper bound, how should this be handled?*/
+          printf("Confidence intervals hitting bound, \n");
         }
+   if (lower_thresh < 0)
+        {
+          node->lowerbound = 0; /* TODO Confidence interval of node label %s exceeded the lower bound, how should this be handled?*/
+        }
+   for (i = 0; i < poss_entries; ++i)
+    {   
         if (node->entries == 1)
         {
             node->lowerbound = 0;
@@ -322,18 +327,28 @@ static void dp_backtrack_interval(tree_node_t * root)
 
   root->lowerbound = -1;
   root->upperbound = -1;
-  double upper_thresh = cdf_vector[root->interval_line - root->height] + (opt_conf_interval/2); /*cumulative probability density of the upper conf*/
-  double lower_thresh = cdf_vector[root->interval_line - root->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf*/
-  for (i = 0; i < root->entries; ++i)
-    {
-        if (upper_thresh > 1)
+  double upper_thresh = cdf_vector[root->interval_line - root->height] + (opt_conf_interval/2); /*cumulative probability density of the upper conf, centered on best estimate...*/
+  double lower_thresh = cdf_vector[root->interval_line - root->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf, centered on best estimate..*/
+  if (upper_thresh > 1)
         {
           root->upperbound = root->entries; /* TODO Confidence interval of node label %s exceeded the upper bound, how should this be handled?*/
+          printf("Root confidence interval hit maximum interval line value\n");
         }
+  if (lower_thresh < 0)
+        {
+          root->lowerbound = 0; /* TODO Confidence interval of node label %s exceeded the lower bound, how should this be handled?*/
+          printf("Root confidence interval hit minimum interval line value\n");
+        }
+  for (i = 0; i < root->entries; ++i)
+    { 
         if ((cdf_vector[i] > lower_thresh) && (root->lowerbound == -1))
+        {
           root->lowerbound = i;
+        }
         if ((cdf_vector[i] > upper_thresh) && (root->upperbound == -1))
+        {
           root->upperbound = i;
+        }
     }  
     assert(root->lowerbound != -1);
     assert(root->upperbound != -1);
