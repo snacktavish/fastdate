@@ -351,7 +351,7 @@ static void dp_backtrack_interval(tree_node_t * root)
 }
 
 
-static void output_intervals_tree_recursive(tree_node_t * node,
+/*static void output_intervals_tree_recursive(tree_node_t * node,
                                          double interval_age,
                                          FILE * fp_out)
 {
@@ -367,24 +367,24 @@ static void output_intervals_tree_recursive(tree_node_t * node,
     fprintf(fp_out, ")%s[&age=%f-%f]:%f", node->label ? node->label : "",
                     (node->lowerbound + node->height) * interval_age, (node->upperbound + node->height) * interval_age, node->length);
   }
-}
+}*/
 
 
 void interval(tree_node_t * root)
 {
-  char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
+/*  char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
   double interval_age = opt_max_age / (opt_grid_intervals - 1);
   if (opt_method_relative)
     interval_age =1;
-  strcpy(filename, opt_outfile);
+  strcpy(filename, opt_outfile)
   strcat(filename,".intervals");
 
-  FILE * fp_out = fopen(filename, "w");
+  FILE * fp_out = fopen(filename, "w");*/
   dp_backtrack_interval(root);
-  output_intervals_tree_recursive(root, interval_age, fp_out);
+/*  output_intervals_tree_recursive(root, interval_age, fp_out);*/
 
-  fclose(fp_out);
-  free(filename);
+/*  fclose(fp_out);
+  free(filename);*/
 }
 
  
