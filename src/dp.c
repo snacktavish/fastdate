@@ -73,6 +73,7 @@ static void calc_tip(tree_node_t * node)
   if (!node->prior)
   {
     node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
+    node->matrix_PP[0] = 0.0;
     return;
   }
 
@@ -481,7 +482,6 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix_left  = (long *)xmalloc(sizeof(long));
       node->matrix_right = (long *)xmalloc(sizeof(long));
       node->matrix_PP       = (double *)xmalloc(sizeof(double));
-
 
     }
     else
