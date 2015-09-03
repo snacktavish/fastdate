@@ -109,6 +109,16 @@ typedef struct tree_noderec
 #define NODEPRIOR_EXP   1
 #define NODEPRIOR_LN    2
 
+#define PARAM_LAMBDA   1
+#define PARAM_MU       2
+#define PARAM_PSI      4
+#define PARAM_RHO      8
+
+#define DEFAULT_LAMBDA 10.0
+#define DEFAULT_MU     0.001
+#define DEFAULT_PSI    0.5
+#define DEFAULT_RHO    0.5
+
 /* macros */
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -138,6 +148,8 @@ extern double opt_rho;
 extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
+
+extern unsigned int opt_parameters_bitv;
 
 /* matrices */
 
@@ -197,6 +209,7 @@ int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer);
 /* functions in dp.c */
 
 void dp(tree_node_t * tree);
+double dp_evaluate(tree_node_t * tree);
 
 /* functions in gamma.c */
 
@@ -243,6 +256,9 @@ void set_node_priors(tree_node_t * root,
 void lca_init(tree_node_t * root);
 tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
 void lca_destroy(void);
+
+/* functions in optimize.c */
+double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
 
 /* functions in sample.c */
 
