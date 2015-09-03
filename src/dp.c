@@ -687,7 +687,7 @@ static double dp_backtrack(tree_node_t * root)
 
   dp_backtrack_recursive(root, best_entry);
 
-  return score;
+  return max_score;
 }
 
 double dp_evaluate(tree_node_t * tree)
@@ -714,6 +714,8 @@ double dp_evaluate(tree_node_t * tree)
 
 void dp(tree_node_t * tree)
 {
+  double score;
+
   assert(opt_grid_intervals > tree->height);
   tree_height = tree->height;
 
@@ -746,71 +748,71 @@ void dp(tree_node_t * tree)
   if (!opt_quiet)
     printf ("Backtracking...\n");
 
-   if (opt_parameters_bitv)
-   {
-      printf("\n\n*** RATES OPTIMIZATION ***\n\n");
-      double score;
-      score = dp_backtrack(tree);
-      printf("Starting score: %f\n\n", score);
+  score = dp_backtrack(tree);
+  
+  if (opt_parameters_bitv)
+  {
+     printf("\n\n*** RATES OPTIMIZATION ***\n\n");
+     printf("Starting score: %f\n\n", score);
 
-      opt_quiet = 1;
+     opt_quiet = 1;
 
-      printf("Starting parameters:\n");
-      if (opt_parameters_bitv & PARAM_LAMBDA)
-        printf(" lambda: %6.4f\n", opt_lambda);
-      if (opt_parameters_bitv & PARAM_MU)
-        printf(" mu:     %6.4f\n", opt_mu);
-      if (opt_parameters_bitv & PARAM_RHO)
-        printf(" rho:    %6.4f\n", opt_rho);
-      if (opt_parameters_bitv & PARAM_PSI)
-        printf(" psi:    %6.4f\n", opt_psi);
-      printf("\n");
+     printf("Starting parameters:\n");
+     if (opt_parameters_bitv & PARAM_LAMBDA)
+       printf(" lambda: %6.4f\n", opt_lambda);
+     if (opt_parameters_bitv & PARAM_MU)
+       printf(" mu:     %6.4f\n", opt_mu);
+     if (opt_parameters_bitv & PARAM_RHO)
+       printf(" rho:    %6.4f\n", opt_rho);
+     if (opt_parameters_bitv & PARAM_PSI)
+       printf(" psi:    %6.4f\n", opt_psi);
+     printf("\n");
 
-      /* single param iterative optimization */
-      if (opt_threads > 1)
-        threads_init();
-      double cur_score = score + 1;
-      int i = 0;
-      while (fabs(cur_score - score) > opt_epsilon)
-      {
-        printf("[%d]\n", i++);
-        cur_score = score;
-        //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
-        if (opt_parameters_bitv & PARAM_LAMBDA)
-        {
-          score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
-          printf("%15.4f lambda: %6.4f\n", score, opt_lambda);
-        }
-        if (opt_parameters_bitv & PARAM_MU)
-        {
-          score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
-          printf("%15.4f mu:     %6.4f\n", score, opt_mu);
-        }
-        if (opt_parameters_bitv & PARAM_PSI)
-        {
-          score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
-          printf("%15.4f psi:    %6.4f\n", score, opt_psi);
-        }
-        if (opt_parameters_bitv & PARAM_RHO)
-        {
-          score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol);
-          printf("%15.4f rho:    %6.4f\n", score, opt_rho);
-        }
-      }
-      if (opt_threads > 1)
-        threads_exit();
+     /* single param iterative optimization */
+     if (opt_threads > 1)
+       threads_init();
+     double cur_score = score + 1;
+     int i = 0;
+     while (fabs(cur_score - score) > opt_epsilon)
+     {
+       printf("[%d]\n", i++);
+       cur_score = score;
+       //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+       if (opt_parameters_bitv & PARAM_LAMBDA)
+       {
+         score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
+         printf("%15.4f lambda: %6.4f\n", score, opt_lambda);
+       }
+       if (opt_parameters_bitv & PARAM_MU)
+       {
+         score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
+         printf("%15.4f mu:     %6.4f\n", score, opt_mu);
+       }
+       if (opt_parameters_bitv & PARAM_PSI)
+       {
+         score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+         printf("%15.4f psi:    %6.4f\n", score, opt_psi);
+       }
+       if (opt_parameters_bitv & PARAM_RHO)
+       {
+         score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol);
+         printf("%15.4f rho:    %6.4f\n", score, opt_rho);
+       }
+     }
+     if (opt_threads > 1)
+       threads_exit();
 
-      printf("\nFinal parameters:\n");
-      if (opt_parameters_bitv & PARAM_LAMBDA)
-        printf(" lambda: %6.4f\n", opt_lambda);
-      if (opt_parameters_bitv & PARAM_MU)
-        printf(" mu:     %6.4f\n", opt_mu);
-      if (opt_parameters_bitv & PARAM_RHO)
-        printf(" rho:    %6.4f\n", opt_rho);
-      if (opt_parameters_bitv & PARAM_PSI)
-        printf(" psi:    %6.4f\n", opt_psi);
+     printf("\nFinal parameters:\n");
+     if (opt_parameters_bitv & PARAM_LAMBDA)
+       printf(" lambda: %6.4f\n", opt_lambda);
+     if (opt_parameters_bitv & PARAM_MU)
+       printf(" mu:     %6.4f\n", opt_mu);
+     if (opt_parameters_bitv & PARAM_RHO)
+       printf(" rho:    %6.4f\n", opt_rho);
+     if (opt_parameters_bitv & PARAM_PSI)
+       printf(" psi:    %6.4f\n", opt_psi);
 
-      printf("\nScore after optimization %f\n", score);
-      printf("\n*** ***** ************ ***\n\n");
+     printf("\nScore after optimization %f\n", score);
+     printf("\n*** ***** ************ ***\n\n");
   }
 }
