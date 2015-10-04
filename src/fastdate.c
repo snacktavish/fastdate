@@ -20,7 +20,6 @@
 */
 
 #include "fastdate.h"
-#include <stdint.h>
 
 static char * progname;
 static char progheader[80];

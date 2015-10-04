@@ -23,11 +23,11 @@
 
 #define HASHTABLE_SIZE 5000
 
-extern int yylex();
-extern FILE * yyin;
-extern void yylex_destroy();
+extern int newick_lex();
+extern FILE * newick_in;
+extern void newick_lex_destroy();
 
-void yyerror(tree_node_t * tree, const char * s) 
+void newick_error(tree_node_t * tree, const char * s) 
 {
   fprintf(stderr, "%s.\n", s);
 }
@@ -180,19 +180,19 @@ tree_node_t * yy_parse_tree(const char * filename)
   tree = yy_create_tree();
   hash_table_create();
 
-  yyin = fopen(filename, "r");
-  if (!yyin)
+  newick_in = fopen(filename, "r");
+  if (!newick_in)
   {
     fatal("Cannot open file %s", filename);
   }
-  else if (yyparse(tree))
+  else if (newick_parse(tree))
   {
     fatal("Cannot parse tree file %s (maybe non-binary?)", filename);
   }
   
-  if (yyin) fclose(yyin);
+  if (newick_in) fclose(newick_in);
 
-  yylex_destroy();
+  newick_lex_destroy();
   hash_table_destroy();
 
   return tree;

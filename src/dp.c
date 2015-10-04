@@ -157,6 +157,13 @@ static inline void dp_recurse_worker(long t)
                                     params->stdev,
                                     abs_age_node - params->offset);
     }
+    else if (node->prior == NODEPRIOR_UNI)
+    {
+      uni_params_t * params = (uni_params_t *)(node->prior_params);
+      dist_logprob = uni_dist_logpdf(params->min_age,
+                                     params->max_age,
+                                     abs_age_node);
+    }
     else if (node->prior)
       assert(0);
 
@@ -351,6 +358,13 @@ static void dp_recurse_parallel(tree_node_t * node)
                                       params->stdev,
                                       abs_age_node - params->offset);
       }
+      else if (node->prior == NODEPRIOR_UNI)
+      {
+        uni_params_t * params = (uni_params_t *)(node->prior_params);
+        dist_logprob = uni_dist_logpdf(params->min_age,
+                                       params->max_age,
+                                       abs_age_node);
+      }
       else assert(0);
 
       node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
@@ -370,7 +384,7 @@ static void dp_recurse_parallel(tree_node_t * node)
   progress_update((unsigned long)sum_entries);
 }
 
-/* this resets the node heights for method_nodeprior */
+/* this resets the node heights for method_nodeprior or method_tipdates */
 static void reset_node_heights(tree_node_t * node)
 {
   assert(node);
@@ -387,8 +401,11 @@ static void reset_node_heights(tree_node_t * node)
     offset = ((exp_params_t *)(node->prior_params))->offset;
   else if (node->prior  == NODEPRIOR_LN)
     offset = ((ln_params_t *)(node->prior_params))->offset;
+  else if (node->prior == NODEPRIOR_UNI)
+    offset = ((uni_params_t *)(node->prior_params))->min_age;
   min_height = lrint(ceil(offset / interval_age));
 
+  /* tip case */
   if (!node->left)
   {
     node->height = min_height;
@@ -398,6 +415,7 @@ static void reset_node_heights(tree_node_t * node)
     return;
   }
 
+  /* inner node case */
   reset_node_heights(node->left);
   reset_node_heights(node->right);
 
@@ -432,6 +450,18 @@ static void alloc_node_entries(tree_node_t * node)
     else
     {
       entries = node->parent->entries + node->parent->height - node->height - 1;
+
+      /* if uniform distribution we need to check for max age */
+      if (node->prior == NODEPRIOR_UNI)
+      {
+        double max_age = ((uni_params_t *)(node->prior_params))->max_age;
+        long max_grid_line = lrint(ceil(max_age / interval_age)); 
+
+        assert(max_grid_line >= node->height);
+
+        if (node->height + entries - 1 > max_grid_line)
+          entries = max_grid_line - node->height + 1;
+      }
       node->entries      = entries;
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
       node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
@@ -444,6 +474,18 @@ static void alloc_node_entries(tree_node_t * node)
     entries = opt_grid_intervals - node->height;
   else
     entries = node->parent->entries + node->parent->height - node->height - 1;
+
+  /* if uniform distribution we need to check for max age */
+  if (node->prior == NODEPRIOR_UNI)
+  {
+    double max_age = ((uni_params_t *)(node->prior_params))->max_age;
+    long max_grid_line = lrint(ceil(max_age / interval_age)); 
+
+    assert(max_grid_line >= node->height);
+
+    if (node->height + entries - 1 > max_grid_line)
+      entries = max_grid_line - node->height + 1;
+  }
 
   /* allocate storage space for placement information at each node */
   node->entries      = entries;
@@ -513,6 +555,13 @@ static void dp_recurse_serial(tree_node_t * node)
         dist_logprob = ln_dist_logpdf(params->mean,
                                       params->stdev,
                                       abs_age_node - params->offset);
+      }
+      else if (node->prior == NODEPRIOR_UNI)
+      {
+        uni_params_t * params = (uni_params_t *)(node->prior_params);
+        dist_logprob = uni_dist_logpdf(params->min_age,
+                                       params->max_age,
+                                       abs_age_node);
       }
       else assert(0);
 
@@ -626,6 +675,13 @@ static void dp_recurse_serial(tree_node_t * node)
       dist_logprob = ln_dist_logpdf(params->mean,
                                     params->stdev,
                                     abs_age_node - params->offset);
+    }
+    else if (node->prior == NODEPRIOR_UNI)
+    {
+      uni_params_t * params = (uni_params_t *)(node->prior_params);
+      dist_logprob = uni_dist_logpdf(params->min_age,
+                                     params->max_age,
+                                     abs_age_node);
     }
     else if (node->prior)
       assert(0);
@@ -750,69 +806,70 @@ void dp(tree_node_t * tree)
 
   score = dp_backtrack(tree);
   
+  /* optimize parameters */
   if (opt_parameters_bitv)
   {
-     printf("\n\n*** RATES OPTIMIZATION ***\n\n");
-     printf("Starting score: %f\n\n", score);
+    printf("\n\n*** RATES OPTIMIZATION ***\n\n");
+    printf("Starting score: %f\n\n", score);
 
-     opt_quiet = 1;
+    opt_quiet = 1;
 
-     printf("Starting parameters:\n");
-     if (opt_parameters_bitv & PARAM_LAMBDA)
-       printf(" lambda: %6.4f\n", opt_lambda);
-     if (opt_parameters_bitv & PARAM_MU)
-       printf(" mu:     %6.4f\n", opt_mu);
-     if (opt_parameters_bitv & PARAM_RHO)
-       printf(" rho:    %6.4f\n", opt_rho);
-     if (opt_parameters_bitv & PARAM_PSI)
-       printf(" psi:    %6.4f\n", opt_psi);
-     printf("\n");
+    printf("Starting parameters:\n");
+    if (opt_parameters_bitv & PARAM_LAMBDA)
+      printf(" lambda: %6.4f\n", opt_lambda);
+    if (opt_parameters_bitv & PARAM_MU)
+      printf(" mu:     %6.4f\n", opt_mu);
+    if (opt_parameters_bitv & PARAM_RHO)
+      printf(" rho:    %6.4f\n", opt_rho);
+    if (opt_parameters_bitv & PARAM_PSI)
+      printf(" psi:    %6.4f\n", opt_psi);
+    printf("\n");
 
-     /* single param iterative optimization */
-     if (opt_threads > 1)
-       threads_init();
-     double cur_score = score + 1;
-     int i = 0;
-     while (fabs(cur_score - score) > opt_epsilon)
-     {
-       printf("[%d]\n", i++);
-       cur_score = score;
-       //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
-       if (opt_parameters_bitv & PARAM_LAMBDA)
-       {
-         score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
-         printf("%15.4f lambda: %6.4f\n", score, opt_lambda);
-       }
-       if (opt_parameters_bitv & PARAM_MU)
-       {
-         score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
-         printf("%15.4f mu:     %6.4f\n", score, opt_mu);
-       }
-       if (opt_parameters_bitv & PARAM_PSI)
-       {
-         score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
-         printf("%15.4f psi:    %6.4f\n", score, opt_psi);
-       }
-       if (opt_parameters_bitv & PARAM_RHO)
-       {
-         score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol);
-         printf("%15.4f rho:    %6.4f\n", score, opt_rho);
-       }
-     }
-     if (opt_threads > 1)
-       threads_exit();
+    /* single param iterative optimization */
+    if (opt_threads > 1)
+      threads_init();
+    double cur_score = score + 1;
+    int i = 0;
+    while (fabs(cur_score - score) > opt_epsilon)
+    {
+      printf("[%d]\n", i++);
+      cur_score = score;
+      //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+      if (opt_parameters_bitv & PARAM_LAMBDA)
+      {
+        score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
+        printf("%15.4f lambda: %6.4f\n", score, opt_lambda);
+      }
+      if (opt_parameters_bitv & PARAM_MU)
+      {
+        score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
+        printf("%15.4f mu:     %6.4f\n", score, opt_mu);
+      }
+      if (opt_parameters_bitv & PARAM_PSI)
+      {
+        score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+        printf("%15.4f psi:    %6.4f\n", score, opt_psi);
+      }
+      if (opt_parameters_bitv & PARAM_RHO)
+      {
+        score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol);
+        printf("%15.4f rho:    %6.4f\n", score, opt_rho);
+      }
+    }
+    if (opt_threads > 1)
+      threads_exit();
 
-     printf("\nFinal parameters:\n");
-     if (opt_parameters_bitv & PARAM_LAMBDA)
-       printf(" lambda: %6.4f\n", opt_lambda);
-     if (opt_parameters_bitv & PARAM_MU)
-       printf(" mu:     %6.4f\n", opt_mu);
-     if (opt_parameters_bitv & PARAM_RHO)
-       printf(" rho:    %6.4f\n", opt_rho);
-     if (opt_parameters_bitv & PARAM_PSI)
-       printf(" psi:    %6.4f\n", opt_psi);
+    printf("\nFinal parameters:\n");
+    if (opt_parameters_bitv & PARAM_LAMBDA)
+      printf(" lambda: %6.4f\n", opt_lambda);
+    if (opt_parameters_bitv & PARAM_MU)
+      printf(" mu:     %6.4f\n", opt_mu);
+    if (opt_parameters_bitv & PARAM_RHO)
+      printf(" rho:    %6.4f\n", opt_rho);
+    if (opt_parameters_bitv & PARAM_PSI)
+      printf(" psi:    %6.4f\n", opt_psi);
 
-     printf("\nScore after optimization %f\n", score);
-     printf("\n*** ***** ************ ***\n\n");
+    printf("\nScore after optimization %f\n", score);
+    printf("\n*** ***** ************ ***\n\n");
   }
 }

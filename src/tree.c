@@ -194,6 +194,41 @@ int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer)
   return index;
 }
 
+static void rtree_query_tipnodes_recursive(tree_node_t * node,
+                                           tree_node_t ** node_list,
+                                           int * index)
+{
+  if (!node) return;
+
+  if (!node->left)
+  {
+    node_list[*index] = node;
+    *index = *index + 1;
+    return;
+  }
+
+  rtree_query_tipnodes_recursive(node->left,  node_list, index);
+  rtree_query_tipnodes_recursive(node->right, node_list, index);
+}
+
+int rtree_query_tipnodes(tree_node_t * root,
+                         tree_node_t ** node_list)
+{
+  int index = 0;
+
+  if (!root) return 0;
+  if (!root->left)
+  {
+    node_list[index++] = root;
+    return index;
+  }
+
+  rtree_query_tipnodes_recursive(root->left,  node_list, &index);
+  rtree_query_tipnodes_recursive(root->right, node_list, &index);
+
+  return index;
+}
+
 void write_newick_tree(tree_node_t * node)
 {
   FILE * fp_out = fopen(opt_outfile, "w");
