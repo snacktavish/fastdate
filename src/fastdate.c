@@ -362,6 +362,8 @@ void cmd_help()
           "  --quiet                        only output warnings and fatal errors to stderr.\n"
           "  --threads INT                  number of threads to use, zero for all cores (default: 0).\n"
           "  --grid INT                     number of grid intervals to use (default: 1000).\n"
+          "  --seed INT                     seed for pseudo-random number generator.\n"
+          "  --sample INT                   draw INT trees from an approximation of the posterior probability distribution.\n"
           "Input and output options:\n"
           "  --tree_file FILENAME           tree file in newick format.\n"
           "  --prior_file FILENAME          file containing node priors (for --method_nodeprior).\n"
