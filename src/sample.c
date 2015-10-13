@@ -201,9 +201,11 @@ void sample(tree_node_t * root)
 
 
 
-static void dp_backtrack_interval_recursive(tree_node_t * node)
+static void dp_backtrack_credible_recursive(tree_node_t * node)
 {
   double maxscore;
+  double upper_excess;
+  double lower_excess;
 
   if (!node) return;
 
@@ -275,12 +277,17 @@ static void dp_backtrack_interval_recursive(tree_node_t * node)
    double lower_thresh = mult_vector[node->interval_line - node->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf*/
    if (upper_thresh > 1)
         {
-          node->upperbound = poss_entries; /* TODO Confidence interval of node label %s exceeded the upper bound, how should this be handled?*/
-          printf("Confidence intervals hitting bound, \n");
+          node->upperbound = poss_entries; /* TODO Credible interval of node label %s exceeded the upper bound, how should this be handled?*/
+          upper_excess = upper_thresh - 1; /*deals with upper half of credible interval exceeding bound by adding leftover to lower half*/
+          lower_thresh = lower_thresh - upper_excess;
+          assert(lower_thresh > 0);
         }
    if (lower_thresh < 0)
         {
-          node->lowerbound = 0; /* TODO Confidence interval of node label %s exceeded the lower bound, how should this be handled?*/
+          node->lowerbound = 0;
+          lower_excess = 0 - lower_thresh;
+          upper_thresh = upper_thresh + lower_excess; /*deals with lower half of credible interval exceeding bound, by adding leftover to upper half*/
+          assert(upper_thresh < 1);
         }
    for (i = 0; i < poss_entries; ++i)
     {   
@@ -302,18 +309,20 @@ static void dp_backtrack_interval_recursive(tree_node_t * node)
      node->interval_weights[i - node->lowerbound] = (mult_vector[i]-mult_vector[i-1])/opt_conf_interval;   /*Making it non-cumulative, TODO off by one?!*/
   }
 
-  dp_backtrack_interval_recursive(node->left);
-  dp_backtrack_interval_recursive(node->right);
+  dp_backtrack_credible_recursive(node->left);
+  dp_backtrack_credible_recursive(node->right);
   free(mult_vector);
 
 }
 
 
 
-static void dp_backtrack_interval(tree_node_t * root)
+static void dp_backtrack_credible(tree_node_t * root)
 {
   int i;
   double maxscore = -__DBL_MAX__;
+  double upper_excess;
+  double lower_excess;
 
   cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
 
@@ -331,13 +340,17 @@ static void dp_backtrack_interval(tree_node_t * root)
   double lower_thresh = cdf_vector[root->interval_line - root->height] - (opt_conf_interval/2); /*cumulative probability density of the lower conf, centered on best estimate..*/
   if (upper_thresh > 1)
         {
-          root->upperbound = root->entries; /* TODO Confidence interval of node label %s exceeded the upper bound, how should this be handled?*/
-          printf("Root confidence interval hit maximum interval line value\n");
+          root->upperbound = root->entries; 
+          upper_excess = upper_thresh - 1; /*deals with upper half of credible interval exceeding bound by adding leftover to lower half*/
+          lower_thresh = lower_thresh - upper_excess;
+          assert(lower_thresh > 0);
         }
   if (lower_thresh < 0)
         {
-          root->lowerbound = 0; /* TODO Confidence interval of node label %s exceeded the lower bound, how should this be handled?*/
-          printf("Root confidence interval hit minimum interval line value\n");
+          root->lowerbound = 0; 
+          lower_excess = 0 - lower_thresh;
+          upper_thresh = upper_thresh + lower_excess; /*deals with lower half of credible interval exceeding bound, by adding leftover to upper half*/
+          assert(upper_thresh < 1);
         }
   for (i = 0; i < root->entries; ++i)
     { 
@@ -359,8 +372,8 @@ static void dp_backtrack_interval(tree_node_t * root)
     assert(root->interval_weights[i - root->lowerbound] >= 0);
   }
 
-  dp_backtrack_interval_recursive(root->left);
-  dp_backtrack_interval_recursive(root->right);
+  dp_backtrack_credible_recursive(root->left);
+  dp_backtrack_credible_recursive(root->right);
 
   free(cdf_vector);
 }
@@ -395,7 +408,7 @@ void interval(tree_node_t * root)
   strcat(filename,".intervals");
 
   FILE * fp_out = fopen(filename, "w");*/
-  dp_backtrack_interval(root);
+  dp_backtrack_credible(root);
 /*  output_intervals_tree_recursive(root, interval_age, fp_out);*/
 
 /*  fclose(fp_out);
