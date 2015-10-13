@@ -56,7 +56,7 @@ double opt_rho;
 double opt_psi;
 double opt_rate_mean;
 double opt_rate_var;
-double opt_conf_interval;
+double opt_cred_interval;
 
 static struct option long_options[] =
 {
@@ -82,7 +82,7 @@ static struct option long_options[] =
   {"threads",            required_argument, 0, 0 },  /* 19 */
   {"seed",               required_argument, 0, 0 },  /* 20 */
   {"sample",             required_argument, 0, 0 },  /* 21 */
-  {"conf_interval",             required_argument, 0, 0 },  /* 21 */
+  {"cred_interval",             required_argument, 0, 0 },  /* 21 */
   { 0, 0, 0, 0 }
 };
 
@@ -110,7 +110,7 @@ void args_init(int argc, char ** argv)
   opt_outform = OUTPUT_DATED;
   opt_seed = 0;
   opt_sample = 0;
-  opt_conf_interval = 0;
+  opt_cred_interval = 0;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -222,7 +222,7 @@ void args_init(int argc, char ** argv)
         break;
 
       case 22:
-        opt_conf_interval = atof(optarg);
+        opt_cred_interval = atof(optarg);
         break;
 
 
@@ -387,8 +387,8 @@ void cmd_method_relative()
   if (opt_sample)
     sample(tree);
 
-  if (opt_conf_interval)
-    interval(tree);
+  if (opt_cred_interval)
+    credible(tree);
 
   if (opt_showtree)
     show_ascii_tree(tree);
@@ -424,8 +424,8 @@ void cmd_method_nodeprior()
   if (opt_sample)
     sample(tree);
 
-  if (opt_conf_interval)
-    interval(tree);
+  if (opt_cred_interval)
+    credible(tree);
 
   if (opt_showtree)
     show_ascii_tree(tree);
@@ -461,8 +461,8 @@ void cmd_method_tipdates()
   if (opt_sample)
     sample(tree);
 
-  if (opt_conf_interval)
-    interval(tree);
+  if (opt_cred_interval)
+    credible(tree);
 
   if (opt_showtree)
     show_ascii_tree(tree);

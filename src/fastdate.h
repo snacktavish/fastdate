@@ -147,7 +147,7 @@ extern double opt_rho;
 extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
-extern double opt_conf_interval;
+extern double opt_cred_interval;
 
 /* matrices */
 
@@ -257,4 +257,4 @@ void lca_destroy(void);
 /* functions in sample.c */
 
 void sample(tree_node_t * root);
-void interval(tree_node_t * root);
+void credible(tree_node_t * root);
