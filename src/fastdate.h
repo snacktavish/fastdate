@@ -56,19 +56,40 @@ typedef unsigned short WORD;
 typedef unsigned char BYTE;
 
 /* parameters of exponential distribution node prior */
-typedef struct
+typedef struct exp_params_s
 {
   double mean;
   double offset;
 } exp_params_t;
 
+/* parameters of uniform distribution node prior */
+typedef struct uni_params_s
+{
+  double min_age;
+  double max_age;
+} uni_params_t;
+
 /* parameters of lognormal distribution node prior */
-typedef struct
+typedef struct ln_params_s
 {
   double mean;
   double stdev;
   double offset;
 } ln_params_t;
+
+typedef struct prior_s
+{
+  int dist;
+  int lineno;
+  char * taxa;
+  void * params;
+} prior_t;
+
+typedef struct list_s
+{
+  prior_t * prior;
+  struct list_s * next;
+} list_t;
 
 typedef struct tree_noderec
 {
@@ -99,11 +120,11 @@ typedef struct tree_noderec
   /* sampling specific */
   long sampled_gridline;
 
-  /*Interval specific*/
+
+  /*Credible nterval specific*/
   long lowerbound;
   long upperbound;
   double * interval_weights;
-
 
 
 
@@ -117,6 +138,17 @@ typedef struct tree_noderec
 #define NODEPRIOR_NONE  0
 #define NODEPRIOR_EXP   1
 #define NODEPRIOR_LN    2
+#define NODEPRIOR_UNI   3
+
+#define PARAM_LAMBDA   1
+#define PARAM_MU       2
+#define PARAM_PSI      4
+#define PARAM_RHO      8
+
+#define DEFAULT_LAMBDA 10.0
+#define DEFAULT_MU     0.001
+#define DEFAULT_PSI    0.5
+#define DEFAULT_RHO    0.5
 
 /* macros */
 
@@ -148,6 +180,8 @@ extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
 extern double opt_cred_interval;
+
+extern unsigned int opt_parameters_bitv;
 
 /* matrices */
 
@@ -203,10 +237,12 @@ void show_ascii_tree(tree_node_t * tree);
 long set_node_heights(tree_node_t * root);
 void write_newick_tree(tree_node_t * node);
 int tree_traverse(tree_node_t * root, tree_node_t ** outbuffer);
+int rtree_query_tipnodes(tree_node_t * root, tree_node_t ** node_list);
 
 /* functions in dp.c */
 
 void dp(tree_node_t * tree);
+double dp_evaluate(tree_node_t * tree);
 
 /* functions in gamma.c */
 
@@ -242,6 +278,10 @@ double exp_dist_logpdf(double lambda, double x);
 double ln_dist_pdf(double mean, double variance, double x);
 double ln_dist_logpdf(double mean, double variance, double x);
 
+/* functions in uni.c */
+double uni_dist_pdf(double a, double b, double x);
+double uni_dist_logpdf(double a, double b, double x);
+
 /* functions in nodeprior.c */
 
 void set_node_priors(tree_node_t * root,
@@ -250,11 +290,19 @@ void set_node_priors(tree_node_t * root,
 
 /* functions in lca.c */
 
-void lca_init(tree_node_t * root);
-tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2);
-void lca_destroy(void);
+tree_node_t * lca_compute(tree_node_t * root,
+                          tree_node_t ** tip_nodes,
+                          unsigned int count);
+
+/* functions in optimize.c */
+double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
 
 /* functions in sample.c */
 
 void sample(tree_node_t * root);
 void credible(tree_node_t * root);
+
+
+/* functions in parse_prior.y */
+
+list_t * yy_parse_nodeprior(const char * filename);

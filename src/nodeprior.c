@@ -21,440 +21,215 @@
 
 #include "fastdate.h"
 
-#define LINEALLOC 4096
-#define REGEX_REAL "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
-
-static FILE * fp = NULL;
-static char line[LINEALLOC];
-static int lineno = 0;
-
-static regex_t regexp_node_exp;
-static regex_t regexp_mrca_exp;
-static regex_t regexp_node_ln;
-static regex_t regexp_mrca_ln;
-static regex_t regexp_comment;
-static regex_t regexp_ignore;
-
-static regmatch_t pmatch[9];
-
-/* regular expressions for matching file entries */
-static char * re_node_exp = "^\\s*(\\w+)\\s+exp\\s*\\(\\s*" 
-                            "(" REGEX_REAL ")"
-                            "\\s*,\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*\\)\\s*$";
-
-static char * re_mrca_exp = "^\\s*(\\w+)\\s+(\\w+)\\s+exp\\s*\\(\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*,\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*\\)\\s*$";
-
-
-static char * re_node_ln = "^\\s*(\\w+)\\s+ln\\s*\\(\\s*" 
-                            "(" REGEX_REAL ")"
-                            "\\s*,\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*,\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*\\)\\s*$";
-
-static char * re_mrca_ln = "^\\s*(\\w+)\\s+(\\w+)\\s+ln\\s*\\(\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*,\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*,\\s*"
-                            "(" REGEX_REAL ")"
-                            "\\s*\\)\\s*$";
-
-static char * re_comment = "^#.*$";
-static char * re_ignore = "^\\s*$";
-
-
-static void regexp_init()
-{
-  if (regcomp(&regexp_node_exp, re_node_exp, REG_EXTENDED))
-    fatal("Bad pattern");
-  if (regcomp(&regexp_mrca_exp, re_mrca_exp, REG_EXTENDED))
-    fatal("Bad pattern");
-  if (regcomp(&regexp_node_ln, re_node_ln, REG_EXTENDED))
-    fatal("Bad pattern");
-  if (regcomp(&regexp_mrca_ln, re_mrca_ln, REG_EXTENDED))
-    fatal("Bad pattern");
-  if (regcomp(&regexp_comment, re_comment, REG_EXTENDED))
-    fatal("Bad pattern");
-  if (regcomp(&regexp_ignore, re_ignore, REG_EXTENDED))
-    fatal("Bad pattern");
-}
-
-static void regexp_free()
-{
-  regfree(&regexp_node_exp); 
-  regfree(&regexp_mrca_exp); 
-  regfree(&regexp_node_ln); 
-  regfree(&regexp_mrca_ln); 
-  regfree(&regexp_comment); 
-  regfree(&regexp_ignore); 
-}
-
-static void priorfile_open()
-{
-  fp = fopen(opt_priorfile, "r");
-  if (!fp)
-    fatal("Cannot open file %s", opt_priorfile);
-}
-
-static tree_node_t * query_node(char * label)
-{
-  ENTRY query;
-  ENTRY * found = NULL;
-
-  query.key = label;
-  found = hsearch(query,FIND);
-  if (!found)
-    return NULL;
-
-  return (tree_node_t *)(found->data);
-}
-
-static void set_node_exp_prior(long * fossils_count,long * extinct_leaves_count)
-{
-  int len;
-  tree_node_t * node;
-
-  /* node label */
-  len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  assert(len >= 0);
-  char * label = xstrndup(line+pmatch[1].rm_so, (size_t)len);
-
-  /* mean */
-  len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  assert(len >= 0);
-  char * mean = xstrndup(line+pmatch[2].rm_so, (size_t)len);
-
-  /* offset */
-  len = pmatch[4].rm_eo - pmatch[4].rm_so;
-  assert(len >= 0);
-  char * offset = xstrndup(line+pmatch[4].rm_so, (size_t)len);
-
-  node = query_node(label);
-  if (!node)
-    fatal("Node %s does not exist (line %d of %s)", 
-          label, lineno, opt_priorfile);
-
-  if (node->prior_lineno)
-    fatal("Error: line %d of file %s assigns a prior to node %s which already "
-          "has a prior from line %d", 
-          lineno, opt_priorfile, label, node->prior_lineno);
-
-
-  exp_params_t * params = (exp_params_t *)xmalloc(sizeof(exp_params_t));
-
-  params->mean   = atof(mean);
-  params->offset = atof(offset);  
-
-  node->prior        = NODEPRIOR_EXP;
-  node->prior_params = params;
-  node->prior_lineno = lineno;
-
-  if (!opt_quiet)
-    printf ("  exp(%s) on node (%s) with offset %s\n", mean, label, offset); 
-
-  if (!node->left)
-    *extinct_leaves_count = *extinct_leaves_count + 1;
-  else
-    *fossils_count = *fossils_count + 1;
-
-  free(label);
-  free(mean);
-  free(offset);
-}
-
-/* set log-normal prior for a node */
-static void set_node_ln_prior(long * fossils_count, long * extinct_leaves_count)
-{
-  int len;
-  tree_node_t * node;
-
-  /* node label */
-  len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  assert(len >= 0);
-  char * label = xstrndup(line+pmatch[1].rm_so, (size_t)len);
-
-  /* mean */
-  len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  assert(len >= 0);
-  char * mean = xstrndup(line+pmatch[2].rm_so, (size_t)len);
-
-  /* standard deviation */
-  len = pmatch[4].rm_eo - pmatch[4].rm_so;
-  assert(len >= 0);
-  char * stdev = xstrndup(line+pmatch[4].rm_so, (size_t)len);
-
-  /* offset */
-  len = pmatch[6].rm_eo - pmatch[6].rm_so;
-  assert(len >= 0);
-  char * offset = xstrndup(line+pmatch[6].rm_so, (size_t)len);
-
-  node = query_node(label);
-  if (!node)
-    fatal("Node %s does not exist (line %d of %s)", 
-          label, lineno, opt_priorfile);
-
-  if (node->prior_lineno)
-    fatal("Error: line %d of file %s assigns a prior to node %s which already "
-          "has a prior from line %d",
-          lineno, opt_priorfile, label, node->prior_lineno);
-
-  ln_params_t * params = (ln_params_t *)xmalloc(sizeof(ln_params_t));
-  params->mean   = atof(mean);
-  params->stdev  = atof(stdev);
-  params->offset = atof(offset);
-
-  node->prior        = NODEPRIOR_LN;
-  node->prior_params = params;
-  node->prior_lineno = lineno;
-
-  if (!opt_quiet)
-    printf ("  ln(%s,%s) on node (%s) with offset %s\n",
-            mean, stdev, label, offset);
-
-  if (!node->left)
-    *extinct_leaves_count = *extinct_leaves_count + 1;
-  else
-    *fossils_count = *fossils_count + 1;
-
-  free(label);
-  free(mean);
-  free(stdev);
-  free(offset);
-}
-
-static void set_mrca_exp_prior(long * fossils_count)
-{
-  int len;
-  tree_node_t * node1;
-  tree_node_t * node2;
-  tree_node_t * lca;
-
-  /* node label */
-  len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  assert(len >= 0);
-  char * tip1 = xstrndup(line+pmatch[1].rm_so, (size_t)len);
-
-  /* node label */
-  len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  assert(len >= 0);
-  char * tip2 = xstrndup(line+pmatch[2].rm_so, (size_t)len);
-
-  /* mean */
-  len = pmatch[3].rm_eo - pmatch[3].rm_so;
-  assert(len >= 0);
-  char * mean = xstrndup(line+pmatch[3].rm_so, (size_t)len);
-
-  /* mean */
-  len = pmatch[5].rm_eo - pmatch[5].rm_so;
-  assert(len >= 0);
-  char * offset = xstrndup(line+pmatch[5].rm_so, (size_t)len);
-
-  /* match tip1 to its node */
-  node1 = query_node(tip1);
-  if (!node1)
-    fatal("Tip %s does not exist (line %d of %s)", tip1, lineno, opt_priorfile);
-
-  /* match tip1 to its node */
-  node2 = query_node(tip2);
-  if (!node2)
-    fatal("Tip %s does not exist (line %d of %s)", tip2, lineno, opt_priorfile);
-
-  /* find their lowest common ancestor */
-  lca = lca_compute(node1, node2);
-
-  if (lca->prior_lineno)
-    fatal("Error: line %d of file %s assigns a prior to the mRCA of %s and %s, "
-          "which already has a prior from line %d", 
-          lineno, opt_priorfile, tip1, tip2, lca->prior_lineno);
-
-  /* set distribution parameters at concrete node */
-  exp_params_t * params = (exp_params_t *)xmalloc(sizeof(exp_params_t));
-  params->mean   = atof(mean);
-  params->offset = atof(offset);
-
-  lca->prior        = NODEPRIOR_EXP;
-  lca->prior_params = params;
-  lca->prior_lineno = lineno;
-
-  if (!opt_quiet)
-    printf ("  exp(%s) on mrca (%s,%s) with offset %s\n",
-            mean, tip1, tip2, offset); 
-
-  *fossils_count = *fossils_count + 1;
-
-  free(tip1);
-  free(tip2);
-  free(mean);
-  free(offset);
-}
-
-static void set_mrca_ln_prior(long * fossils_count)
-{
-  int len;
-  tree_node_t * node1;
-  tree_node_t * node2;
-  tree_node_t * lca;
-
-  /* node label */
-  len = pmatch[1].rm_eo - pmatch[1].rm_so;
-  assert(len >= 0);
-  char * tip1 = xstrndup(line+pmatch[1].rm_so, (size_t)len);
-
-  /* node label */
-  len = pmatch[2].rm_eo - pmatch[2].rm_so;
-  assert(len >= 0);
-  char * tip2 = xstrndup(line+pmatch[2].rm_so, (size_t)len);
-
-  /* mean */
-  len = pmatch[3].rm_eo - pmatch[3].rm_so;
-  assert(len >= 0);
-  char * mean = xstrndup(line+pmatch[3].rm_so, (size_t)len);
-
-  /* standard deviation */
-  len = pmatch[5].rm_eo - pmatch[5].rm_so;
-  assert(len >= 0);
-  char * stdev = xstrndup(line+pmatch[5].rm_so, (size_t)len);
-
-  /* offset */
-  len = pmatch[7].rm_eo - pmatch[7].rm_so;
-  assert(len >= 0);
-  char * offset = xstrndup(line+pmatch[7].rm_so, (size_t)len);
-
-  /* match tip1 to its node */
-  node1 = query_node(tip1);
-  if (!node1)
-    fatal("Tip %s does not exist (line %d of %s)", tip1, lineno, opt_priorfile);
-
-  /* match tip1 to its node */
-  node2 = query_node(tip2);
-  if (!node2)
-    fatal("Tip %s does not exist (line %d of %s)", tip2, lineno, opt_priorfile);
-
-  /* find their lowest common ancestor */
-  lca = lca_compute(node1, node2);
-
-  if (lca->prior_lineno)
-    fatal("Error: line %d of file %s assigns a prior to the mRCA of %s and %s, "
-          "which already has a prior from line %d", 
-          lineno, opt_priorfile, tip1, tip2, lca->prior_lineno);
-
-  /* set distribution parameters at concrete node */
-  ln_params_t * params = (ln_params_t *)xmalloc(sizeof(ln_params_t));
-  params->mean   = atof(mean);
-  params->stdev  = atof(stdev);
-  params->offset = atof(offset);
-
-  lca->prior        = NODEPRIOR_LN;
-  lca->prior_params = params;
-  lca->prior_lineno = lineno;
-
-  if (!opt_quiet)
-    printf ("  ln(%s,%s) on mrca(%s,%s) with offset %s\n",
-            mean, stdev, tip1, tip2, offset);
-
-  *fossils_count = *fossils_count + 1;
-
-  free(tip1);
-  free(tip2);
-  free(mean);
-  free(stdev);
-  free(offset);
-}
-
-static void priorfile_parse(long * fossils_count, long * extinct_leaves_count)
-{
-  while(fgets(line, LINEALLOC, fp))
-  {
-    ++lineno;
-
-    if (regexec(&regexp_node_exp, line, 6, pmatch, 0) == 0)
-      set_node_exp_prior(fossils_count,extinct_leaves_count);
-    else if (regexec(&regexp_mrca_exp, line, 7, pmatch, 0) == 0)
-      set_mrca_exp_prior(fossils_count);
-    else if (regexec(&regexp_node_ln, line, 7, pmatch, 0) == 0)
-      set_node_ln_prior(fossils_count,extinct_leaves_count);
-    else if (regexec(&regexp_mrca_ln, line, 8, pmatch, 0) == 0)
-      set_mrca_ln_prior(fossils_count);
-    else if (regexec(&regexp_comment, line, 0, NULL, 0) == 0)
-      continue;
-    else if (regexec(&regexp_ignore, line, 0, NULL, 0) == 0)
-      continue;
-    else
-      fatal("Invalid syntax on line %d of file %s", lineno, opt_priorfile);
-  }
-}
-
-static void priorfile_close(void)
-{
-  fclose(fp); 
-}
-
-static void hashtable_init(size_t node_count, tree_node_t ** nodes)
+static void hashtable_create(tree_node_t * root)
 {
   ENTRY entry;
   size_t i;
 
-  hcreate(node_count * 2);
+  tree_node_t ** node_list = (tree_node_t **)xmalloc((size_t)(root->leaves) *
+                                                 sizeof(tree_node_t *));
+  rtree_query_tipnodes(root, node_list);
 
-  for (i = 0; i < node_count; ++i)
+  hcreate((size_t)(2*root->leaves));
+
+  for (i=0; i < (size_t)(root->leaves); ++i)
   {
-    if (!nodes[i]->label)
+    if (!node_list[i]->label)
       continue;
       
-    entry.key  = nodes[i]->label;
-    entry.data = (void *)nodes[i];
+    entry.key  = node_list[i]->label;
+    entry.data = (void *)node_list[i];
     hsearch(entry,ENTER);
   }
+
+  free(node_list);
+}
+
+static tree_node_t ** hashtable_query(char * tipstring,
+                                     unsigned int * taxa_count)
+{
+  unsigned int k;
+  unsigned int i;
+  size_t taxon_len;
+  unsigned int commas_count = 0;
+  ENTRY * found = NULL;
+  char * taxon;
+
+  /* compute comma count */
+  for (i = 0; i < strlen(tipstring); ++i)
+    if (tipstring[i] == ',')
+      commas_count++;
+
+  /* allocate list of nodes that will be returned */
+  tree_node_t ** out_node_list = (tree_node_t **)xmalloc((commas_count+1) *
+                                                         sizeof(tree_node_t *));
+
+  char * s = tipstring;
+  k = 0;
+  while (*s)
+  {
+    /* get next tip */
+    taxon_len = strcspn(s, ",");
+    if (!taxon_len)
+      fatal("Erroneous prune list format (double comma)/taxon missing");
+
+    taxon = strndup(s, taxon_len);
+
+    /* search tip in hash table */
+    ENTRY query;
+    query.key = taxon;
+    found = NULL;
+    found = hsearch(query,FIND);
+    
+    if (!found)
+      fatal("Cannot find taxon with node label (%s) in tree", taxon);
+
+    /* store pointer in output list */
+    out_node_list[k++] = (tree_node_t *)(found->data);
+
+    /* free tip label, and move to the beginning of next tip if available */
+    free(taxon);
+    s += taxon_len;
+    if (*s == ',') 
+      s += 1;
+  }
+
+  /* return number of tips in the list */
+  *taxa_count = commas_count + 1;
+
+  /* return tip node list */
+  return out_node_list;
+}
+
+static void print_prior(tree_node_t ** tip_list, unsigned int count, int priorno, prior_t * prior)
+{
+  unsigned int i;
+
+  exp_params_t * exp_params;
+  ln_params_t * ln_params;
+  uni_params_t * uni_params;
+
+  switch(prior->dist)
+  {
+    case NODEPRIOR_EXP:
+      exp_params = (exp_params_t *)(prior->params);
+      printf ("  %d: line %d -- exp(%f) offset %f MRCA (%s",
+              priorno,
+              prior->lineno,
+              exp_params->mean,
+              exp_params->offset,
+              tip_list[0]->label);
+      break;
+    case NODEPRIOR_LN:
+      ln_params = (ln_params_t *)(prior->params);
+      printf ("%d: line %d -- ln(%f,%f) offset %f MRCA (%s",
+              priorno,
+              prior->lineno,
+              ln_params->mean,
+              ln_params->stdev,
+              ln_params->offset,
+              tip_list[0]->label);
+      break;
+    case NODEPRIOR_UNI:
+      uni_params = (uni_params_t *)(prior->params);
+      printf ("%d: line %d -- uni(%f,%f) MRCA (%s",
+              priorno,
+              prior->lineno,
+              uni_params->min_age,
+              uni_params->max_age,
+              tip_list[0]->label);
+      break;
+    default:
+      assert(0);
+  }
+  for (i = 1; i < count; ++i)
+    printf(",%s", tip_list[i]->label);
+  printf(")\n");
+}
+
+static void process_priors(list_t * prior_list,
+                           tree_node_t * root,
+                           long * fossils_count,
+                           long * extinct_leaves_count)
+{
+  prior_t * prior;
+  unsigned int taxa_count;
+  tree_node_t * lca;
+  int i = 0;
+
+  while (prior_list)
+  {
+    i++;
+    /* get current prior from list */
+    prior = prior_list->prior;
+
+    /* convert comma-separated taxa list to node pointers */
+    tree_node_t ** tip_list = hashtable_query(prior->taxa, &taxa_count);
+
+    /* store fossil / extinct leaves count */
+    if (taxa_count == 1)
+      *extinct_leaves_count = *extinct_leaves_count + 1;
+    else
+      *fossils_count = *fossils_count + 1;
+
+    /* get the node pointer of the tip_list LCA */
+    lca = lca_compute(root, tip_list, taxa_count);
+    
+    /* if a prior on that LCA already exists, then error */
+    if (lca->prior_lineno)
+      fatal("Error: line %d of file %s assigns a prior to the mRCA of %s and %s, "
+            "which already has a prior from line %d", 
+            prior->lineno, opt_priorfile, tip_list[0]->label, tip_list[1]->label, lca->prior_lineno);
+
+    /* set prior on the LCA */
+    lca->prior = prior->dist;
+    lca->prior_params = prior->params;
+    lca->prior_lineno = prior->lineno;
+    
+    /* output prior info on screen */
+    if (!opt_quiet)
+    {
+      print_prior(tip_list, taxa_count, i, prior);
+    }
+
+    /* move to the next prior and free tip_list */
+    prior_list = prior_list->next;
+    free(tip_list);
+  }
+}
+
+static void dealloc_prior_list(list_t * list)
+{
+  if (!list) return;
+
+  free(list->prior->taxa);
+  free(list->prior);
+  if (list->next)
+    dealloc_prior_list(list->next);
+  free(list);
 }
 
 void set_node_priors(tree_node_t * root, 
                      long * fossils_count, 
                      long * extinct_leaves_count)
 {
-  size_t node_count = 2*(unsigned long)(root->leaves) - 1;
-
   *fossils_count = 0;
   *extinct_leaves_count = 0;
 
-  /* create a linear list of tree node pointers */
-  tree_node_t ** nodes = (tree_node_t **)xmalloc(node_count * 
-                                                 sizeof(tree_node_t *));
-  tree_traverse(root, nodes);
-
   /* create hash table with node labels */
-  hashtable_init(node_count, nodes);
+  hashtable_create(root);
     
-  /* initialize LCA computation */
-  lca_init(root);
+  /* parse prior file */
+  list_t * prior_list = yy_parse_nodeprior(opt_priorfile);
 
-  /* compile regular expressions */
-  regexp_init();
-  
-  /* open prior file */
-  priorfile_open();
+  /* set priors to nodes */
+  process_priors(prior_list,
+                 root,
+                 fossils_count,
+                 extinct_leaves_count);
 
-  /*  parse prior file */
-  priorfile_parse(fossils_count, extinct_leaves_count);
-
-  /* close prior file */
-  priorfile_close();
-
-  /* destroy initialized LCA data */
-  lca_destroy();
-
-  /* destroy linear list of tree node pointers */
-  free(nodes);
-
-  /* deallocate compiled regular expression structures */
-  regexp_free();
+  /* deallocate parsed prior list */
+  dealloc_prior_list(prior_list);
 
   /* destroy hash table */
   hdestroy();

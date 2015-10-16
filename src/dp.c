@@ -21,6 +21,15 @@
 
 #include "fastdate.h"
 
+/* L-BFGS-B optimization factor
+ * (relative to the machine epsilon)
+ */
+static const double opt_factor = 1e12;
+/* gradient tolerance */
+static const double opt_pgtol = 0.1;
+/* epsilon for the iterative optimization */
+static const double opt_epsilon = 1.0e-2;
+
 static long inner_entries = 0;
 static double interval_age = 0;
 static long tree_height = 0;
@@ -48,7 +57,7 @@ double check_prior(tree_node_t * node, double abs_age_node)
     if (node->prior == NODEPRIOR_EXP)
     {
       exp_params_t * params = (exp_params_t *)(node->prior_params);
-      dist_logprob = exp_dist_logpdf(1/params->mean, 
+      dist_logprob = exp_dist_logpdf(1/params->mean,
                                      abs_age_node - params->offset);
     }
     else if (node->prior == NODEPRIOR_LN)
@@ -57,6 +66,13 @@ double check_prior(tree_node_t * node, double abs_age_node)
       dist_logprob = ln_dist_logpdf(params->mean,
                                     params->stdev,
                                     abs_age_node - params->offset);
+    }
+    else if (node->prior == NODEPRIOR_UNI)
+    {
+      uni_params_t * params = (uni_params_t *)(node->prior_params);
+      dist_logprob = uni_dist_logpdf(params->min_age,
+                                     params->max_age,
+                                     abs_age_node);
     }
     else if (node->prior)
       assert(0);
@@ -156,7 +172,7 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
       jmax = 1;
     else
       jmax = (node->height + i - left->height);
-    
+
     assert(jmax <= left->entries);
 
     long jbest = -1;
@@ -251,6 +267,7 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
+
 }
 
 
@@ -325,8 +342,8 @@ static void threads_wakeup(tree_node_t * node)
   /* precompute total workload as the sum of operations required for each
      gridline node can be placed on */
   double term = 2 * node->height + node->left->height + node->right->height;
-  unsigned long workload = (unsigned long)entries * (unsigned long)term - 
-                           (unsigned long)entries + 
+  unsigned long workload = (unsigned long)entries * (unsigned long)term -
+                           (unsigned long)entries +
                            (unsigned long)(entries*entries);
   double wl_thread = workload / (double)threads;
 
@@ -423,11 +440,11 @@ static void dp_recurse_parallel(tree_node_t * node)
   progress_update((unsigned long)sum_entries);
 }
 
-/* this resets the node heights for method_nodeprior */
+/* this resets the node heights for method_nodeprior or method_tipdates */
 static void reset_node_heights(tree_node_t * node)
 {
   assert(node);
-  
+
   double offset = 0;
   long min_height = 0;
 
@@ -437,29 +454,33 @@ static void reset_node_heights(tree_node_t * node)
 
   /* compute minimum possible interval line given a node has calibration info */
   if (node->prior == NODEPRIOR_EXP)
-    offset = ((exp_params_t *)(node->prior_params))->offset; 
+    offset = ((exp_params_t *)(node->prior_params))->offset;
   else if (node->prior  == NODEPRIOR_LN)
     offset = ((ln_params_t *)(node->prior_params))->offset;
+  else if (node->prior == NODEPRIOR_UNI)
+    offset = ((uni_params_t *)(node->prior_params))->min_age;
   min_height = lrint(ceil(offset / interval_age));
 
+  /* tip case */
   if (!node->left)
   {
     node->height = min_height;
     if (node->height + required_space >= opt_grid_intervals)
-      fatal("Error: Calibration info on line %d of file %s disrupts grid", 
+      fatal("Error: Calibration info on line %d of file %s disrupts grid",
             node->prior_lineno, opt_priorfile);
     return;
   }
 
+  /* inner node case */
   reset_node_heights(node->left);
   reset_node_heights(node->right);
 
-  node->height = (node->left->height > node->right->height) ? 
+  node->height = (node->left->height > node->right->height) ?
                        node->left->height + 1 : node->right->height + 1;
 
   if (min_height > node->height)
     node->height = min_height;
-  
+
   if (node->height + required_space >= opt_grid_intervals)
     fatal("Error: Calibration info on line %d of file %s disrupts grid",
           node->prior_lineno, opt_priorfile);
@@ -489,6 +510,18 @@ static void alloc_node_entries(tree_node_t * node)
     else
     {
       entries = node->parent->entries + node->parent->height - node->height - 1;
+
+      /* if uniform distribution we need to check for max age */
+      if (node->prior == NODEPRIOR_UNI)
+      {
+        double max_age = ((uni_params_t *)(node->prior_params))->max_age;
+        long max_grid_line = lrint(ceil(max_age / interval_age)); 
+
+        assert(max_grid_line >= node->height);
+
+        if (node->height + entries - 1 > max_grid_line)
+          entries = max_grid_line - node->height + 1;
+      }
       node->entries      = entries;
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
       node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
@@ -504,6 +537,18 @@ static void alloc_node_entries(tree_node_t * node)
   else
     entries = node->parent->entries + node->parent->height - node->height - 1;
 
+  /* if uniform distribution we need to check for max age */
+  if (node->prior == NODEPRIOR_UNI)
+  {
+    double max_age = ((uni_params_t *)(node->prior_params))->max_age;
+    long max_grid_line = lrint(ceil(max_age / interval_age)); 
+
+    assert(max_grid_line >= node->height);
+
+    if (node->height + entries - 1 > max_grid_line)
+      entries = max_grid_line - node->height + 1;
+  }
+
   /* allocate storage space for placement information at each node */
   node->entries      = entries;
   node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
@@ -511,6 +556,7 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
   node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
   node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
+
 
   /* for progress bar indication */
   inner_entries += entries;
@@ -538,7 +584,7 @@ static void dp_recurse_serial(tree_node_t * node)
      calc_tip(node);
      return;
   }
-  
+
   /* inner nodes case */
   left  = node->left;
   right = node->right;
@@ -549,13 +595,13 @@ static void dp_recurse_serial(tree_node_t * node)
   /* run DP */
 
   /*
-         
+
                         o  (rel_age_node)
                        / \
                       /   \
       (rel_age_left) o     \
                             o (rel_age_right)
-                    
+
   */
   calc_interval_scores(node,0,node->entries);
 
@@ -577,12 +623,12 @@ static void dp_backtrack_recursive(tree_node_t * node, long best_entry)
   }
 }
 
-static void dp_backtrack(tree_node_t * root)
+static double dp_backtrack(tree_node_t * root)
 {
   long i;
   long best_entry = 0;
   double max_score = -__DBL_MAX__;
-  double score;
+  double score = 0.0;
 
   for (i = 0; i < root->entries; ++i)
   {
@@ -597,10 +643,36 @@ static void dp_backtrack(tree_node_t * root)
   root->interval_line = root->height + best_entry;
 
   dp_backtrack_recursive(root, best_entry);
+
+  return max_score;
+}
+
+double dp_evaluate(tree_node_t * tree)
+{
+  double score = 0.0;
+
+  gamma_dist_init();
+  bd_init(0, 0);
+
+  if (opt_threads > 1)
+  {
+    //TODO: assert that pthreads is initialized
+    dp_recurse_parallel(tree);
+  }
+  else
+    dp_recurse_serial(tree);
+
+  score = dp_backtrack(tree);
+
+  assert(score < 0);
+
+  return score;
 }
 
 void dp(tree_node_t * tree)
 {
+  double score;
+
   assert(opt_grid_intervals > tree->height);
   tree_height = tree->height;
 
@@ -610,14 +682,14 @@ void dp(tree_node_t * tree)
   /* compute the absolute age of an interval line */
   if (opt_method_nodeprior|| opt_method_tipdates)
     interval_age = opt_max_age / (opt_grid_intervals - 1);
-  
+
   /* reset node heights according to calibrations if nodeprior method is used */
   if (opt_method_nodeprior || opt_method_tipdates)
     reset_node_heights(tree);
 
   /* allocate space for node entries */
   alloc_node_entries(tree);
-  
+
   progress_init("Running DP...", (unsigned long)inner_entries);
   if (opt_threads > 1)
   {
@@ -633,6 +705,72 @@ void dp(tree_node_t * tree)
   if (!opt_quiet)
     printf ("Backtracking...\n");
 
-  dp_backtrack(tree);
+  score = dp_backtrack(tree);
+  
+  /* optimize parameters */
+  if (opt_parameters_bitv)
+  {
+    printf("\n\n*** RATES OPTIMIZATION ***\n\n");
+    printf("Starting score: %f\n\n", score);
 
+    opt_quiet = 1;
+
+    printf("Starting parameters:\n");
+    if (opt_parameters_bitv & PARAM_LAMBDA)
+      printf(" lambda: %6.4f\n", opt_lambda);
+    if (opt_parameters_bitv & PARAM_MU)
+      printf(" mu:     %6.4f\n", opt_mu);
+    if (opt_parameters_bitv & PARAM_RHO)
+      printf(" rho:    %6.4f\n", opt_rho);
+    if (opt_parameters_bitv & PARAM_PSI)
+      printf(" psi:    %6.4f\n", opt_psi);
+    printf("\n");
+
+    /* single param iterative optimization */
+    if (opt_threads > 1)
+      threads_init();
+    double cur_score = score + 1;
+    int i = 0;
+    while (fabs(cur_score - score) > opt_epsilon)
+    {
+      printf("[%d]\n", i++);
+      cur_score = score;
+      //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+      if (opt_parameters_bitv & PARAM_LAMBDA)
+      {
+        score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
+        printf("%15.4f lambda: %6.4f\n", score, opt_lambda);
+      }
+      if (opt_parameters_bitv & PARAM_MU)
+      {
+        score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
+        printf("%15.4f mu:     %6.4f\n", score, opt_mu);
+      }
+      if (opt_parameters_bitv & PARAM_PSI)
+      {
+        score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+        printf("%15.4f psi:    %6.4f\n", score, opt_psi);
+      }
+      if (opt_parameters_bitv & PARAM_RHO)
+      {
+        score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol);
+        printf("%15.4f rho:    %6.4f\n", score, opt_rho);
+      }
+    }
+    if (opt_threads > 1)
+      threads_exit();
+
+    printf("\nFinal parameters:\n");
+    if (opt_parameters_bitv & PARAM_LAMBDA)
+      printf(" lambda: %6.4f\n", opt_lambda);
+    if (opt_parameters_bitv & PARAM_MU)
+      printf(" mu:     %6.4f\n", opt_mu);
+    if (opt_parameters_bitv & PARAM_RHO)
+      printf(" rho:    %6.4f\n", opt_rho);
+    if (opt_parameters_bitv & PARAM_PSI)
+      printf(" psi:    %6.4f\n", opt_psi);
+
+    printf("\nScore after optimization %f\n", score);
+    printf("\n*** ***** ************ ***\n\n");
+  }
 }

@@ -20,7 +20,6 @@
 */
 
 #include "fastdate.h"
-#include <stdint.h>
 
 static char * progname;
 static char progheader[80];
@@ -28,8 +27,8 @@ static char * cmdline;
 
 /* number of mandatory options for the user to input */
 
-static const char mand_options_count = 7;
-static const char * mand_options_list = " --tree_file\n --out_file\n --bd_mu\n --bd_lambda\n --bd_rho\n --rate_mean\n --rate_variance\n"
+static const char mand_options_count = 4;
+static const char * mand_options_list = " --tree_file\n --out_file\n --rate_mean\n --rate_variance\n"
 ;
 
 /* options */
@@ -58,6 +57,8 @@ double opt_rate_mean;
 double opt_rate_var;
 double opt_cred_interval;
 
+unsigned int opt_parameters_bitv;
+
 static struct option long_options[] =
 {
   {"help",               no_argument,       0, 0 },  /*  0 */
@@ -67,7 +68,7 @@ static struct option long_options[] =
   {"out_file",           required_argument, 0, 0 },  /*  4 */
   {"out_form",           required_argument, 0, 0 },  /*  5 */
   {"grid",               required_argument, 0, 0 },  /*  6 */
-  {"bd_lambda",          required_argument, 0, 0 },  /*  7 */      
+  {"bd_lambda",          required_argument, 0, 0 },  /*  7 */
   {"bd_mu",              required_argument, 0, 0 },  /*  8 */
   {"bd_rho",             required_argument, 0, 0 },  /*  9 */
   {"bd_psi",             required_argument, 0, 0 },  /* 10 */
@@ -112,6 +113,8 @@ void args_init(int argc, char ** argv)
   opt_sample = 0;
   opt_cred_interval = 0;
 
+  opt_parameters_bitv = 0;
+
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
     switch (option_index)
@@ -147,7 +150,7 @@ void args_init(int argc, char ** argv)
           fatal("Unrecognized argument for --output-form");
         break;
 
-      
+
       case 6:
         opt_grid_intervals = atol(optarg);
         if (opt_grid_intervals < 0)
@@ -177,7 +180,7 @@ void args_init(int argc, char ** argv)
         if (opt_psi <= 0)
           fatal("  --bd_psi must be a positive value");
         break;
-      
+
       case 11:
         opt_rate_mean = atof(optarg);
         break;
@@ -208,7 +211,7 @@ void args_init(int argc, char ** argv)
       case 18:
         opt_quiet = 1;
         break;
-      
+
       case 19:
         opt_threads = atol(optarg);
         break;
@@ -245,12 +248,26 @@ void args_init(int argc, char ** argv)
     mand_options++;
   if (opt_rate_mean)
     mand_options++;
-  if (opt_lambda)
-    mand_options++;
-  if (opt_mu)
-    mand_options++;
-  if (opt_rho)
-    mand_options++;
+
+  /* check for non-fixed parameters */
+  if (!opt_lambda)
+  {
+    opt_lambda =  opt_mu + DEFAULT_LAMBDA;
+    opt_parameters_bitv |= PARAM_LAMBDA;
+  }
+  if (!opt_mu)
+  {
+    opt_mu = DEFAULT_MU;
+    /* check if lambda has been fixed by the user to a very low number */
+    if (opt_mu > opt_lambda)
+      opt_mu = opt_lambda/10;
+    opt_parameters_bitv |= PARAM_MU;
+  }
+  if (!opt_rho)
+  {
+    opt_rho = DEFAULT_RHO;
+    opt_parameters_bitv |= PARAM_RHO;
+  }
 
   /* check for number of independent commands selected */
   if (opt_method_relative)
@@ -273,7 +290,7 @@ void args_init(int argc, char ** argv)
   {
     /* check for mandatory options */
     if (mand_options < mand_options_count)
-      fatal("Mandatory options are:\n\n%s", 
+      fatal("Mandatory options are:\n\n%s",
             mand_options_list);
 
     if (opt_lambda <= 0)
@@ -300,8 +317,10 @@ void args_init(int argc, char ** argv)
   if (opt_method_tipdates)
   {
     if (opt_psi == 0)
-      fatal("Use method --method_relative or --method_nodeprior when estimating divergence times "
-            "without fossil information (psi = 0)");
+    {
+      opt_psi = DEFAULT_PSI;
+      opt_parameters_bitv |= PARAM_PSI;
+    }
     if (opt_psi < 0)
       fatal(" Option --bd_psi must be a positive value");
   }
@@ -319,20 +338,20 @@ void args_init(int argc, char ** argv)
   {
     if (!opt_priorfile)
       fatal("Method --method_tipdates requires a file with the ages of some "
-            "tips to be specified with the --prior_file switch"); 
+            "tips to be specified with the --prior_file switch");
     if (!opt_max_age)
       fatal("Method --method_tipdates requires that --max_age is defined");
   }
 
   /* if no command specified, turn on --help */
-  if (!commands) opt_help = 1; 
+  if (!commands) opt_help = 1;
 
   if ((opt_threads < 0) || (opt_threads > 1024))
     fatal("The argument to --threads must be in the range 0 (default) to 1024");
 
   if (opt_threads == 0)
     opt_threads = sysconf(_SC_NPROCESSORS_ONLN);
-  
+
 }
 
 void cmd_help()
@@ -351,6 +370,8 @@ void cmd_help()
           "  --quiet                        only output warnings and fatal errors to stderr.\n"
           "  --threads INT                  number of threads to use, zero for all cores (default: 0).\n"
           "  --grid INT                     number of grid intervals to use (default: 1000).\n"
+          "  --seed INT                     seed for pseudo-random number generator.\n"
+          "  --sample INT                   draw INT trees from an approximation of the posterior probability distribution.\n"
           "Input and output options:\n"
           "  --tree_file FILENAME           tree file in newick format.\n"
           "  --prior_file FILENAME          file containing node priors (for --method_nodeprior).\n"
@@ -358,9 +379,9 @@ void cmd_help()
           "  --out_form STRING              format of the output tree. Can be either 'dated' or"
                                             "'ultrametric' (default: 'ultrametric').\n"
           "Model parameters:\n"
-          "  --bd_lambda REAL               birth rate for Birth/Death model (default: 2).\n"
-          "  --bd_mu REAL                   death rate for Birth/Death model (default: 0).\n"
-          "  --bd_rho REAL                  probability of sampling individuals. (default: 0.5)\n"
+          "  --bd_lambda REAL               birth rate for Birth/Death model (default: optimized).\n"
+          "  --bd_mu REAL                   death rate for Birth/Death model (default: optimized).\n"
+          "  --bd_rho REAL                  probability of sampling individuals. (default: optimized)\n"
           "  --bd_psi REAL                  fossil sample rate\n"
           "  --rate_mean REAL               mean value of edge rate model (default: 5).\n"
           "  --rate_variance REAL           variance value for edge rate model (default: 1).\n"

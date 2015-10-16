@@ -3,9 +3,14 @@ DVIPDF = dvipdf
 BIBTEX = bibtex
 PDFLATEX = pdflatex
 
-all: dating
+all: dating dp
 
 dating: dating.tex
+	$(LATEX) $+
+	$(BIBTEX) $@
+	$(DVIPDF) $@
+
+dp: dp.tex
 	$(LATEX) $+
 	$(BIBTEX) $@
 	$(DVIPDF) $@

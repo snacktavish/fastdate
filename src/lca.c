@@ -21,11 +21,6 @@
 
 #include "fastdate.h"
 
-static tree_node_t ** path1 = NULL;
-static tree_node_t ** path2 = NULL;
-static int path1_len = 0;
-static int path2_len = 0;
-
 /* fill path with nodes of the path tip to root */
 static void fill_path(tree_node_t ** path, int * path_len, tree_node_t * tip)
 {
@@ -40,31 +35,50 @@ static void fill_path(tree_node_t ** path, int * path_len, tree_node_t * tip)
   *path_len = i;
 }
 
-void lca_init(tree_node_t * root)
+tree_node_t * lca_compute(tree_node_t * root,
+                          tree_node_t ** tip_nodes,
+                          unsigned int count)
 {
-  /* allocate two paths of maximal height */
-  path1 = (tree_node_t **)xmalloc((size_t)(root->height+1) * sizeof(tree_node_t *));
-  path2 = (tree_node_t **)xmalloc((size_t)(root->height+1) * sizeof(tree_node_t *));
-}
+  unsigned int i;
+  tree_node_t *** path;
 
-tree_node_t * lca_compute(tree_node_t * tip1, tree_node_t * tip2)
-{
-  fill_path(path1, &path1_len, tip1);
-  fill_path(path2, &path2_len, tip2);
+  assert(count >= 2);
 
-  assert(path1_len && path2_len);
+  path = (tree_node_t ***)xmalloc((size_t)count *
+                                  sizeof(tree_node_t **));
+  int * path_len = (int *)xmalloc((size_t)count * sizeof(int));
 
-  while(path1[--path1_len] == path2[--path2_len])
+  /* fill paths */
+  for (i = 0; i < count; ++i)
   {
-    assert(path1_len && path2_len);
+    path[i] = (tree_node_t **)xmalloc((size_t)(root->height+1) *
+                                      sizeof(tree_node_t *));
+    
+    fill_path(path[i], &(path_len[i]), tip_nodes[i]);
   }
 
-  /* return the LCA */
-  return path1[path1_len+1];
-}
+  /* find LCA */
+  tree_node_t * lca = NULL;
+  while (!lca)
+  {
+    for (i = 0; i < count; ++i)
+      --path_len[i];
 
-void lca_destroy()
-{
-  free(path1);
-  free(path2);
+    for (i = 1; i < count; ++i)
+    {
+      if (path[i-1][path_len[i-1]] != path[i][path_len[i]])
+      {
+        lca = path[i][path_len[i]+1];
+        break;
+      }
+    }
+  }
+
+  /* free allocated memory */
+  for (i = 0; i < count; ++i)
+    free(path[i]);
+  free(path);
+  free(path_len);
+
+  return lca;
 }
