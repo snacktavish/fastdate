@@ -120,13 +120,10 @@ typedef struct tree_noderec
   /* sampling specific */
   long sampled_gridline;
 
-
-  /*Credible nterval specific*/
+  /*Credible interval specific*/
   long lowerbound;
   long upperbound;
   double * interval_weights;
-
-
 
 } tree_node_t;
 
@@ -180,6 +177,8 @@ extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
 extern double opt_cred_interval;
+
+extern unsigned int opt_parameters_bitv;
 
 extern unsigned int opt_parameters_bitv;
 

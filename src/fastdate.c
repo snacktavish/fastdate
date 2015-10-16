@@ -59,6 +59,8 @@ double opt_cred_interval;
 
 unsigned int opt_parameters_bitv;
 
+unsigned int opt_parameters_bitv;
+
 static struct option long_options[] =
 {
   {"help",               no_argument,       0, 0 },  /*  0 */
@@ -112,6 +114,8 @@ void args_init(int argc, char ** argv)
   opt_seed = 0;
   opt_sample = 0;
   opt_cred_interval = 0;
+
+  opt_parameters_bitv = 0;
 
   opt_parameters_bitv = 0;
 

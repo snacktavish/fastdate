@@ -172,7 +172,7 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
       jmax = 1;
     else
       jmax = (node->height + i - left->height);
-
+    
     assert(jmax <= left->entries);
 
     long jbest = -1;
@@ -267,15 +267,12 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
-
 }
-
 
 static thread_info_t * ti;
 
 static inline void dp_recurse_worker(long t)
 {
-
   thread_info_t * tip = ti + t;
   tree_node_t * node  = tip->node;
 
@@ -601,10 +598,8 @@ static void dp_recurse_serial(tree_node_t * node)
                       /   \
       (rel_age_left) o     \
                             o (rel_age_right)
-
   */
   calc_interval_scores(node,0,node->entries);
-
   sum_entries += node->entries;
   progress_update((unsigned long)sum_entries);
 }
