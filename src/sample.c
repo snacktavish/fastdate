@@ -179,7 +179,7 @@ void sample(tree_node_t * root)
   char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
   double interval_age = opt_max_age / (opt_grid_intervals - 1);
   if (opt_method_relative)
-    interval_age =1;
+    interval_age = 1;
   strcpy(filename, opt_outfile);
   strcat(filename,".sampled");
 
