@@ -124,8 +124,6 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
   if (entries > node->entries)
     entries = node->entries;
 
-  assert(entries <= node->entries);
-
   recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
   normalize_cdf(cdf_vector, entries, maxscore);
   node->sampled_gridline = node->height + 
@@ -182,9 +180,15 @@ static void output_sample_tree_recursive(tree_node_t * node,
 void sample(tree_node_t * root)
 {
   long i;
+  double interval_age;
 
   char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
-  double interval_age = opt_max_age / (opt_grid_intervals - 1);
+
+  if (opt_max_age)
+    interval_age = opt_max_age / (opt_grid_intervals - 1);
+  else
+    interval_age = 1 / (opt_grid_intervals - 1);
+
 
   strcpy(filename, opt_outfile);
   strcat(filename,".sampled");
