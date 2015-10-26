@@ -116,8 +116,13 @@ static void dp_backtrack_sampling_recursive(tree_node_t * node)
   double rel_age_parent = (1.0 / opt_grid_intervals) *
                           (parent->sampled_gridline);
 
-  long entries = (node->left) ? 
-                 (parent->sampled_gridline - node->height) : 1;
+  /* number of grid-line entries on which we can place node */
+  long entries = parent->sampled_gridline - node->height;
+
+  /* in case we have a tip node without a prior, then it can have at most
+     one entry */
+  if (entries > node->entries)
+    entries = node->entries;
 
   assert(entries <= node->entries);
 
