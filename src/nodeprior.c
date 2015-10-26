@@ -173,7 +173,10 @@ static void process_priors(list_t * prior_list,
       *fossils_count = *fossils_count + 1;
 
     /* get the node pointer of the tip_list LCA */
-    lca = lca_compute(root, tip_list, taxa_count);
+    if (taxa_count == 1)
+      lca = tip_list[0];
+    else
+      lca = lca_compute(root, tip_list, taxa_count);
     
     /* if a prior on that LCA already exists, then error */
     if (lca->prior_lineno)
