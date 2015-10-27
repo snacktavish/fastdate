@@ -225,19 +225,19 @@ static void dp_backtrack_credible_recursive(tree_node_t * node)
   for (z = 0; z < poss_entries; ++z) /*TODO is this entirely uneccessary? is vector allocated as 0's*/
           mult_vector[z] = 0;
 
-  for (i = par_lowerbound; i < par_upperbound; ++i) /*loops through 95% comfidence intevral for parent*/
+  for (i = par_lowerbound; i < par_upperbound; ++i) /*loops through credible intevral for parent*/
   { 
       double rel_age_parent = (1.0 / opt_grid_intervals) * (i + parent->height);
       double par_factor = parent->interval_weights[i - par_lowerbound];
       long entries = (i + parent->height) - node->height;
       if (entries > node->entries)
-           entries = node->entries; /*Should probbaly special case the tips, because this will loop through all parent pos even though there si only one possible position..;.*/
+           entries = node->entries; /*Should probaly special case the tips, because this will loop through all parent pos even though there si only one possible position..;.*/
       recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore); /*compute the scores given this parental position*/
       normalize_cdf(cdf_vector, entries, maxscore);  /*rescale */
       for (x = 0; x < entries; ++x)
         {
           assert(x < poss_entries);
-/*          printf("node %s, parent is %s, parent at %i, child at %i, par weight is %f, child weight is %f\n", node->label, parent->label, i, z, parent->interval_weights[i - par_lowerbound],  cdf_vector[z]);*/
+          printf("node %s, parent is %s, parent at %i, child at %i, par weight is %.17f, child weight is %.17f\n", node->label, parent->label, i, x, parent->interval_weights[i - par_lowerbound],  cdf_vector[x]);
           assert(cdf_vector[x] >= 0);
           double local_prob;
           if (x > 0)
@@ -247,6 +247,7 @@ static void dp_backtrack_credible_recursive(tree_node_t * node)
             local_prob = cdf_vector[x];
           }
           mult_vector[x] = ((local_prob * par_factor) +  mult_vector[x]); /*sum the probability weight fo those positions, geven the weight of the parent being at that position, this is not a cumulative probability density!*/
+          printf("x is %i, %.13f, cdf +1 %.13f\n", x, mult_vector[x], cdf_vector[x+1]);
           assert(mult_vector[x]>=0);
         } 
     }
@@ -268,6 +269,7 @@ static void dp_backtrack_credible_recursive(tree_node_t * node)
           mult_vector[i] = (mult_vector[i] / mult_vector_sum) + mult_vector[i-1];
         }
       }
+    printf("mult vector sum %.13f, %.13f\n", mult_vector_sum, mult_vector[poss_entries-1]);
     assert(0.9999 < mult_vector[poss_entries-1]);
     assert(mult_vector[poss_entries-1] < 1.0001);
 
