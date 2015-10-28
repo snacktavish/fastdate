@@ -288,8 +288,6 @@ static void dp_backtrack_credible(tree_node_t * root)
 {
   int i;
   double maxscore = -__DBL_MAX__;
-  double upper_excess;
-  double lower_excess;
 
   cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
 
@@ -303,22 +301,8 @@ static void dp_backtrack_credible(tree_node_t * root)
 
   root->lowerbound = -1;
   root->upperbound = -1;
-  double upper_thresh = cdf_vector[root->interval_line - root->height] + (opt_cred_interval/2); /*cumulative probability density of the upper conf, centered on best estimate...*/
-  double lower_thresh = cdf_vector[root->interval_line - root->height] - (opt_cred_interval/2); /*cumulative probability density of the lower conf, centered on best estimate..*/
-  if (upper_thresh > 1)
-        {
-          root->upperbound = root->entries; 
-          upper_excess = upper_thresh - 1; /*deals with upper half of credible interval exceeding bound by adding leftover to lower half*/
-          lower_thresh = lower_thresh - upper_excess;
-          assert(lower_thresh > 0);
-        }
-  if (lower_thresh < 0)
-        {
-          root->lowerbound = 0; 
-          lower_excess = 0 - lower_thresh;
-          upper_thresh = upper_thresh + lower_excess; /*deals with lower half of credible interval exceeding bound, by adding leftover to upper half*/
-          assert(upper_thresh < 1);
-        }
+  double upper_thresh = (1 - (1 - opt_cred_interval)/2); /*cumulative probability density of the upper conf*/
+  double lower_thresh = (1 - opt_cred_interval)/2; /*cumulative probability density of the lower conf*/  
   for (i = 0; i < root->entries; ++i)
     { 
         if ((cdf_vector[i] > lower_thresh) && (root->lowerbound == -1))
@@ -336,7 +320,6 @@ static void dp_backtrack_credible(tree_node_t * root)
   for (i = 0; i < root->entries; ++i)
   {  
     root->interval_weights[i] = cdf_vector[i];
-    assert(root->interval_weights[i - 1] >= 0);
   }
 
   dp_backtrack_credible_recursive(root->left);
