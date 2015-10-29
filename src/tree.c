@@ -24,9 +24,7 @@
 static int indend_space = 4;
 
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out);
-static void output_um_tree_recursive(tree_node_t * node, 
-                                     FILE * fp_out, 
-                                     long prev_age);
+static void output_um_tree_recursive(tree_node_t * node, FILE * fp_out);
 
 static double interval_age = 0;
 
@@ -157,23 +155,29 @@ static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
   }
 }
 
-static void output_um_tree_recursive(tree_node_t * node, 
-                                     FILE * fp_out, 
-                                     long prev_age)
+static void output_um_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
     fprintf(fp_out, "%s:%f", node->label, 
-            (prev_age - node->interval_line) / (double)opt_grid_intervals);
+            (node->parent->interval_line - node->interval_line) * interval_age);
   else
   {
     fprintf(fp_out, "(");
-    output_um_tree_recursive(node->left, fp_out, node->interval_line);
+    output_um_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
-    output_um_tree_recursive(node->right, fp_out, node->interval_line);
-    fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
-            (prev_age - node->interval_line) / (double)opt_grid_intervals);
+    output_um_tree_recursive(node->right, fp_out);
+    if (node->parent)
+     {
+        fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
+            (node->parent->interval_line - node->interval_line) * interval_age);
+      }
+   else
+     {
+        fprintf(fp_out, ")%s", node->label ? node->label : ""); /*before was using total number of gridlines for height of root which didn't make sense to me, this gives no BL to root*/
+      }
   }
 }
+
 
 static void traverse_iterative(tree_node_t * node, int * index, tree_node_t ** outbuffer)
 {
@@ -241,9 +245,9 @@ void write_newick_tree(tree_node_t * node)
     fatal("Unable to open output file for writing");
   interval_age = opt_max_age / (opt_grid_intervals - 1);
   if (opt_method_relative)
-    interval_age =1;
+    interval_age = (1.0 / (opt_grid_intervals - 1)); 
   if (opt_outform == OUTPUT_ULTRAMETRIC)
-    output_um_tree_recursive(node, fp_out, opt_grid_intervals);
+    output_um_tree_recursive(node, fp_out);
   else if (opt_outform == OUTPUT_DATED)
     output_dated_tree_recursive(node, fp_out);
   else
@@ -253,3 +257,4 @@ void write_newick_tree(tree_node_t * node)
 
   fclose(fp_out);
 }
+
