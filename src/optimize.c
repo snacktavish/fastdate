@@ -92,9 +92,6 @@ static double compute_score(optimize_options_t * params, double * x)
   /* evaluate proposal */
   score = dp_evaluate(params->tree) * -1;
 
-  /* we assert this again, double security */
-  assert(score > 0);
-
   return score;
 }
 

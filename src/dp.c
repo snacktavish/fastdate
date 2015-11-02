@@ -763,8 +763,6 @@ double dp_evaluate(tree_node_t * tree)
 
   score = dp_backtrack(tree);
 
-  assert(score < 0);
-
   return score;
 }
 
