@@ -154,13 +154,13 @@ prior: taxa dist OPAR number COMMA number CPAR
     ((ln_params_t *)($$->params))->stdev = atof($6);
     ((ln_params_t *)($$->params))->offset = atof($8);
   }
-  else if (!strcasecmp($2,"normal"))
+  else if (!strcasecmp($2,"norm"))
   {
-    $$->dist = NODEPRIOR_NORMAL;
-    $$->params = (normal_params_t *)malloc(sizeof(normal_params_t));
-    ((normal_params_t *)($$->params))->mean = atof($4);
-    ((normal_params_t *)($$->params))->variance = atof($6);
-    ((normal_params_t *)($$->params))->offset = atof($8);
+    $$->dist = NODEPRIOR_NORM;
+    $$->params = (norm_params_t *)malloc(sizeof(norm_params_t));
+    ((norm_params_t *)($$->params))->mean = atof($4);
+    ((norm_params_t *)($$->params))->variance = atof($6);
+    ((norm_params_t *)($$->params))->offset = atof($8);
   }
   else
   {

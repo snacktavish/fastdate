@@ -26,7 +26,7 @@
 #define 3.14159265358979323846
 #endif
 
-double normal_dist_pdf(double mean, double variance, double x)
+double norm_dist_pdf(double mean, double variance, double x)
 {
   assert (variance > 0);
 
@@ -36,7 +36,7 @@ double normal_dist_pdf(double mean, double variance, double x)
   return (terma/termb);
 }
 
-double normal_dist_logpdf(double mean, double variance, double x)
+double norm_dist_logpdf(double mean, double variance, double x)
 {
   assert (variance > 0);
 

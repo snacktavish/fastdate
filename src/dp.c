@@ -157,12 +157,12 @@ static inline void dp_recurse_worker(long t)
                                     params->stdev,
                                     abs_age_node - params->offset);
     }
-    else if (node->prior == NODEPRIOR_NORMAL)
+    else if (node->prior == NODEPRIOR_NORM)
     {
-      normal_params_t * params = (normal_params_t *)(node->prior_params);
-      dist_logprob = normal_dist_logpdf(params->mean,
-                                        params->variance,
-                                        abs_age_node - params->offset);
+      norm_params_t * params = (norm_params_t *)(node->prior_params);
+      dist_logprob = norm_dist_logpdf(params->mean,
+                                      params->variance,
+                                      abs_age_node - params->offset);
     }
     else if (node->prior == NODEPRIOR_UNI)
     {
@@ -365,12 +365,12 @@ static void dp_recurse_parallel(tree_node_t * node)
                                       params->stdev,
                                       abs_age_node - params->offset);
       }
-      else if (node->prior == NODEPRIOR_NORMAL)
+      else if (node->prior == NODEPRIOR_NORM)
       {
-        normal_params_t * params = (normal_params_t *)(node->prior_params);
-        dist_logprob = normal_dist_logpdf(params->mean,
-                                          params->variance,
-                                          abs_age_node - params->offset);
+        norm_params_t * params = (norm_params_t *)(node->prior_params);
+        dist_logprob = norm_dist_logpdf(params->mean,
+                                        params->variance,
+                                        abs_age_node - params->offset);
       }
       else if (node->prior == NODEPRIOR_UNI)
       {
@@ -415,8 +415,8 @@ static void reset_node_heights(tree_node_t * node)
     offset = ((exp_params_t *)(node->prior_params))->offset;
   else if (node->prior  == NODEPRIOR_LN)
     offset = ((ln_params_t *)(node->prior_params))->offset;
-  else if (node->prior == NODEPRIOR_NORMAL)
-    offset = ((normal_params_t *)(node->prior_params))->offset;
+  else if (node->prior == NODEPRIOR_NORM)
+    offset = ((norm_params_t *)(node->prior_params))->offset;
   else if (node->prior == NODEPRIOR_UNI)
     offset = ((uni_params_t *)(node->prior_params))->min_age;
   min_height = lrint(ceil(offset / interval_age));
@@ -572,12 +572,12 @@ static void dp_recurse_serial(tree_node_t * node)
                                       params->stdev,
                                       abs_age_node - params->offset);
       }
-      else if (node->prior == NODEPRIOR_NORMAL)
+      else if (node->prior == NODEPRIOR_NORM)
       {
-        normal_params_t * params = (normal_params_t *)(node->prior_params);
-        dist_logprob = normal_dist_logpdf(params->mean,
-                                          params->variance,
-                                          abs_age_node - params->offset);
+        norm_params_t * params = (norm_params_t *)(node->prior_params);
+        dist_logprob = norm_dist_logpdf(params->mean,
+                                        params->variance,
+                                        abs_age_node - params->offset);
       }
       else if (node->prior == NODEPRIOR_UNI)
       {
@@ -699,12 +699,12 @@ static void dp_recurse_serial(tree_node_t * node)
                                     params->stdev,
                                     abs_age_node - params->offset);
     }
-    else if (node->prior == NODEPRIOR_NORMAL)
+    else if (node->prior == NODEPRIOR_NORM)
     {
-      normal_params_t * params = (normal_params_t *)(node->prior_params);
-      dist_logprob = normal_dist_logpdf(params->mean,
-                                        params->variance,
-                                        abs_age_node - params->offset);
+      norm_params_t * params = (norm_params_t *)(node->prior_params);
+      dist_logprob = norm_dist_logpdf(params->mean,
+                                      params->variance,
+                                      abs_age_node - params->offset);
     }
     else if (node->prior == NODEPRIOR_UNI)
     {

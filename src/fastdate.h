@@ -78,12 +78,12 @@ typedef struct ln_params_s
 } ln_params_t;
 
 /* parameters of normal distribution node prior */
-typedef struct normal_params_s
+typedef struct norm_params_s
 {
   double mean;
   double variance;
   double offset;
-} normal_params_t;
+} norm_params_t;
 
 typedef struct prior_s
 {
@@ -137,7 +137,7 @@ typedef struct tree_noderec
 #define NODEPRIOR_EXP     1
 #define NODEPRIOR_LN      2
 #define NODEPRIOR_UNI     3
-#define NODEPRIOR_NORMAL  4
+#define NODEPRIOR_NORM    4
 
 #define PARAM_LAMBDA   1
 #define PARAM_MU       2
@@ -277,10 +277,10 @@ double exp_dist_logpdf(double lambda, double x);
 double ln_dist_pdf(double mean, double variance, double x);
 double ln_dist_logpdf(double mean, double variance, double x);
 
-/* functions in normal.c */
+/* functions in norm.c */
 
-double normal_dist_pdf(double mean, double variance, double x);
-double normal_dist_logpdf(double mean, double variance, double x);
+double norm_dist_pdf(double mean, double variance, double x);
+double norm_dist_logpdf(double mean, double variance, double x);
 
 /* functions in uni.c */
 
