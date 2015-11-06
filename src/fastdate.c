@@ -55,6 +55,7 @@ double opt_rho;
 double opt_psi;
 double opt_rate_mean;
 double opt_rate_var;
+double opt_cred_interval;
 
 unsigned int opt_parameters_bitv;
 
@@ -82,6 +83,7 @@ static struct option long_options[] =
   {"threads",            required_argument, 0, 0 },  /* 19 */
   {"seed",               required_argument, 0, 0 },  /* 20 */
   {"sample",             required_argument, 0, 0 },  /* 21 */
+  {"cred_interval",      required_argument, 0, 0 },  /* 22 */
   { 0, 0, 0, 0 }
 };
 
@@ -109,6 +111,7 @@ void args_init(int argc, char ** argv)
   opt_outform = OUTPUT_DATED;
   opt_seed = 0;
   opt_sample = 0;
+  opt_cred_interval = 0;
 
   opt_parameters_bitv = 0;
 
@@ -219,6 +222,10 @@ void args_init(int argc, char ** argv)
 
       case 21:
         opt_sample = atol(optarg);
+        break;
+
+      case 22:
+        opt_cred_interval = atof(optarg);
         break;
 
       default:
@@ -393,15 +400,18 @@ void cmd_method_relative()
 
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
+
+  if (opt_cred_interval)
+    assert(0);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
@@ -427,15 +437,18 @@ void cmd_method_nodeprior()
   assert(extinct_leaves_count == 0);
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
+
+  if (opt_cred_interval)
+    assert(0);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
@@ -461,15 +474,18 @@ void cmd_method_tipdates()
   assert(extinct_leaves_count > 0);
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
   write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
+
+  if (opt_cred_interval)
+    assert(0);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");

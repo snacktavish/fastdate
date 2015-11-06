@@ -108,6 +108,7 @@ static void print_prior(tree_node_t ** tip_list, unsigned int count, int priorno
   exp_params_t * exp_params;
   ln_params_t * ln_params;
   uni_params_t * uni_params;
+  normal_params_t * normal_params;
 
   switch(prior->dist)
   {
@@ -128,6 +129,16 @@ static void print_prior(tree_node_t ** tip_list, unsigned int count, int priorno
               ln_params->mean,
               ln_params->stdev,
               ln_params->offset,
+              tip_list[0]->label);
+      break;
+    case NODEPRIOR_NORMAL:
+      normal_params = (normal_params_t *)(prior->params);
+      printf ("%d: line %d -- normal(%f,%f) offset %f MRCA (%s",
+              priorno,
+              prior->lineno,
+              normal_params->mean,
+              normal_params->variance,
+              normal_params->offset,
               tip_list[0]->label);
       break;
     case NODEPRIOR_UNI:

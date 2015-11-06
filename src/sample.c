@@ -44,7 +44,7 @@ static void recompute_scores(tree_node_t * node,
                              long count,
                              double * maxscore)
 {
-    int i;
+    long i;
     double score;
     double rel_age_node;
     double prob_rate_node;
@@ -159,9 +159,9 @@ static void dp_backtrack_sampling(tree_node_t * root)
   free(cdf_vector);
 }
 
-static void output_sample_tree_recursive(tree_node_t * node,
-                                         double interval_age,
-                                         FILE * fp_out)
+static void output_sample_dated_tree_recursive(tree_node_t * node,
+                                               double interval_age,
+                                               FILE * fp_out)
 {
   if (!node->left || !node->right)
     fprintf(fp_out, "%s[&age=%f]:%f",
@@ -169,14 +169,40 @@ static void output_sample_tree_recursive(tree_node_t * node,
   else
   {
     fprintf(fp_out, "(");
-    output_sample_tree_recursive(node->left, interval_age, fp_out);
+    output_sample_dated_tree_recursive(node->left, interval_age, fp_out);
     fprintf(fp_out, ",");
-    output_sample_tree_recursive(node->right, interval_age, fp_out);
+    output_sample_dated_tree_recursive(node->right, interval_age, fp_out);
     fprintf(fp_out, ")%s[&age=%f]:%f", node->label ? node->label : "",
                     node->sampled_gridline * interval_age, node->length);
   }
 }
 
+static void output_sample_um_tree_recursive(tree_node_t * node, 
+                                             double interval_age,
+                                             FILE * fp_out)
+{
+  if (!node->left || !node->right)
+    fprintf(fp_out, "%s:%f", node->label, 
+                    (node->parent->sampled_gridline - node->sampled_gridline) *
+                      interval_age);
+  else
+  {
+    fprintf(fp_out, "(");
+    output_sample_um_tree_recursive(node->left, interval_age, fp_out);
+    fprintf(fp_out, ",");
+    output_sample_um_tree_recursive(node->right, interval_age, fp_out);
+    if (node->parent)
+     {
+        fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
+                      (node->parent->sampled_gridline - node->sampled_gridline)*
+                         interval_age);
+      }
+   else
+     {
+        fprintf(fp_out, ")%s", node->label ? node->label : "");
+      }
+  }
+}
 void sample(tree_node_t * root)
 {
   long i;
@@ -187,8 +213,7 @@ void sample(tree_node_t * root)
   if (opt_max_age)
     interval_age = opt_max_age / (opt_grid_intervals - 1);
   else
-    interval_age = 1 / (opt_grid_intervals - 1);
-
+    interval_age = 1.0 / (opt_grid_intervals - 1);
 
   strcpy(filename, opt_outfile);
   strcat(filename,".sampled");
@@ -199,7 +224,12 @@ void sample(tree_node_t * root)
   for (i = 0; i < opt_sample; ++i)
   {
     dp_backtrack_sampling(root);
-    output_sample_tree_recursive(root, interval_age, fp_out);
+    if (opt_outform == OUTPUT_ULTRAMETRIC)
+      output_sample_um_tree_recursive(root, interval_age, fp_out);
+    else if (opt_outform == OUTPUT_DATED)
+      output_sample_dated_tree_recursive(root, interval_age, fp_out);
+    else
+      fatal("Internal error while selecting output format");
     fprintf(fp_out, ";\n");
     progress_update((unsigned long)i);
   }

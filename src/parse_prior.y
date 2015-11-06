@@ -142,17 +142,30 @@ prior: taxa dist OPAR number COMMA number CPAR
     | taxa dist OPAR number COMMA number COMMA number CPAR
 {
   $$ = (prior_t *)calloc(1,sizeof(prior_t));
-  $$->dist = NODEPRIOR_LN;
   $$->lineno = prior_lineno;
   $$->taxa = $1;
 
-  if (strcasecmp($2,"ln")) assert(0);
-
-  /*  setup parasmeters */
-  $$->params = (ln_params_t *)malloc(sizeof(ln_params_t));
-  ((ln_params_t *)($$->params))->mean = atof($4);
-  ((ln_params_t *)($$->params))->stdev = atof($6);
-  ((ln_params_t *)($$->params))->offset = atof($8);
+  if (!strcasecmp($2,"ln"))
+  {
+    /*  setup parasmeters */
+    $$->dist = NODEPRIOR_LN;
+    $$->params = (ln_params_t *)malloc(sizeof(ln_params_t));
+    ((ln_params_t *)($$->params))->mean = atof($4);
+    ((ln_params_t *)($$->params))->stdev = atof($6);
+    ((ln_params_t *)($$->params))->offset = atof($8);
+  }
+  else if (!strcasecmp($2,"normal"))
+  {
+    $$->dist = NODEPRIOR_NORMAL;
+    $$->params = (normal_params_t *)malloc(sizeof(normal_params_t));
+    ((normal_params_t *)($$->params))->mean = atof($4);
+    ((normal_params_t *)($$->params))->variance = atof($6);
+    ((normal_params_t *)($$->params))->offset = atof($8);
+  }
+  else
+  {
+    assert(0);
+  }
 
   free($2);
   free($4);

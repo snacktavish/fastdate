@@ -77,6 +77,14 @@ typedef struct ln_params_s
   double offset;
 } ln_params_t;
 
+/* parameters of normal distribution node prior */
+typedef struct normal_params_s
+{
+  double mean;
+  double variance;
+  double offset;
+} normal_params_t;
+
 typedef struct prior_s
 {
   int dist;
@@ -125,10 +133,11 @@ typedef struct tree_noderec
 #define OUTPUT_ULTRAMETRIC      0
 #define OUTPUT_DATED            1
 
-#define NODEPRIOR_NONE  0
-#define NODEPRIOR_EXP   1
-#define NODEPRIOR_LN    2
-#define NODEPRIOR_UNI   3
+#define NODEPRIOR_NONE    0
+#define NODEPRIOR_EXP     1
+#define NODEPRIOR_LN      2
+#define NODEPRIOR_UNI     3
+#define NODEPRIOR_NORMAL  4
 
 #define PARAM_LAMBDA   1
 #define PARAM_MU       2
@@ -169,6 +178,7 @@ extern double opt_rho;
 extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
+extern double opt_cred_interval;
 
 extern unsigned int opt_parameters_bitv;
 
@@ -267,7 +277,13 @@ double exp_dist_logpdf(double lambda, double x);
 double ln_dist_pdf(double mean, double variance, double x);
 double ln_dist_logpdf(double mean, double variance, double x);
 
+/* functions in normal.c */
+
+double normal_dist_pdf(double mean, double variance, double x);
+double normal_dist_logpdf(double mean, double variance, double x);
+
 /* functions in uni.c */
+
 double uni_dist_pdf(double a, double b, double x);
 double uni_dist_logpdf(double a, double b, double x);
 
@@ -284,6 +300,7 @@ tree_node_t * lca_compute(tree_node_t * root,
                           unsigned int count);
 
 /* functions in optimize.c */
+
 double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
 
 /* functions in sample.c */

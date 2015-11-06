@@ -232,10 +232,15 @@ int rtree_query_tipnodes(tree_node_t * root,
 void write_newick_tree(tree_node_t * node)
 {
   FILE * fp_out = fopen(opt_outfile, "w");
+
   if (!fp_out)
     fatal("Unable to open output file for writing");
-  interval_age = opt_max_age / (opt_grid_intervals - 1);
 
+  if (opt_max_age)
+    interval_age = opt_max_age / (opt_grid_intervals - 1);
+  else
+    interval_age = 1.0 / (opt_grid_intervals - 1);
+    
   if (opt_outform == OUTPUT_ULTRAMETRIC)
     output_um_tree_recursive(node, fp_out, opt_grid_intervals);
   else if (opt_outform == OUTPUT_DATED)
