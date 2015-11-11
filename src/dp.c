@@ -86,6 +86,10 @@ static inline void dp_recurse_worker(long t)
     else
       jmax = (node->height + i - left->height);
 
+    /* in case we had a uniform prior. TODO: Check whether this should also
+       replace 'jmax = 1' three lines above for tip fossils */
+    if (jmax > left->entries) jmax = left->entries;
+
     assert(jmax <= left->entries);
 
     long jbest = -1;
@@ -110,6 +114,10 @@ static inline void dp_recurse_worker(long t)
       kmax = 1;
     else
       kmax = (node->height + i - right->height);
+
+    /* in case we had a uniform prior. TODO: Check whether this should also
+       replace 'kmax = 1' three lines above for tip fossils */
+    if (kmax > right->entries) kmax = right->entries;
 
     assert(kmax <= right->entries);
 
@@ -628,6 +636,10 @@ static void dp_recurse_serial(tree_node_t * node)
     else
       jmax = (node->height + i - left->height);
 
+    /* in case we had a uniform prior. TODO: Check whether this should also
+       replace 'jmax = 1' three lines above for tip fossils */
+    if (jmax > left->entries) jmax = left->entries;
+
     assert(jmax <= left->entries);
 
     long jbest = -1;
@@ -652,6 +664,10 @@ static void dp_recurse_serial(tree_node_t * node)
       kmax = 1;
     else
       kmax = (node->height + i - right->height);
+
+    /* in case we had a uniform prior. TODO: Check whether this should also
+       replace 'kmax = 1' three lines above for tip fossils */
+    if (kmax > right->entries) kmax = right->entries;
 
     assert(kmax <= right->entries);
 
