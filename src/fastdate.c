@@ -381,8 +381,8 @@ void cmd_help()
           "  --bd_mu REAL                   death rate for Birth/Death model (default: optimized).\n"
           "  --bd_rho REAL                  probability of sampling individuals. (default: optimized)\n"
           "  --bd_psi REAL                  fossil sample rate\n"
-          "  --rate_mean REAL               mean value of edge rate model (default: 5).\n"
-          "  --rate_variance REAL           variance value for edge rate model (default: 1).\n"
+          "  --rate_mean REAL               mean value of edge rate model (default: optimized).\n"
+          "  --rate_variance REAL           variance value for edge rate model (default: optimized).\n"
           "  --max_age                      max age of the grid when using methods --method_nodeprior or --method_tipdates.\n"
          );
 }
