@@ -130,15 +130,23 @@ typedef struct tree_noderec
 #define NODEPRIOR_LN    2
 #define NODEPRIOR_UNI   3
 
-#define PARAM_LAMBDA   1
-#define PARAM_MU       2
-#define PARAM_PSI      4
-#define PARAM_RHO      8
+#define PARAM_LAMBDA     1
+#define PARAM_MU         2
+#define PARAM_PSI        4
+#define PARAM_RHO        8
+#define PARAM_RATE_MEAN 16
+#define PARAM_RATE_VAR  32
 
 #define DEFAULT_LAMBDA 10.0
 #define DEFAULT_MU     0.001
 #define DEFAULT_PSI    0.5
 #define DEFAULT_RHO    0.5
+#define DEFAULT_RATE   1     /* note: assume rate_var = rate_mean */
+
+#define MAX_PSI         1
+#define MAX_RHO         1
+#define MAX_RATE_MEAN  10
+#define MAX_RATE_VAR   10
 
 /* macros */
 

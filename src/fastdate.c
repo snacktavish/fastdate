@@ -27,8 +27,8 @@ static char * cmdline;
 
 /* number of mandatory options for the user to input */
 
-static const char mand_options_count = 4;
-static const char * mand_options_list = " --tree_file\n --out_file\n --rate_mean\n --rate_variance\n"
+static const char mand_options_count = 2;
+static const char * mand_options_list = " --tree_file\n --out_file\n"
 ;
 
 /* options */
@@ -236,10 +236,6 @@ void args_init(int argc, char ** argv)
     mand_options++;
   if (opt_outfile)
     mand_options++;
-  if (opt_rate_var)
-    mand_options++;
-  if (opt_rate_mean)
-    mand_options++;
 
   /* check for non-fixed parameters */
   if (!opt_lambda)
@@ -259,6 +255,16 @@ void args_init(int argc, char ** argv)
   {
     opt_rho = DEFAULT_RHO;
     opt_parameters_bitv |= PARAM_RHO;
+  }
+  if (!opt_rate_mean)
+  {
+	  opt_rate_mean = DEFAULT_RATE;
+	  opt_parameters_bitv |= PARAM_RATE_MEAN;
+  }
+  if (!opt_rate_var)
+  {
+    opt_rate_var = DEFAULT_RATE;
+    opt_parameters_bitv |= PARAM_RATE_VAR;
   }
 
   /* check for number of independent commands selected */
