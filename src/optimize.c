@@ -65,12 +65,16 @@ static double compute_score(optimize_options_t * params, double * x)
   i = 0;
   if (params->which_parameters & PARAM_LAMBDA)
   {
+    /* scale mu accordingly */
+    opt_mu *= x[i]/opt_lambda;
     opt_lambda = x[i];
+    printf("y = %f (mu=%f, lambda=%f)\n", x[i], opt_mu, opt_lambda);
     i++;
   }
   if (params->which_parameters & PARAM_MU)
   {
-    opt_mu = x[i];
+    opt_mu = x[i] * opt_lambda;
+    printf("x = %f (mu=%f)\n", x[i], opt_mu);
     i++;
   }
   if (params->which_parameters & PARAM_PSI)
@@ -102,6 +106,7 @@ static double compute_score(optimize_options_t * params, double * x)
   /* evaluate proposal */
   score = dp_evaluate(params->tree) * -1;
 
+  printf(" score = %f\n", score);
   return score;
 }
 
@@ -194,9 +199,11 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
   }
   if (params->which_parameters & PARAM_MU)
   {
-    x[i] = (opt_mu > ERROR_X) ? opt_mu : ERROR_X;
+    x[i] = opt_mu/opt_lambda;
+    if (x[i] < ERROR_X) x[i] = ERROR_X;
+    if (x[i] > (1.0 - ERROR_X)) x[i] = (1.0 - ERROR_X);
     lower_bounds[i] = ERROR_X;
-    upper_bounds[i] = opt_lambda - 2 * ERROR_X;
+    upper_bounds[i] = 1.0 - ERROR_X;
     bound_type[i] = LBFGSB_BOUND_BOTH;
     i++;
   }

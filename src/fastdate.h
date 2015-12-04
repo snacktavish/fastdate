@@ -137,8 +137,8 @@ typedef struct tree_noderec
 #define PARAM_RATE_MEAN 16
 #define PARAM_RATE_VAR  32
 
-#define DEFAULT_LAMBDA 10.0
-#define DEFAULT_MU     0.001
+#define DEFAULT_LAMBDA 1.0
+#define DEFAULT_MU     0.1
 #define DEFAULT_PSI    0.5
 #define DEFAULT_RHO    0.5
 #define DEFAULT_RATE   1     /* note: assume rate_var = rate_mean */
