@@ -65,16 +65,29 @@ static double compute_score(optimize_options_t * params, double * x)
   i = 0;
   if (params->which_parameters & PARAM_LAMBDA)
   {
-    /* scale mu accordingly */
-    opt_mu *= x[i]/opt_lambda;
+    if (opt_mu_scale)
+    {
+      /* scale mu accordingly */
+      opt_mu *= x[i]/opt_lambda;
+#ifdef DEBUG
+      printf("x = %f (mu=%f, lambda=%f)\n", x[i], opt_mu, opt_lambda);
+#endif
+    }
+#ifdef DEBUG
+    else
+    {
+      printf("lambda=%f\n", x[i]);
+    }
+#endif
     opt_lambda = x[i];
-    printf("y = %f (mu=%f, lambda=%f)\n", x[i], opt_mu, opt_lambda);
     i++;
   }
   if (params->which_parameters & PARAM_MU)
   {
     opt_mu = x[i] * opt_lambda;
+#ifdef DEBUG
     printf("x = %f (mu=%f)\n", x[i], opt_mu);
+#endif
     i++;
   }
   if (params->which_parameters & PARAM_PSI)
@@ -90,11 +103,28 @@ static double compute_score(optimize_options_t * params, double * x)
   if (params->which_parameters & PARAM_RATE_MEAN)
   {
     opt_rate_mean = x[i];
+    if (opt_fixgamma)
+    {
+      opt_rate_var = 1/x[i];
+#ifdef DEBUG
+      printf("rate_mean = rate_var = %f\n", opt_rate_mean);
+#endif
+    }
+#ifdef DEBUG
+    else
+    {
+      printf("rate_mean = %f\n", opt_rate_mean);
+    }
+#endif
     i++;
   }
   if (params->which_parameters & PARAM_RATE_VAR)
   {
+    assert (!opt_fixgamma);
     opt_rate_var = x[i];
+#ifdef DEBUG
+    printf("rate_var = %f\n", opt_rate_var);
+#endif
     i++;
   }
 
@@ -106,18 +136,17 @@ static double compute_score(optimize_options_t * params, double * x)
   /* evaluate proposal */
   score = dp_evaluate(params->tree) * -1;
 
+#ifdef DEBUG
   printf(" score = %f\n", score);
+#endif
   return score;
 }
 
 static void compute_gradients(optimize_options_t * params, double * x,
-    double * g, int n)
+    double * g, int n, double score)
 {
   int i;
   double h, temp;
-  double local_score;
-
-  local_score = compute_score(params, x);
 
   for (i = 0; i < n; i++)
   {
@@ -131,7 +160,7 @@ static void compute_gradients(optimize_options_t * params, double * x,
     double lnderiv = compute_score(params, x);
 
     /* compute gradient */
-    g[i] = (lnderiv - local_score) / h;
+    g[i] = (lnderiv - score) / h;
 
     /* reset variable */
     x[i] = temp;
@@ -141,7 +170,8 @@ static void compute_gradients(optimize_options_t * params, double * x,
 static double opt_parameters_lbfgsb (tree_node_t * tree,
                                      int which,
                                      double factr,
-                                     double pgtol)
+                                     double pgtol,
+                                     double initial_score)
 {
   int i;
   int continue_opt;
@@ -150,7 +180,7 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
   /* L-BFGS-B */
   int max_corrections = 10;
   double score = 0;
-  double *x, *g, *lower_bounds, *upper_bounds, *wa;
+  double *start_x, *x, *g, *lower_bounds, *upper_bounds, *wa;
   int *bound_type, *iwa;
   int taskValue;
   int *task = &taskValue;
@@ -176,6 +206,7 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
 
   /* memory allocation */
   x = (double *) calloc ((size_t) params->num_variables, sizeof(double));
+  start_x = (double *) calloc ((size_t) params->num_variables, sizeof(double));
   g = (double *) calloc ((size_t) params->num_variables, sizeof(double));
   lower_bounds = (double *) calloc ((size_t) params->num_variables,
                                     sizeof(double));
@@ -217,7 +248,7 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
   }
   if (params->which_parameters & PARAM_RHO)
   {
-    x[i] = (opt_psi > ERROR_X) ? opt_psi : ERROR_X;
+    x[i] = (opt_rho > ERROR_X) ? opt_rho : ERROR_X;
     lower_bounds[i] = ERROR_X;
     upper_bounds[i] = MAX_RHO;
     bound_type[i] = LBFGSB_BOUND_BOTH;
@@ -242,6 +273,7 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
 
   /* assert that all free variables are set */
   assert(i == params->num_variables);
+  memcpy(start_x, x, params->num_variables * sizeof(double));
 
   /* start the iteration by initializing task */
   *task = (int) START;
@@ -282,7 +314,7 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
       /* TODO: compute score and gradient */
       score = compute_score (params, x);
 
-      compute_gradients (params, x, g, params->num_variables);
+      compute_gradients (params, x, g, params->num_variables, score);
     }
     else if (*task != NEW_X)
     {
@@ -290,9 +322,17 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
     }
   }
 
+  score = compute_score (params, x);
+  if (-score < initial_score)
+  {
+    assert(0);
+    memcpy(x, start_x, params->num_variables * sizeof(double));
+    score = compute_score (params, x);
+  }
   free (iwa);
   free (wa);
   free (x);
+  free (start_x);
   free (g);
   free (lower_bounds);
   free (upper_bounds);
@@ -303,10 +343,13 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
   return -1 * score;
 }
 
-double opt_parameters(tree_node_t * tree, int which, double factr,
-    double pgtol)
+double opt_parameters(tree_node_t * tree,
+                      int which,
+                      double factr,
+                      double pgtol,
+                      double cur_score)
 {
-  double score = opt_parameters_lbfgsb(tree, which, factr, pgtol);
+  double score = opt_parameters_lbfgsb(tree, which, factr, pgtol, cur_score);
 
   return score;
 } /* optimize_parameters */

@@ -163,6 +163,8 @@ extern int opt_method_relative;
 extern int opt_method_nodeprior;
 extern int opt_method_tipdates;
 extern int opt_showtree;
+extern int opt_fixgamma;
+extern int opt_mu_scale;
 extern char * opt_treefile;
 extern char * opt_outfile;
 extern char * opt_priorfile;
@@ -292,7 +294,8 @@ tree_node_t * lca_compute(tree_node_t * root,
                           unsigned int count);
 
 /* functions in optimize.c */
-double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
+double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol,
+                      double cur_score);
 
 /* functions in sample.c */
 
