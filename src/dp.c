@@ -659,8 +659,6 @@ double dp_evaluate(tree_node_t * tree)
 
   score = dp_backtrack(tree);
 
-  assert(score < 0);
-
   return score;
 }
 
@@ -705,21 +703,32 @@ void dp(tree_node_t * tree)
   /* optimize parameters */
   if (opt_parameters_bitv)
   {
-    printf("\n\n*** RATES OPTIMIZATION ***\n\n");
-    printf("Starting score: %f\n\n", score);
+    printf("\n\n*** Parameters optimization ***\n\n");
 
     opt_quiet = 1;
 
     printf("Starting parameters:\n");
     if (opt_parameters_bitv & PARAM_LAMBDA)
-      printf(" lambda: %6.4f\n", opt_lambda);
+      printf(" lambda:    %6.4f\n", opt_lambda);
     if (opt_parameters_bitv & PARAM_MU)
-      printf(" mu:     %6.4f\n", opt_mu);
+      printf(" mu:        %6.4f\n", opt_mu);
     if (opt_parameters_bitv & PARAM_RHO)
-      printf(" rho:    %6.4f\n", opt_rho);
+      printf(" rho:       %6.4f\n", opt_rho);
     if (opt_parameters_bitv & PARAM_PSI)
-      printf(" psi:    %6.4f\n", opt_psi);
+      printf(" psi:       %6.4f\n", opt_psi);
+    if (opt_parameters_bitv & PARAM_RATE_MEAN)
+    {
+      printf(" rate mean: %6.4f\n", opt_rate_mean);
+      if (opt_fixgamma)
+        printf(" rate var:  %6.4f\n", opt_rate_var);
+    }
+    if (opt_parameters_bitv & PARAM_RATE_VAR)
+    {
+      printf(" rate var:  %6.4f\n", opt_rate_var);
+    }
     printf("\n");
+
+    printf("Starting score: %f\n\n", score);
 
     /* single param iterative optimization */
     if (opt_threads > 1)
@@ -728,28 +737,38 @@ void dp(tree_node_t * tree)
     int i = 0;
     while (fabs(cur_score - score) > opt_epsilon)
     {
-      printf("[%d]\n", i++);
+      printf("[Iteration %d]\n", ++i);
       cur_score = score;
       //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
       if (opt_parameters_bitv & PARAM_LAMBDA)
       {
-        score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol);
-        printf("%15.4f lambda: %6.4f\n", score, opt_lambda);
+        score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol, cur_score);
+        printf("%15.4f lambda:    %6.4f\n", score, opt_lambda);
       }
       if (opt_parameters_bitv & PARAM_MU)
       {
-        score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol);
-        printf("%15.4f mu:     %6.4f\n", score, opt_mu);
+        score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol, cur_score);
+        printf("%15.4f mu:        %6.4f\n", score, opt_mu);
       }
       if (opt_parameters_bitv & PARAM_PSI)
       {
-        score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
-        printf("%15.4f psi:    %6.4f\n", score, opt_psi);
+        score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol, cur_score);
+        printf("%15.4f psi:       %6.4f\n", score, opt_psi);
       }
       if (opt_parameters_bitv & PARAM_RHO)
       {
-        score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol);
-        printf("%15.4f rho:    %6.4f\n", score, opt_rho);
+        score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol, cur_score);
+        printf("%15.4f rho:       %6.4f\n", score, opt_rho);
+      }
+      if (opt_parameters_bitv & PARAM_RATE_MEAN)
+      {
+        score = opt_parameters (tree, PARAM_RATE_MEAN, opt_factor, opt_pgtol, cur_score);
+        printf ("%15.4f rate mean: %6.4f\n", score, opt_rate_mean);
+      }
+      if (opt_parameters_bitv & PARAM_RATE_VAR)
+      {
+        score = opt_parameters(tree, PARAM_RATE_VAR, opt_factor, opt_pgtol, cur_score);
+        printf("%15.4f rate var:  %6.4f\n", score, opt_rate_var);
       }
     }
     if (opt_threads > 1)
@@ -757,13 +776,21 @@ void dp(tree_node_t * tree)
 
     printf("\nFinal parameters:\n");
     if (opt_parameters_bitv & PARAM_LAMBDA)
-      printf(" lambda: %6.4f\n", opt_lambda);
+      printf(" lambda:    %6.4f\n", opt_lambda);
     if (opt_parameters_bitv & PARAM_MU)
-      printf(" mu:     %6.4f\n", opt_mu);
+      printf(" mu:        %6.4f\n", opt_mu);
     if (opt_parameters_bitv & PARAM_RHO)
-      printf(" rho:    %6.4f\n", opt_rho);
+      printf(" rho:       %6.4f\n", opt_rho);
     if (opt_parameters_bitv & PARAM_PSI)
-      printf(" psi:    %6.4f\n", opt_psi);
+      printf(" psi:       %6.4f\n", opt_psi);
+    if (opt_parameters_bitv & PARAM_RATE_MEAN)
+    {
+      printf (" rate mean: %6.4f\n", opt_rate_mean);
+    }
+    if (opt_parameters_bitv & PARAM_RATE_VAR)
+    {
+      printf (" rate var:  %6.4f\n", opt_rate_var);
+    }
 
     printf("\nScore after optimization %f\n", score);
     printf("\n*** ***** ************ ***\n\n");

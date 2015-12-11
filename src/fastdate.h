@@ -137,15 +137,23 @@ typedef struct tree_noderec
 #define NODEPRIOR_LN    2
 #define NODEPRIOR_UNI   3
 
-#define PARAM_LAMBDA   1
-#define PARAM_MU       2
-#define PARAM_PSI      4
-#define PARAM_RHO      8
+#define PARAM_LAMBDA     1
+#define PARAM_MU         2
+#define PARAM_PSI        4
+#define PARAM_RHO        8
+#define PARAM_RATE_MEAN 16
+#define PARAM_RATE_VAR  32
 
-#define DEFAULT_LAMBDA 10.0
-#define DEFAULT_MU     0.001
+#define DEFAULT_LAMBDA 1.0
+#define DEFAULT_MU     0.1
 #define DEFAULT_PSI    0.5
 #define DEFAULT_RHO    0.5
+#define DEFAULT_RATE   1     /* note: assume rate_var = rate_mean */
+
+#define MAX_PSI         1
+#define MAX_RHO         1
+#define MAX_RATE_MEAN  10
+#define MAX_RATE_VAR   10
 
 /* macros */
 
@@ -162,6 +170,8 @@ extern int opt_method_relative;
 extern int opt_method_nodeprior;
 extern int opt_method_tipdates;
 extern int opt_showtree;
+extern int opt_fixgamma;
+extern int opt_mu_scale;
 extern char * opt_treefile;
 extern char * opt_outfile;
 extern char * opt_priorfile;
@@ -294,7 +304,8 @@ tree_node_t * lca_compute(tree_node_t * root,
                           unsigned int count);
 
 /* functions in optimize.c */
-double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
+double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol,
+                      double cur_score);
 
 /* functions in sample.c */
 
