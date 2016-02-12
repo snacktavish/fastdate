@@ -108,6 +108,7 @@ static void print_prior(tree_node_t ** tip_list, unsigned int count, int priorno
   exp_params_t * exp_params;
   ln_params_t * ln_params;
   uni_params_t * uni_params;
+  norm_params_t * norm_params;
 
   switch(prior->dist)
   {
@@ -128,6 +129,16 @@ static void print_prior(tree_node_t ** tip_list, unsigned int count, int priorno
               ln_params->mean,
               ln_params->stdev,
               ln_params->offset,
+              tip_list[0]->label);
+      break;
+    case NODEPRIOR_NORM:
+      norm_params = (norm_params_t *)(prior->params);
+      printf ("%d: line %d -- norm(%f,%f) offset %f MRCA (%s",
+              priorno,
+              prior->lineno,
+              norm_params->mean,
+              norm_params->variance,
+              norm_params->offset,
               tip_list[0]->label);
       break;
     case NODEPRIOR_UNI:
@@ -173,7 +184,10 @@ static void process_priors(list_t * prior_list,
       *fossils_count = *fossils_count + 1;
 
     /* get the node pointer of the tip_list LCA */
-    lca = lca_compute(root, tip_list, taxa_count);
+    if (taxa_count == 1)
+      lca = tip_list[0];
+    else
+      lca = lca_compute(root, tip_list, taxa_count);
     
     /* if a prior on that LCA already exists, then error */
     if (lca->prior_lineno)

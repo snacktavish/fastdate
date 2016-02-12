@@ -61,8 +61,6 @@ double opt_cred_interval;
 
 unsigned int opt_parameters_bitv;
 
-unsigned int opt_parameters_bitv;
-
 static struct option long_options[] =
 {
   {"help",               no_argument,       0, 0 },  /*  0 */
@@ -89,6 +87,7 @@ static struct option long_options[] =
   {"sample",             required_argument, 0, 0 },  /* 21 */
   {"cred_interval",             required_argument, 0, 0 },  /* 22 */
   {"opt_fix_gamma",      no_argument,       0, 0 },  /* 23 */
+
   { 0, 0, 0, 0 }
 };
 
@@ -117,13 +116,10 @@ void args_init(int argc, char ** argv)
   opt_seed = 0;
   opt_sample = 0;
   opt_cred_interval = 0;
-
   opt_parameters_bitv = 0;
   opt_fixgamma = 0;
   opt_mu_scale = 0;
 
-
-  opt_parameters_bitv = 0;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -237,11 +233,9 @@ void args_init(int argc, char ** argv)
       case 22:
         opt_cred_interval = atof(optarg);
         break;
-
       case 23:
         opt_fixgamma = 1;
         break;
-
 
       default:
         fatal("Internal error in option parsing");
@@ -448,6 +442,7 @@ void cmd_method_relative()
 
   if (opt_cred_interval)
     credible(tree);
+
 
   if (opt_showtree)
     show_ascii_tree(tree);

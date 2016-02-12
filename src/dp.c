@@ -74,6 +74,13 @@ double check_prior(tree_node_t * node, double abs_age_node)
                                      params->max_age,
                                      abs_age_node);
     }
+    else if (node->prior == NODEPRIOR_NORM)
+    {
+      norm_params_t * params = (norm_params_t *)(node->prior_params);
+      dist_logprob = norm_dist_logpdf(params->mean,
+                                      params->variance,
+                                      abs_age_node - params->offset);
+    }
     else if (node->prior)
       assert(0);
     return dist_logprob;
@@ -172,7 +179,11 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
       jmax = 1;
     else
       jmax = (node->height + i - left->height);
-    
+
+    /* in case we had a uniform prior. TODO: Check whether this should also
+       replace 'jmax = 1' three lines above for tip fossils */
+    if (jmax > left->entries) jmax = left->entries;
+
     assert(jmax <= left->entries);
 
     long jbest = -1;
@@ -201,6 +212,10 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
       kmax = 1;
     else
       kmax = (node->height + i - right->height);
+
+    /* in case we had a uniform prior. TODO: Check whether this should also
+       replace 'kmax = 1' three lines above for tip fossils */
+    if (kmax > right->entries) kmax = right->entries;
 
     assert(kmax <= right->entries);
 
@@ -454,6 +469,8 @@ static void reset_node_heights(tree_node_t * node)
     offset = ((exp_params_t *)(node->prior_params))->offset;
   else if (node->prior  == NODEPRIOR_LN)
     offset = ((ln_params_t *)(node->prior_params))->offset;
+  else if (node->prior == NODEPRIOR_NORM)
+    offset = ((norm_params_t *)(node->prior_params))->offset;
   else if (node->prior == NODEPRIOR_UNI)
     offset = ((uni_params_t *)(node->prior_params))->min_age;
   min_height = lrint(ceil(offset / interval_age));
