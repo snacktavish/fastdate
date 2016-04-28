@@ -85,7 +85,7 @@ static struct option long_options[] =
   {"threads",            required_argument, 0, 0 },  /* 19 */
   {"seed",               required_argument, 0, 0 },  /* 20 */
   {"sample",             required_argument, 0, 0 },  /* 21 */
-  {"cred_interval",             required_argument, 0, 0 },  /* 22 */
+  {"cred_interval",      required_argument, 0, 0 },  /* 22 */
   {"opt_fix_gamma",      no_argument,       0, 0 },  /* 23 */
 
   { 0, 0, 0, 0 }
@@ -416,7 +416,7 @@ void cmd_help()
           "  --bd_psi REAL                  fossil sample rate\n"
           "  --rate_mean REAL               mean value of edge rate model (default: optimized).\n"
           "  --rate_variance REAL           variance value for edge rate model (default: optimized).\n"
-          "  --opt_fix_gamma                assume variance and mean for edge rate model are inverse to each other.\n"
+          "  --opt_fix_gamma                assume variance and mean for edge rate model are reciprocal to each other.\n"
           "  --max_age                      max age of the grid when using methods --method_nodeprior or --method_tipdates.\n"
          );
 }

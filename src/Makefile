@@ -48,10 +48,10 @@ $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 parse_%.c: parse_%.y
-	$(BISON) -p$*_ -d -o$@ $<
+	$(BISON) -p $*_ -d -o $@ $<
 
 lex_%.c: lex_%.l
-	$(FLEX) -P$*_ -o$@ $<
+	$(FLEX) -P $*_ -o $@ $<
 
 clean:
 	rm -f *~ $(OBJS) gmon.out $(PROG) parse_newick.c lex_newick.c parse_newick.h parse_prior.h

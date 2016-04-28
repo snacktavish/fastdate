@@ -52,7 +52,6 @@ double ln_dist_logpdf(double mean, double stdev, double x)
 
   return (-log(x) - log(stdev) - log(constant) -
          (log(x) - mean)*(log(x) - mean) / (2 * stdev * stdev));
-
 }
 
 

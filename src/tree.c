@@ -42,7 +42,6 @@ void yy_dealloc_tree(tree_node_t * tree)
   free(tree->matrix);
   free(tree->matrix_left);
   free(tree->matrix_right);
-  free(tree->matrix_PP);
   free(tree->interval_weights);
   free(tree->prior_params);
   yy_dealloc_tree(tree->left);
@@ -84,10 +83,14 @@ static void print_tree_recurse(tree_node_t * tree,
   for (j = 0; j < indend_space-1; ++j)
     printf ("-");
   if (tree->left || tree->right) printf("+");
+
+  printf (" %s:%f (age: %ld", tree->label, tree->length, tree->interval_line);
   if (opt_cred_interval)
-      printf (" %s:%f (age: %ld, %.2f cred_interval: %li-%li)\n", tree->label, tree->length, tree->interval_line, opt_cred_interval, (tree->lowerbound + tree->height), (tree->upperbound + tree->height));
-  else
-    printf (" %s:%f (age: %ld)\n", tree->label, tree->length, tree->interval_line);
+    printf (", %.2f CR: [%li,%li]", opt_cred_interval,
+                                    (tree->lowerbound+tree->height),
+                                    (tree->upperbound+tree->height));
+  printf(")\n");
+
   if (active_node_order[indend_level-1] == 2) 
     active_node_order[indend_level-1] = 0;
 
@@ -116,10 +119,14 @@ void show_ascii_tree(tree_node_t * tree)
   int * active_node_order = (int *)malloc((indend_max+1) * sizeof(int));
   active_node_order[0] = 1;
   active_node_order[1] = 1;
+
+  printf (" %s:%f (age: %ld", tree->label, tree->length, tree->interval_line);
   if (opt_cred_interval)
-      printf (" %s:%f (age: %ld, %.2f cred_interval: %li-%li)\n", tree->label, tree->length, tree->interval_line, opt_cred_interval, (tree->lowerbound + tree->height), (tree->upperbound + tree->height));
-  else
-    printf (" %s:%f (age: %ld)\n", tree->label, tree->length, tree->interval_line);
+    printf (", %.2f CR: [%li-%li]", opt_cred_interval,
+                                    (tree->lowerbound+tree->height),
+                                    (tree->upperbound+tree->height));
+  printf(")\n");
+
   print_tree_recurse(tree->left, 1, active_node_order);
   print_tree_recurse(tree->right, 1, active_node_order);
   free(active_node_order);
@@ -167,19 +174,16 @@ static void output_um_tree_recursive(tree_node_t * node, FILE * fp_out)
     fprintf(fp_out, ",");
     output_um_tree_recursive(node->right, fp_out);
     if (node->parent)
-     {
-        fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
-            (node->parent->interval_line - node->interval_line) * interval_age);
-      }
-   else
-     {
-        fprintf(fp_out, ")%s", node->label ? node->label : ""); /*before was using total number of gridlines for height of root which didn't make sense to me, this gives no BL to root*/
-      }
+      fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
+        (node->parent->interval_line - node->interval_line) * interval_age);
+    else
+      fprintf(fp_out, ")%s:0.0", node->label ? node->label : "");
   }
 }
 
-
-static void traverse_iterative(tree_node_t * node, int * index, tree_node_t ** outbuffer)
+static void traverse_iterative(tree_node_t * node,
+                               int * index,
+                               tree_node_t ** outbuffer)
 {
   if (!node->left)
   {
@@ -261,4 +265,3 @@ void write_newick_tree(tree_node_t * node)
 
   fclose(fp_out);
 }
-

@@ -114,8 +114,6 @@ typedef struct tree_noderec
   double * matrix;
   long * matrix_left;
   long * matrix_right;
-  double * matrix_PP;
-
 
   /* age specific */
   long interval_line;
@@ -146,12 +144,16 @@ typedef struct tree_noderec
 #define NODEPRIOR_UNI     3
 #define NODEPRIOR_NORM    4
 
+/* parameter optimization masks */
+
 #define PARAM_LAMBDA     1
 #define PARAM_MU         2
 #define PARAM_PSI        4
 #define PARAM_RHO        8
 #define PARAM_RATE_MEAN 16
 #define PARAM_RATE_VAR  32
+
+/* parameter optimization defaults */
 
 #define DEFAULT_LAMBDA 1.0
 #define DEFAULT_MU     0.1

@@ -47,56 +47,58 @@ typedef struct thread_info_s
   long entry_count;
 } thread_info_t;
 
+static thread_info_t * ti;
 
-
-double check_prior(tree_node_t * node, double abs_age_node)
+static double age_prior_logpdf(tree_node_t * node, double abs_age_node)
 {
-    double dist_logprob;
-    /* if estimating absolute ages check for node priors and compute PDF */
-    dist_logprob = 0;
-    if (node->prior == NODEPRIOR_EXP)
-    {
-      exp_params_t * params = (exp_params_t *)(node->prior_params);
-      dist_logprob = exp_dist_logpdf(1/params->mean,
-                                     abs_age_node - params->offset);
-    }
-    else if (node->prior == NODEPRIOR_LN)
-    {
-      ln_params_t * params = (ln_params_t *)(node->prior_params);
-      dist_logprob = ln_dist_logpdf(params->mean,
-                                    params->stdev,
+  double dist_logprob;
+
+  /* if estimating absolute ages check for node priors and compute PDF */
+  dist_logprob = 0;
+  if (node->prior == NODEPRIOR_EXP)
+  {
+    exp_params_t * params = (exp_params_t *)(node->prior_params);
+    dist_logprob = exp_dist_logpdf(1/params->mean,
+                                   abs_age_node - params->offset);
+  }
+  else if (node->prior == NODEPRIOR_LN)
+  {
+    ln_params_t * params = (ln_params_t *)(node->prior_params);
+    dist_logprob = ln_dist_logpdf(params->mean,
+                                  params->stdev,
+                                  abs_age_node - params->offset);
+  }
+  else if (node->prior == NODEPRIOR_UNI)
+  {
+    uni_params_t * params = (uni_params_t *)(node->prior_params);
+    dist_logprob = uni_dist_logpdf(params->min_age,
+                                   params->max_age,
+                                   abs_age_node);
+  }
+  else if (node->prior == NODEPRIOR_NORM)
+  {
+    norm_params_t * params = (norm_params_t *)(node->prior_params);
+    dist_logprob = norm_dist_logpdf(params->mean,
+                                    params->variance,
                                     abs_age_node - params->offset);
-    }
-    else if (node->prior == NODEPRIOR_UNI)
-    {
-      uni_params_t * params = (uni_params_t *)(node->prior_params);
-      dist_logprob = uni_dist_logpdf(params->min_age,
-                                     params->max_age,
-                                     abs_age_node);
-    }
-    else if (node->prior == NODEPRIOR_NORM)
-    {
-      norm_params_t * params = (norm_params_t *)(node->prior_params);
-      dist_logprob = norm_dist_logpdf(params->mean,
-                                      params->variance,
-                                      abs_age_node - params->offset);
-    }
-    else if (node->prior)
-      assert(0);
-    return dist_logprob;
+  }
+  else if (node->prior)
+    fatal("Unknown prior used");
+
+  return dist_logprob;
 }
 
-static void calc_tip(tree_node_t * node)
+static void fill_tip_table(tree_node_t * node)
 {
 
   long i;
   double rel_age_node;
   double abs_age_node;
   double dist_logprob;
+
   if (!node->prior)
   {
     node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
-    node->matrix_PP[0] = 0.0;
     return;
   }
 
@@ -105,39 +107,15 @@ static void calc_tip(tree_node_t * node)
   {
     rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
     abs_age_node = (node->height+i)*interval_age;
+
     /* if estimating absolute ages check for node priors and compute PDF */
-    dist_logprob = 0;
-    dist_logprob = check_prior(node, abs_age_node);
+    dist_logprob = age_prior_logpdf(node, abs_age_node);
     
     node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
-    node->matrix_PP[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
   }
 }
 
-double calc_log_sum(double  prev_ln_sum, double new_ln_term) /*swiped from slowdate.py*/
- /*Avoid underflow/overflow, but return:
-      log(x + y)
-  where x = exp(prev_ln_sum) and y = exp(new_ln_term)
-  */
-{
-  double ln_m, exp_sum;
-  if ((new_ln_term - prev_ln_sum) > 30)
-    return new_ln_term; /* first term, or previous is lost in rounding error*/
-  if ( prev_ln_sum - new_ln_term > 30)
-    return prev_ln_sum; /* new term is lost in rounding error*/
-  if (prev_ln_sum < new_ln_term)
-    ln_m = prev_ln_sum;
-  else
-    ln_m = new_ln_term;
-  prev_ln_sum -= ln_m;
-  new_ln_term -= ln_m;
-  /* one is now 0 and the other is no greater than 30*/
-  exp_sum = exp(prev_ln_sum) + exp(new_ln_term);
-  return (log(exp_sum) + ln_m);
-}
-
-
-static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
+static void fill_inner_table(tree_node_t * node, long entry_first, long entry_last)
 {
   long i,j,k;
   long jmax, kmax;
@@ -153,14 +131,10 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
   double rel_age_right;
   double age_diff;
   double abs_age_node;
-  double abs_age_left;
-  double abs_age_right;
   double prob_rate_left;
   double prob_rate_right;
   double dist_logprob;
-  double dist_logprob_left;
-  double dist_logprob_right;
-  double score, PPscore;
+  double score;
 
   left  = node->left;
   right = node->right;
@@ -169,7 +143,7 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
   left_low = left->height;
   right_low = right->height;
 
-  for (i = i_min; i < i_max; ++i)
+  for (i = entry_first; i < entry_last; ++i)
   {
     rel_age_node = (1.0 / opt_grid_intervals) * (low+i);
     abs_age_node = (low+i)*interval_age;
@@ -188,18 +162,14 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
 
     long jbest = -1;
     double jbest_score = -__DBL_MAX__;
-    double jsum_score = 0;
     for (j = 0; j < jmax; ++j)
     {
       assert(j+left->height < node->height + i);
       rel_age_left = (1.0 / opt_grid_intervals) * (left_low+j);
-      abs_age_left = (left_low+j)*interval_age;
-      age_diff = rel_age_node - rel_age_left;
-      prob_rate_left = gamma_dist_logpdf(left->length / age_diff);
-      dist_logprob_left = check_prior(left, abs_age_left);
-      score = left->matrix[j] + prob_rate_left + dist_logprob_left;
-      PPscore = left->matrix_PP[j] + prob_rate_left + dist_logprob_left; 
-      jsum_score = calc_log_sum(jsum_score, PPscore);
+
+      prob_rate_left = gamma_dist_logpdf(left->length / 
+                                         (rel_age_node - rel_age_left));
+      score = left->matrix[j] + prob_rate_left;
       if (score  > jbest_score)
       {
         jbest = j;
@@ -221,18 +191,15 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
 
     long kbest = -1;
     double kbest_score = -__DBL_MAX__;
-    double ksum_score = 0;
     for (k = 0; k < kmax; ++k)
     {
       assert(k+right->height < node->height + i);
       rel_age_right = (1.0 / opt_grid_intervals) * (right_low+k);
-      abs_age_right = (right_low+k)*interval_age;
+
       age_diff = rel_age_node - rel_age_right;
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
-      dist_logprob_right = check_prior(right, abs_age_right);
-      score = right->matrix[k] + prob_rate_right + dist_logprob_right;
-      PPscore = right->matrix_PP[k] + prob_rate_right + dist_logprob_right;
-      ksum_score = calc_log_sum(ksum_score, PPscore); 
+
+      score = right->matrix[k] + prob_rate_right;
       if (score > kbest_score)
       {
         kbest = k;
@@ -251,47 +218,35 @@ static void calc_interval_scores(tree_node_t * node, long i_min, long i_max)
     else assert(0);
 
 
-    score = bd_term + jbest_score + kbest_score;/*TODO: the prior is now only added at the children and when you hit the root. Double check this is correct!*/
-    PPscore = bd_term + jsum_score + ksum_score;
-        /* if it's the root add one more term */
+    dist_logprob = age_prior_logpdf(node, abs_age_node);
+
+    score = bd_term + jbest_score + kbest_score + dist_logprob;
+
+    /* if it's the root add one more term */
     if (node->height == tree_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
-        {
         score += bd_relative_root(node->leaves,
                                   rel_age_node);
-        PPscore += bd_relative_root(node->leaves,
-                                  rel_age_node); 
-        }
       else if (opt_method_tipdates)
-        {
         score += bd_tipdates_root(node->leaves,
-                                   rel_age_node);
-        PPscore += bd_tipdates_root(node->leaves,
                                   rel_age_node);
-       }
       else assert(0);
-      dist_logprob = check_prior(node, abs_age_node);
-      score += dist_logprob;
-      PPscore += dist_logprob;
     }
 
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
-    node->matrix_PP[i] = PPscore;
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
 }
-
-static thread_info_t * ti;
 
 static inline void dp_recurse_worker(long t)
 {
   thread_info_t * tip = ti + t;
   tree_node_t * node  = tip->node;
 
-  calc_interval_scores(node, tip->entry_first, tip->entry_first + tip->entry_count);
+  fill_inner_table(node, tip->entry_first, tip->entry_first + tip->entry_count);
   
 }
 
@@ -424,9 +379,6 @@ static void threads_exit()
   pthread_attr_destroy(&attr);
 }
 
-
-
-
 static void dp_recurse_parallel(tree_node_t * node)
 {
   static long sum_entries = 0;
@@ -437,7 +389,7 @@ static void dp_recurse_parallel(tree_node_t * node)
   /* leaves case */
   if (!node->left)
   {
-    calc_tip(node);
+    fill_tip_table(node);
     return;
   }
 
@@ -516,10 +468,7 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix       = (double *)xmalloc(sizeof(double));
       node->matrix_left  = (long *)xmalloc(sizeof(long));
       node->matrix_right = (long *)xmalloc(sizeof(long));
-      node->matrix_PP       = (double *)xmalloc(sizeof(double));
       node->interval_weights = (double *)xmalloc(sizeof(double));
-
-
     }
     else
     {
@@ -540,7 +489,6 @@ static void alloc_node_entries(tree_node_t * node)
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
       node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
       node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
-      node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
       node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
     }
     return;
@@ -568,9 +516,7 @@ static void alloc_node_entries(tree_node_t * node)
   node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
   node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
   node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
-  node->matrix_PP       = (double *)xmalloc((size_t)entries * sizeof(double));
   node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
-
 
   /* for progress bar indication */
   inner_entries += entries;
@@ -585,17 +531,15 @@ static void dp_recurse_serial(tree_node_t * node)
 {
   static long sum_entries = 0;
 
-
   tree_node_t * left;
   tree_node_t * right;
-
 
   if (!node) return;
 
   /* leaves case */
   if (!node->left)
   {
-     calc_tip(node);
+     fill_tip_table(node);
      return;
   }
 
@@ -616,12 +560,10 @@ static void dp_recurse_serial(tree_node_t * node)
       (rel_age_left) o     \
                             o (rel_age_right)
   */
-  calc_interval_scores(node,0,node->entries);
+  fill_inner_table(node,0,node->entries);
   sum_entries += node->entries;
   progress_update((unsigned long)sum_entries);
 }
-
-
 
 static void dp_backtrack_recursive(tree_node_t * node, long best_entry)
 {
