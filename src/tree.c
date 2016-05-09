@@ -40,6 +40,7 @@ void yy_dealloc_tree(tree_node_t * tree)
   if (!tree) return;
   free(tree->label);
   free(tree->matrix);
+  free(tree->matrix_sum);
   free(tree->matrix_left);
   free(tree->matrix_right);
   free(tree->interval_weights);

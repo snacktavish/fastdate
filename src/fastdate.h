@@ -112,6 +112,7 @@ typedef struct tree_noderec
   /* grid related data */
   long entries;
   double * matrix;
+  double * matrix_sum;
   long * matrix_left;
   long * matrix_right;
 
