@@ -120,7 +120,6 @@ static void fill_tip_table(tree_node_t * node)
 {
 
   long i;
-  double rel_age_node;
   double abs_age_node;
   double dist_logprob;
 
@@ -133,13 +132,12 @@ static void fill_tip_table(tree_node_t * node)
   /* tip fossil case*/
   for (i = 0; i < node->entries; ++i)
   {
-    rel_age_node = (1.0 / opt_grid_intervals) * (node->height+i);
     abs_age_node = (node->height+i)*interval_age;
 
     /* if estimating absolute ages check for node priors and compute PDF */
     dist_logprob = age_prior_logpdf(node, abs_age_node);
     
-    node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(rel_age_node);
+    node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(abs_age_node);
   }
 }
 
@@ -170,6 +168,17 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
   low = node->height;
   left_low = left->height;
   right_low = right->height;
+
+  /* run DP */
+
+  /*
+
+                        o  (abs_age_node)
+                       / \
+                      /   \
+      (abs_age_left) o     \
+                            o (abs_age_right)
+  */
 
   for (i = entry_first; i < entry_last; ++i)
   {
@@ -495,7 +504,8 @@ static void alloc_node_entries(tree_node_t * node)
       /* tips are always placed on the first grid line */
       node->entries      = 1;
       node->matrix       = (double *)xmalloc(sizeof(double));
-      node->matrix_sum   = (double *)xmalloc(sizeof(double));
+      node->matrix_lsum   = (double *)xmalloc(sizeof(double));
+      node->matrix_rsum   = (double *)xmalloc(sizeof(double));
       node->matrix_left  = (long *)xmalloc(sizeof(long));
       node->matrix_right = (long *)xmalloc(sizeof(long));
       node->interval_weights = (double *)xmalloc(sizeof(double));
@@ -517,7 +527,8 @@ static void alloc_node_entries(tree_node_t * node)
       }
       node->entries      = entries;
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
-      node->matrix_sum   = (double *)xmalloc((size_t)entries * sizeof(double));
+      node->matrix_lsum   = (double *)xmalloc((size_t)entries * sizeof(double));
+      node->matrix_rsum   = (double *)xmalloc((size_t)entries * sizeof(double));
       node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
       node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
       node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
@@ -581,16 +592,6 @@ static void dp_recurse_serial(tree_node_t * node)
   dp_recurse_serial(left);
   dp_recurse_serial(right);
 
-  /* run DP */
-
-  /*
-
-                        o  (rel_age_node)
-                       / \
-                      /   \
-      (rel_age_left) o     \
-                            o (rel_age_right)
-  */
   fill_inner_table(node,0,node->entries);
   sum_entries += node->entries;
   progress_update((unsigned long)sum_entries);
