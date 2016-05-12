@@ -393,6 +393,10 @@ static void credible_recursive(tree_node_t * node, double * node_logprob)
   /* update credible interval for node */
   cr_update(node, node_logprob);
 
+  /* if it's a tip fossil return */
+  if (!node->left) return;
+
+
   /* compute grid line probabilities for the left child and recursively process
      left subtree */
   child_logprob = create_child_probs(node->left, node_logprob);
