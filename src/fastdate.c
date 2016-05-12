@@ -435,7 +435,6 @@ void cmd_method_relative()
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
-  write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
@@ -443,6 +442,7 @@ void cmd_method_relative()
   if (opt_cred_interval)
     credible(tree);
 
+  write_newick_tree(tree);
 
   if (opt_showtree)
     show_ascii_tree(tree);
@@ -473,13 +473,14 @@ void cmd_method_nodeprior()
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
-  write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
 
   if (opt_cred_interval)
     credible(tree);
+
+  write_newick_tree(tree);
 
   if (opt_showtree)
     show_ascii_tree(tree);
@@ -510,13 +511,14 @@ void cmd_method_tipdates()
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
-  write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
 
   if (opt_cred_interval)
     credible(tree);
+
+  write_newick_tree(tree);
 
   if (opt_showtree)
     show_ascii_tree(tree);

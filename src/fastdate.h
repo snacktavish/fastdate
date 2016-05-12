@@ -112,8 +112,7 @@ typedef struct tree_noderec
   /* grid related data */
   long entries;
   double * matrix;
-  double * matrix_lsum;
-  double * matrix_rsum;
+  double * matrix_sum;
   long * matrix_left;
   long * matrix_right;
 
@@ -129,8 +128,8 @@ typedef struct tree_noderec
   long sampled_gridline;
 
   /*Credible interval specific*/
-  long lowerbound;
-  long upperbound;
+  double cr_minage;
+  double cr_maxage;
   double * interval_weights;
 
 } tree_node_t;

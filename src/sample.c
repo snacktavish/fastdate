@@ -22,6 +22,7 @@
 #include "fastdate.h"
 
 static double * cdf_vector;
+static double interval_age;
 
 static long sample_gridline(double * vector, long count) 
 {
@@ -162,7 +163,6 @@ static void dp_backtrack_sampling(tree_node_t * root)
 }
 
 static void output_sample_dated_tree_recursive(tree_node_t * node,
-                                               double interval_age,
                                                FILE * fp_out)
 {
   if (!node->left || !node->right)
@@ -171,16 +171,15 @@ static void output_sample_dated_tree_recursive(tree_node_t * node,
   else
   {
     fprintf(fp_out, "(");
-    output_sample_dated_tree_recursive(node->left, interval_age, fp_out);
+    output_sample_dated_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
-    output_sample_dated_tree_recursive(node->right, interval_age, fp_out);
+    output_sample_dated_tree_recursive(node->right, fp_out);
     fprintf(fp_out, ")%s[&age=%f]:%f", node->label ? node->label : "",
                     node->sampled_gridline * interval_age, node->length);
   }
 }
 
 static void output_sample_um_tree_recursive(tree_node_t * node, 
-                                             double interval_age,
                                              FILE * fp_out)
 {
   if (!node->left || !node->right)
@@ -190,9 +189,9 @@ static void output_sample_um_tree_recursive(tree_node_t * node,
   else
   {
     fprintf(fp_out, "(");
-    output_sample_um_tree_recursive(node->left, interval_age, fp_out);
+    output_sample_um_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
-    output_sample_um_tree_recursive(node->right, interval_age, fp_out);
+    output_sample_um_tree_recursive(node->right, fp_out);
     if (node->parent)
      {
         fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
@@ -208,14 +207,10 @@ static void output_sample_um_tree_recursive(tree_node_t * node,
 void sample(tree_node_t * root)
 {
   long i;
-  double interval_age;
+
+  interval_age = opt_max_age / (opt_grid_intervals - 1);
 
   char * filename = (char *)xmalloc((strlen(opt_outfile)+9)*sizeof(char));
-
-  if (opt_max_age)
-    interval_age = opt_max_age / (opt_grid_intervals - 1);
-  else
-    interval_age = 1.0 / (opt_grid_intervals - 1);
 
   strcpy(filename, opt_outfile);
   strcat(filename,".sampled");
@@ -227,9 +222,9 @@ void sample(tree_node_t * root)
   {
     dp_backtrack_sampling(root);
     if (opt_outform == OUTPUT_ULTRAMETRIC)
-      output_sample_um_tree_recursive(root, interval_age, fp_out);
+      output_sample_um_tree_recursive(root, fp_out);
     else if (opt_outform == OUTPUT_DATED)
-      output_sample_dated_tree_recursive(root, interval_age, fp_out);
+      output_sample_dated_tree_recursive(root, fp_out);
     else
       fatal("Internal error while selecting output format");
     fprintf(fp_out, ";\n");
@@ -241,126 +236,182 @@ void sample(tree_node_t * root)
   free(filename);
 }
 
-static void update_cr_bounds(tree_node_t * node, double * cpvector)
+static double logsum(double old_logsum, double logterm)
+{
+   /*Avoid underflow/overflow, but return:
+         log(x + y)
+   where x = exp(prev_ln_sum) and y = exp(new_ln_term)
+   */
+
+   double ln_m;
+   double exp_sum;
+
+   /* check if old_logsum is lost in rounding error */
+   if (logterm - old_logsum > 30)
+     return logterm;
+
+   /* check if logterm is lost in rounding error */
+   if (old_logsum - logterm > 30)
+     return old_logsum;
+
+   ln_m = (old_logsum < logterm) ? old_logsum : logterm;
+
+   old_logsum -= ln_m;
+   logterm -= ln_m;
+
+   exp_sum = exp(old_logsum) + exp(logterm);
+
+   return (log(exp_sum) + ln_m);
+}
+
+static void cr_update(tree_node_t * node, double * logprob)
 {
   long i;
+  double tailsum = 0;
+  long cred_upper = 0;
+  long cred_lower = 0;
 
-  /* upper and lower cumulative probability density thresholds */
-  double upper_thresh = (1 - (1 - opt_cred_interval)/2);
-  double lower_thresh = (1 - opt_cred_interval)/2;
+  double thresh = (1 - opt_cred_interval)/2;
 
-  /* initialize CR bounds */
-  node->lowerbound = -1;
-  node->upperbound = -1;
-
-  for (i = 0; i < node->entries; ++i)
+  /* start from the high side */
+  for (i = node->entries - 1; i >= 0; --i)
   {
-    if ((cpvector[i] > lower_thresh) && (node->lowerbound == -1))
-      node->lowerbound = i;
-    if ((cpvector[i] > upper_thresh) && (node->upperbound == -1))
-      node->upperbound = i;
+    tailsum += exp(logprob[i]);
+    if (tailsum > thresh)
+    {
+      cred_upper = node->height + i;
+      break;
+    }
   }
 
-  assert(node->lowerbound != -1);
-  assert(node->upperbound != -1);
-
-  node->interval_weights[0] = 0;
+  /* start from the low side */
+  tailsum = 0;
   for (i = 0; i < node->entries; ++i)
-    node->interval_weights[i] = cpvector[i];
+  {
+    tailsum += exp(logprob[i]);
+    if (tailsum > thresh)
+    {
+      cred_lower = node->height+i;
+      break;
+    }
+  }
 
+  node->cr_minage = cred_lower * interval_age;
+  node->cr_maxage = cred_upper * interval_age;
 }
 
-static void dp_backtrack_credible_recursive(tree_node_t * node)
+static double * create_child_probs(tree_node_t * node, double * parent_prob)
 {
-  long i,x;
-  double maxscore;
+  long i,j;
+  tree_node_t * parent;
+  double abs_age_node, abs_age_parent;
+  double prob_rate;
+  double table_sum;
 
-  if (!node) return;
+  assert(node->parent);
 
-  tree_node_t * parent = node->parent;
-  double * mult_vector = (double *)xmalloc((size_t)(node->entries) *
-                                           sizeof(double));
+  /* if tip (and not fossil) return */
+  if (!node->left && !node->prior) return NULL;
 
-  memset(mult_vector,0,(size_t)(node->entries) * sizeof(double));
+  parent = node->parent;
 
-  if (node->entries == 1)
+  double * table = (double *)xmalloc((size_t)(node->entries) * sizeof(double));
+  double * logprob = (double *)xmalloc((size_t)(node->entries) * sizeof(double));
+  int * mask = (int *)xmalloc((size_t)(node->entries) * sizeof(int));
+  memset(mask,0,node->entries * sizeof(int));
+
+  /* go through the entries of the parent */
+  for (i = 0; i < parent->entries; ++i)
   {
-    node->lowerbound = 0;
-    node->upperbound = 0;
-  }
-  else
-  {
-    for (i = 0; i < parent->entries; ++i)
+    abs_age_parent = (parent->height+i)*interval_age;
+
+    /* get number of allowed entries for child node given i (line of parent) */
+    long jmax = (parent->height + i - node->height);
+    if (jmax > node->entries)
+      jmax = node->entries;
+
+    /* traverse allowed entries of child and obtain unnormalized probabilities
+       for each line, and their sum */
+    for (j = 0; j < jmax; ++j)
     {
-      double rel_age_parent = (1.0 / opt_grid_intervals) * (i + parent->height);
-      long entries = (i + parent->height) - node->height;
+      abs_age_node = (node->height+j)*interval_age;
+      prob_rate = gamma_dist_logpdf(node->length /
+                                    (abs_age_parent - abs_age_node));
+      table[j] = node->matrix_sum[j] + prob_rate;
 
-      if (entries > node->entries) entries = node->entries;
-
-      recompute_scores(node, rel_age_parent, cdf_vector, entries, &maxscore);
-      normalize_cdf(cdf_vector, entries, maxscore);
-
-      for (x = 0; x < entries; ++x) /*loops through possible node locations given parent probability weight*/
-      {
-        assert(cdf_vector[x] >= 0);
-        /* sum the probability weight fo those positions, given the weight of
-        the parent being at that position, this is not a cumulative
-        probability density */
-        mult_vector[x] = ((cdf_vector[x] * parent->interval_weights[i]) +
-                          mult_vector[x]);
-        assert(mult_vector[x]>=0);
-      }
+      if (j)
+        table_sum = logsum(table_sum, node->matrix_sum[j] + prob_rate);
+      else
+        table_sum = table[j];
     }
 
-    /*Now re-normalize the vector across probabilities TODO risk of underflow?*/
-    double mult_vector_sum = 0;
-    for (i = 0; i < node->entries; ++i)
-      mult_vector_sum += mult_vector[i];
+    /* go through the table, normalize and multiply with parent probability */
+    for (j = 0; j < jmax; ++j)
+    {
+      if (mask[j])
+        logprob[j] = logsum(logprob[j], table[j] - table_sum + parent_prob[i]);
+      else
+        logprob[j] = table[j] - table_sum + parent_prob[i];
 
-    mult_vector[0] /= mult_vector_sum;
-    for (i = 1; i < node->entries; ++i)
-      mult_vector[i] = (mult_vector[i] / mult_vector_sum) + mult_vector[i-1];
-
-    assert(0.9999 < mult_vector[node->entries-1]);
-    assert(mult_vector[node->entries-1] < 1.0001);
-
-    /* update credible interval for current node */
-    update_cr_bounds(node,mult_vector);
+      /* mark that entry j of table and logprob is initialized to a value,
+         required for hte logsum function */
+      mask[j] = 1;
+    }
   }
 
-  dp_backtrack_credible_recursive(node->left);
-  dp_backtrack_credible_recursive(node->right);
-  free(mult_vector);
+  free(mask);
+  free(table);
+
+  return logprob;
 }
 
-static void dp_backtrack_credible(tree_node_t * root)
+static void credible_recursive(tree_node_t * node, double * node_logprob)
 {
-  int i;
-  double maxscore = -__DBL_MAX__;
+  double * child_logprob;
 
-  cdf_vector = (double *)xmalloc((size_t)opt_grid_intervals * sizeof(double));
+  if (!node) return;
+  if (!node->left && !node->prior) return;
 
-  /* copy logscores to cdf vector and get max */
-  memcpy(cdf_vector, root->matrix, (size_t)(root->entries) * sizeof(double));
-  for (i = 0; i < root->entries; ++i)
-    if (cdf_vector[i] > maxscore)
-      maxscore = cdf_vector[i];
+  /* update credible interval for node */
+  cr_update(node, node_logprob);
 
-  /* normalize logscores according to maxscore */
-  normalize_cdf(cdf_vector, root->entries, maxscore);
+  /* compute grid line probabilities for the left child and recursively process
+     left subtree */
+  child_logprob = create_child_probs(node->left, node_logprob);
+  credible_recursive(node->left, child_logprob);
 
-  update_cr_bounds(root, cdf_vector);
+  free(child_logprob);
 
-  /* recursively traverse left and right child */
-  dp_backtrack_credible_recursive(root->left);
-  dp_backtrack_credible_recursive(root->right);
+  /* compute grid line probabilities for the right child and recursively process
+     right subtree */
+  child_logprob = create_child_probs(node->right, node_logprob);
+  credible_recursive(node->right, child_logprob);
 
-  free(cdf_vector);
+  free(child_logprob);
 }
 
 void credible(tree_node_t * root)
 {
-  dp_backtrack_credible(root);
-}
+  double norm = 0;
+  long i;
 
- 
+  double * logprob = (double *)xmalloc((size_t)(root->entries) * sizeof(double));
+
+  interval_age = opt_max_age / (opt_grid_intervals - 1);
+
+  /* compute normalization constant for root */
+  norm = root->matrix_sum[0];
+  for (i = 1; i < root->entries; ++i)
+  {
+    norm = logsum(norm, root->matrix_sum[i]);
+  }
+
+  /* normalize log probabilities for root */
+  for (i = 0; i < root->entries; ++i)
+    logprob[i] = root->matrix_sum[i] - norm;
+
+  /* process tree starting from root */
+  credible_recursive(root, logprob);
+
+  free(logprob);
+}

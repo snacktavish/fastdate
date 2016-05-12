@@ -40,8 +40,7 @@ void yy_dealloc_tree(tree_node_t * tree)
   if (!tree) return;
   free(tree->label);
   free(tree->matrix);
-  free(tree->matrix_lsum);
-  free(tree->matrix_rsum);
+  free(tree->matrix_sum);
   free(tree->matrix_left);
   free(tree->matrix_right);
   free(tree->interval_weights);
@@ -88,9 +87,9 @@ static void print_tree_recurse(tree_node_t * tree,
 
   printf (" %s:%f (age: %ld", tree->label, tree->length, tree->interval_line);
   if (opt_cred_interval)
-    printf (", %.2f CR: [%li,%li]", opt_cred_interval,
-                                    (tree->lowerbound+tree->height),
-                                    (tree->upperbound+tree->height));
+    printf (", %.2f CR: [%f,%f]", opt_cred_interval,
+                                  tree->cr_minage,
+                                  tree->cr_maxage);
   printf(")\n");
 
   if (active_node_order[indend_level-1] == 2) 
@@ -124,9 +123,9 @@ void show_ascii_tree(tree_node_t * tree)
 
   printf (" %s:%f (age: %ld", tree->label, tree->length, tree->interval_line);
   if (opt_cred_interval)
-    printf (", %.2f CR: [%li-%li]", opt_cred_interval,
-                                    (tree->lowerbound+tree->height),
-                                    (tree->upperbound+tree->height));
+    printf (", %.2f CR: [%f,%f]", opt_cred_interval,
+                                  tree->cr_minage,
+                                  tree->cr_maxage);
   printf(")\n");
 
   print_tree_recurse(tree->left, 1, active_node_order);
@@ -151,16 +150,20 @@ long set_node_heights(tree_node_t * root)
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
-    fprintf(fp_out, "%s[&age=%f]:%f",
-            node->label, node->interval_line * interval_age, node->length);
+    fprintf(fp_out, "%s:%f",
+            node->label, node->length);
   else
   {
     fprintf(fp_out, "(");
     output_dated_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
     output_dated_tree_recursive(node->right, fp_out);
-    fprintf(fp_out, ")%s[&age=%f]:%f", node->label ? node->label : "",
-                    node->interval_line * interval_age, node->length);
+
+    fprintf(fp_out, ")%s[", node->label ? node->label : "");
+    fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+    if (opt_cred_interval)
+      fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+    fprintf(fp_out, "]:%f", node->length);
   }
 }
 

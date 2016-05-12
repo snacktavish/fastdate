@@ -126,6 +126,7 @@ static void fill_tip_table(tree_node_t * node)
   if (!node->prior)
   {
     node->matrix[0] = 0.0;    /* 0 and not 1 because of the log-scale */
+    node->matrix_sum[0] = 0;
     return;
   }
 
@@ -138,6 +139,7 @@ static void fill_tip_table(tree_node_t * node)
     dist_logprob = age_prior_logpdf(node, abs_age_node);
     
     node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(abs_age_node);
+    node->matrix_sum[i] = 0;
   }
 }
 
@@ -160,7 +162,8 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
   double prob_rate_right;
   double dist_logprob;
   double score;
-  double score_sum;
+  double score_lsum;
+  double score_rsum;
 
   left  = node->left;
   right = node->right;
@@ -183,7 +186,7 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
   for (i = entry_first; i < entry_last; ++i)
   {
     abs_age_node = (low+i)*interval_age;
-    score_sum = 0;
+    score_lsum = score_rsum = 0;
 
     /* check the ages of the left child */
     if (!left->left)
@@ -207,7 +210,12 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
       prob_rate_left = gamma_dist_logpdf(left->length / 
                                          (abs_age_node - abs_age_left));
       score = left->matrix[j] + prob_rate_left;
-      score_sum += score;
+
+      if (j)
+        score_lsum = logsum(score_lsum, left->matrix_sum[j] + prob_rate_left);
+      else
+        score_lsum = left->matrix_sum[j] + prob_rate_left;
+
       if (score  > jbest_score)
       {
         jbest = j;
@@ -238,6 +246,11 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
       prob_rate_right = gamma_dist_logpdf(right->length / age_diff);
 
       score = right->matrix[k] + prob_rate_right;
+
+      if (k)
+        score_rsum = logsum(score_rsum, right->matrix_sum[k] + prob_rate_right);
+      else
+        score_rsum = right->matrix_sum[k] + prob_rate_right;
       if (score > kbest_score)
       {
         kbest = k;
@@ -259,21 +272,31 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
     dist_logprob = age_prior_logpdf(node, abs_age_node);
 
     score = bd_term + jbest_score + kbest_score + dist_logprob;
+    double score_sum = bd_term + score_lsum + score_rsum + dist_logprob;
 
     /* if it's the root add one more term */
     if (node->height == tree_height)
     {
       if (opt_method_relative || opt_method_nodeprior)
+      {
         score += bd_relative_root(node->leaves,
                                   abs_age_node);
+        score_sum += bd_relative_root(node->leaves,
+                                      abs_age_node);
+      }
       else if (opt_method_tipdates)
+      {
         score += bd_tipdates_root(node->leaves,
                                   abs_age_node);
+        score_sum += bd_tipdates_root(node->leaves,
+                                      abs_age_node);
+      }
       else assert(0);
     }
 
     /* store best placement of children and likelihood for interval line i */
     node->matrix[i] = score;
+    node->matrix_sum[i] = score_sum;
     node->matrix_left[i] = jbest;
     node->matrix_right[i] = kbest;
   }
@@ -504,8 +527,7 @@ static void alloc_node_entries(tree_node_t * node)
       /* tips are always placed on the first grid line */
       node->entries      = 1;
       node->matrix       = (double *)xmalloc(sizeof(double));
-      node->matrix_lsum   = (double *)xmalloc(sizeof(double));
-      node->matrix_rsum   = (double *)xmalloc(sizeof(double));
+      node->matrix_sum   = (double *)xmalloc(sizeof(double));
       node->matrix_left  = (long *)xmalloc(sizeof(long));
       node->matrix_right = (long *)xmalloc(sizeof(long));
       node->interval_weights = (double *)xmalloc(sizeof(double));
@@ -527,8 +549,7 @@ static void alloc_node_entries(tree_node_t * node)
       }
       node->entries      = entries;
       node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
-      node->matrix_lsum   = (double *)xmalloc((size_t)entries * sizeof(double));
-      node->matrix_rsum   = (double *)xmalloc((size_t)entries * sizeof(double));
+      node->matrix_sum   = (double *)xmalloc((size_t)entries * sizeof(double));
       node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
       node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
       node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
@@ -556,6 +577,7 @@ static void alloc_node_entries(tree_node_t * node)
   /* allocate storage space for placement information at each node */
   node->entries      = entries;
   node->matrix       = (double *)xmalloc((size_t)entries * sizeof(double));
+  node->matrix_sum   = (double *)xmalloc((size_t)entries * sizeof(double));
   node->matrix_left  = (long *)xmalloc((size_t)entries * sizeof(long));
   node->matrix_right = (long *)xmalloc((size_t)entries * sizeof(long));
   node->interval_weights = (double *)xmalloc((size_t)entries * sizeof(double));
