@@ -189,13 +189,14 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
     score_lsum = score_rsum = 0;
 
     /* check the ages of the left child */
-    if (!left->left)
+
+    /* if the left child is an extant tip, it only has one entry (present) */
+    if (!left->left && !left->prior)
       jmax = 1;
     else
       jmax = (node->height + i - left->height);
 
-    /* in case we had a uniform prior. TODO: Check whether this should also
-       replace 'jmax = 1' three lines above for tip fossils */
+    /* in case we had a uniform prior */
     if (jmax > left->entries) jmax = left->entries;
 
     assert(jmax <= left->entries);
@@ -223,14 +224,13 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
       }
     }
 
-    /* check the ages of right child */
-    if (!right->left)
+    /* if the right child is an extant tip, it only has one entry (present) */
+    if (!right->left && !right->prior)
       kmax = 1;
     else
       kmax = (node->height + i - right->height);
 
-    /* in case we had a uniform prior. TODO: Check whether this should also
-       replace 'kmax = 1' three lines above for tip fossils */
+    /* in case we had a uniform prior */
     if (kmax > right->entries) kmax = right->entries;
 
     assert(kmax <= right->entries);
@@ -686,8 +686,7 @@ void dp(tree_node_t * tree)
   bd_init(0,0);
 
   /* compute the absolute age of an interval line */
-  if (opt_method_nodeprior|| opt_method_tipdates)
-    interval_age = opt_max_age / (opt_grid_intervals - 1);
+  interval_age = opt_max_age / (opt_grid_intervals - 1);
 
   /* reset node heights according to calibrations if nodeprior method is used */
   if (opt_method_nodeprior || opt_method_tipdates)

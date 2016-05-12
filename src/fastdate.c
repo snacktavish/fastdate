@@ -430,7 +430,6 @@ void cmd_method_relative()
   if (!tree)
     fatal("Tree is probably not binary.\n");
 
-
   dp(tree);
 
   if (!opt_quiet)

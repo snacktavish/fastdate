@@ -23,6 +23,8 @@
 
 static double * cdf_vector;
 static double interval_age;
+static long progress_count;
+
 
 static long sample_gridline(double * vector, long count) 
 {
@@ -296,6 +298,7 @@ static void cr_update(tree_node_t * node, double * logprob)
     }
   }
 
+  /* update credible interval bounds for node */
   node->cr_minage = cred_lower * interval_age;
   node->cr_maxage = cred_upper * interval_age;
 }
@@ -369,6 +372,7 @@ static void credible_recursive(tree_node_t * node, double * node_logprob)
 {
   double * child_logprob;
 
+  progress_count++;
   if (!node) return;
   if (!node->left && !node->prior) return;
 
@@ -388,6 +392,8 @@ static void credible_recursive(tree_node_t * node, double * node_logprob)
   credible_recursive(node->right, child_logprob);
 
   free(child_logprob);
+
+  progress_update((unsigned long)progress_count);
 }
 
 void credible(tree_node_t * root)
@@ -398,6 +404,9 @@ void credible(tree_node_t * root)
   double * logprob = (double *)xmalloc((size_t)(root->entries) * sizeof(double));
 
   interval_age = opt_max_age / (opt_grid_intervals - 1);
+
+  progress_count  = 0;
+  progress_init("Computing credible interval...", (unsigned long)(2*root->leaves-1));
 
   /* compute normalization constant for root */
   norm = root->matrix_sum[0];
@@ -412,6 +421,8 @@ void credible(tree_node_t * root)
 
   /* process tree starting from root */
   credible_recursive(root, logprob);
+
+  progress_done();
 
   free(logprob);
 }

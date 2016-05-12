@@ -150,8 +150,18 @@ long set_node_heights(tree_node_t * root)
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
-    fprintf(fp_out, "%s:%f",
-            node->label, node->length);
+  {
+    if (!node->prior)
+      fprintf(fp_out, "%s:%f", node->label, node->length);
+    else
+    {
+      fprintf(fp_out, "%s[", node->label);
+      fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+      if (opt_cred_interval)
+        fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+      fprintf(fp_out, "]:%f", node->length);
+    }
+  }
   else
   {
     fprintf(fp_out, "(");
@@ -170,19 +180,35 @@ static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
 static void output_um_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
-    fprintf(fp_out, "%s:%f", node->label, 
-            (node->parent->interval_line - node->interval_line) * interval_age);
+  {
+    if (!node->prior)
+      fprintf(fp_out, "%s:%f", node->label,
+              (node->parent->interval_line - node->interval_line) * interval_age);
+    else
+    {
+      fprintf(fp_out, "%s[", node->label);
+      fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+      if (opt_cred_interval)
+        fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+      fprintf(fp_out, "]:%f",
+              (node->parent->interval_line - node->interval_line)*interval_age);
+    }
+  }
   else
   {
     fprintf(fp_out, "(");
     output_um_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
     output_um_tree_recursive(node->right, fp_out);
+    fprintf(fp_out, ")%s[", node->label ? node->label : "");
+    fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+    if (opt_cred_interval)
+      fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
     if (node->parent)
-      fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
-        (node->parent->interval_line - node->interval_line) * interval_age);
+      fprintf(fp_out, "]:%f",
+              (node->parent->interval_line - node->interval_line)*interval_age);
     else
-      fprintf(fp_out, ")%s:0.0", node->label ? node->label : "");
+      fprintf(fp_out, "]:0.0");
   }
 }
 
