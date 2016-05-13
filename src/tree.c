@@ -85,12 +85,19 @@ static void print_tree_recurse(tree_node_t * tree,
     printf ("-");
   if (tree->left || tree->right) printf("+");
 
-  printf (" %s:%f (age: %ld", tree->label, tree->length, tree->interval_line);
-  if (opt_cred_interval)
-    printf (", %.2f CR: [%f,%f]", opt_cred_interval,
-                                  tree->cr_minage,
-                                  tree->cr_maxage);
-  printf(")\n");
+  if (!tree->left && !tree->prior)
+  {
+    printf (" %s\n", tree->label);
+  }
+  else
+  {
+    printf (" %s (age: %f", tree->label, tree->interval_line * interval_age);
+    if (opt_cred_interval)
+      printf (", %.2f CR: [%f,%f]", opt_cred_interval,
+                                    tree->cr_minage,
+                                    tree->cr_maxage);
+    printf(")\n");
+  }
 
   if (active_node_order[indend_level-1] == 2) 
     active_node_order[indend_level-1] = 0;
@@ -121,7 +128,7 @@ void show_ascii_tree(tree_node_t * tree)
   active_node_order[0] = 1;
   active_node_order[1] = 1;
 
-  printf (" %s:%f (age: %ld", tree->label, tree->length, tree->interval_line);
+  printf (" %s (age: %f", tree->label, tree->interval_line * interval_age);
   if (opt_cred_interval)
     printf (", %.2f CR: [%f,%f]", opt_cred_interval,
                                   tree->cr_minage,
