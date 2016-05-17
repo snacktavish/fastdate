@@ -159,7 +159,7 @@ prior: taxa dist OPAR number COMMA number CPAR
     $$->dist = NODEPRIOR_NORM;
     $$->params = (norm_params_t *)malloc(sizeof(norm_params_t));
     ((norm_params_t *)($$->params))->mean = atof($4);
-    ((norm_params_t *)($$->params))->variance = atof($6);
+    ((norm_params_t *)($$->params))->stdev = atof($6);
     ((norm_params_t *)($$->params))->offset = atof($8);
   }
   else

@@ -137,7 +137,7 @@ static void print_prior(tree_node_t ** tip_list, unsigned int count, int priorno
               priorno,
               prior->lineno,
               norm_params->mean,
-              norm_params->variance,
+              norm_params->stdev,
               norm_params->offset,
               tip_list[0]->label);
       break;

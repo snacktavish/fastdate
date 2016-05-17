@@ -110,7 +110,7 @@ void args_init(int argc, char ** argv)
   opt_priorfile = NULL;
   opt_grid_intervals = 1000;
   opt_quiet = 0;
-  opt_max_age = 1;
+  opt_max_age = 0;
   opt_threads = 1;
   opt_outform = OUTPUT_ULTRAMETRIC;
   opt_seed = 0;
@@ -423,6 +423,7 @@ void cmd_help()
 
 void cmd_method_relative()
 {
+  opt_max_age = 1;
   /* parse tree */
   if (!opt_quiet)
     fprintf(stdout, "Parsing tree file...\n");

@@ -79,7 +79,7 @@ static double age_prior_logpdf(tree_node_t * node, double abs_age_node)
   {
     norm_params_t * params = (norm_params_t *)(node->prior_params);
     dist_logprob = norm_dist_logpdf(params->mean,
-                                    params->variance,
+                                    params->stdev,
                                     abs_age_node - params->offset);
   }
   else if (node->prior)

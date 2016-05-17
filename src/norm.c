@@ -26,22 +26,22 @@
 #define 3.14159265358979323846
 #endif
 
-double norm_dist_pdf(double mean, double variance, double x)
+double norm_dist_pdf(double mean, double stdev, double x)
 {
-  assert (variance > 0);
+  assert (stdev > 0);
 
-  double terma = exp(-((x-mean)*(x-mean)/(2*variance*variance)));
-  double termb = sqrt(2*M_PI*variance*variance);
+  double terma = exp(-((x-mean)*(x-mean)/(2*stdev*stdev)));
+  double termb = stdev*sqrt(2*M_PI);
 
   return (terma/termb);
 }
 
-double norm_dist_logpdf(double mean, double variance, double x)
+double norm_dist_logpdf(double mean, double stdev, double x)
 {
-  assert (variance > 0);
+  assert (stdev> 0);
 
-  double terma = -(x-mean)*(x-mean) / (2*variance*variance);
-  double termb = -log(2*M_PI*variance*variance);
+  double terma = -(x-mean)*(x-mean) / (2*stdev*stdev);
+  double termb = log(sqrt(2*M_PI)*stdev);
 
-  return terma+termb;
+  return terma-termb;
 }

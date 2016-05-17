@@ -81,7 +81,7 @@ typedef struct ln_params_s
 typedef struct norm_params_s
 {
   double mean;
-  double variance;
+  double stdev;
   double offset;
 } norm_params_t;
 
@@ -293,13 +293,13 @@ double exp_dist_logpdf(double lambda, double x);
 
 /* functions in ln.c */
 
-double ln_dist_pdf(double mean, double variance, double x);
-double ln_dist_logpdf(double mean, double variance, double x);
+double ln_dist_pdf(double mean, double stdev, double x);
+double ln_dist_logpdf(double mean, double stdev, double x);
 
 /* functions in norm.c */
 
-double norm_dist_pdf(double mean, double variance, double x);
-double norm_dist_logpdf(double mean, double variance, double x);
+double norm_dist_pdf(double mean, double stdev, double x);
+double norm_dist_logpdf(double mean, double stdev, double x);
 
 /* functions in uni.c */
 
