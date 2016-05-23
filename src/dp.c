@@ -139,7 +139,7 @@ static void fill_tip_table(tree_node_t * node)
     dist_logprob = age_prior_logpdf(node, abs_age_node);
     
     node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(abs_age_node);
-    node->matrix_sum[i] = 0;
+    node->matrix_sum[i] = node->matrix[i];
   }
 }
 
