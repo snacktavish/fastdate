@@ -24,52 +24,58 @@
 
 static size_t string_length = 0;
 
-static char * append(size_t * current_len, const char * s2, size_t append_len)
+static char * append(size_t * dstlen, const char * src, size_t srclen)
 {
-  newick_lval.s = (char *)xrealloc(newick_lval.s, sizeof(char) * (*current_len+append_len+1));
-  strncpy(&newick_lval.s[*current_len], s2, append_len);
-  newick_lval.s[*current_len + append_len]=0;
-  *current_len += append_len;
+  char * mem = (char *)xmalloc((*dstlen + srclen + 1)*sizeof(char));
+  memcpy(mem,newick_lval.s,*dstlen);
+  strncpy(mem+(*dstlen),src,srclen);
+  mem[*dstlen+srclen] = 0;
+  if (*dstlen)
+    free(newick_lval.s);
+  newick_lval.s =  mem;
+  *dstlen += srclen;
   return newick_lval.s;
 }
 
 %}
 %option noyywrap
+%option prefix="newick_"
 %option nounput
 %option noinput
-%s apos
-%s quot
+%x apos
+%x quot
 
 %%
 <quot>{
-\\\"                                         append(&string_length, "\"", 1);
-\'                                           append(&string_length, "\'", 1);
-\"                                           {BEGIN(INITIAL);return STRING;}
+\\\"                                             {append(&string_length, "\\\"", 2);}
+\'                                               {append(&string_length, "\'", 1);}
+\"                                               {BEGIN(INITIAL);return STRING;}
 }
 
 <apos>{
-\\\'                                         append(&string_length, "\'", 1);
-\"                                           append(&string_length, "\"", 1);
-\'                                           {BEGIN(INITIAL);return STRING;}
+\\\'                                             {append(&string_length, "\\\'", 2);}
+\"                                               {append(&string_length, "\"", 1);}
+\'                                               {BEGIN(INITIAL);return STRING;}
 }
 
 <apos,quot>{
-\\n                                          append(&string_length, "\n", 1);
-\\t                                          append(&string_length, "\t", 1);
-\\\\                                         append(&string_length, "\\", 1);
-([^\"\'\\]|\n)+                              append(&string_length, newick_text, newick_leng);
+\\n                                              {append(&string_length, "\\n", 2);}
+\\t                                              {append(&string_length, "\\t", 2);}
+\\                                               {append(&string_length, "\\", 1);}
+\\\\                                             {append(&string_length, "\\\\", 2);}
+([^\"\'\\]|\n)+                                  {append(&string_length, newick_text, newick_leng);}
 }
 
-\:                                           return COLON;
-\;                                           return SEMICOLON;
-\)                                           return CPAR;
-\(                                           return OPAR;
-\,                                           return COMMA;
-\"                                           {string_length =0; BEGIN(quot);}
-\'                                           {string_length =0; BEGIN(apos);}
-[a-zA-Z_][a-zA-Z_0-9]*                       {newick_lval.s = xstrndup(newick_text, newick_leng); return STRING;}
-[\+|\-]?[0-9]+                               {newick_lval.d = xstrndup(newick_text, newick_leng); return NUMBER;}
-[\+|\-]?[0-9]+\.[0-9]+([e|E][\+|\-]?[0-9]+)? {newick_lval.d = xstrndup(newick_text, newick_leng); return NUMBER;}
-[ \t\n\r]                                    ;
-.                                            {fprintf(stderr, "Syntax error (%c)\n", newick_text[0]); exit(EXIT_FAILURE);}
+\:                                               return COLON;
+\;                                               return SEMICOLON;
+\)                                               return CPAR;
+\(                                               return OPAR;
+\,                                               return COMMA;
+\"                                               {string_length = 0; BEGIN(quot);}
+\'                                               {string_length = 0; BEGIN(apos);}
+[\+|\-]?[0-9]+                                   {newick_lval.d = xstrndup(newick_text, newick_leng); return NUMBER;}
+[\+|\-]?[0-9]+\.[0-9]+([e|E][\+|\-]?[0-9]+)?     {newick_lval.d = xstrndup(newick_text, newick_leng); return NUMBER;}
+[^ \'\",\(\):;\[\]\t\n\r][^ \t\n\r\)\(\[\]\,:;]* {newick_lval.s = xstrndup(newick_text, newick_leng); return STRING;}
+[ \t\n\r]                                        ;
+.                                                {fprintf(stderr, "Syntax error (%c)\n", newick_text[0]); exit(EXIT_FAILURE);}
 %%

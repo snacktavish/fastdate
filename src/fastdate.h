@@ -77,6 +77,14 @@ typedef struct ln_params_s
   double offset;
 } ln_params_t;
 
+/* parameters of normal distribution node prior */
+typedef struct norm_params_s
+{
+  double mean;
+  double stdev;
+  double offset;
+} norm_params_t;
+
 typedef struct prior_s
 {
   int dist;
@@ -104,6 +112,7 @@ typedef struct tree_noderec
   /* grid related data */
   long entries;
   double * matrix;
+  double * matrix_sum;
   long * matrix_left;
   long * matrix_right;
 
@@ -118,6 +127,11 @@ typedef struct tree_noderec
   /* sampling specific */
   long sampled_gridline;
 
+  /*Credible interval specific*/
+  double cr_minage;
+  double cr_maxage;
+  double * interval_weights;
+
 } tree_node_t;
 
 /* definitions */
@@ -125,10 +139,13 @@ typedef struct tree_noderec
 #define OUTPUT_ULTRAMETRIC      0
 #define OUTPUT_DATED            1
 
-#define NODEPRIOR_NONE  0
-#define NODEPRIOR_EXP   1
-#define NODEPRIOR_LN    2
-#define NODEPRIOR_UNI   3
+#define NODEPRIOR_NONE    0
+#define NODEPRIOR_EXP     1
+#define NODEPRIOR_LN      2
+#define NODEPRIOR_UNI     3
+#define NODEPRIOR_NORM    4
+
+/* parameter optimization masks */
 
 #define PARAM_LAMBDA     1
 #define PARAM_MU         2
@@ -137,8 +154,10 @@ typedef struct tree_noderec
 #define PARAM_RATE_MEAN 16
 #define PARAM_RATE_VAR  32
 
-#define DEFAULT_LAMBDA 10.0
-#define DEFAULT_MU     0.001
+/* parameter optimization defaults */
+
+#define DEFAULT_LAMBDA 1.0
+#define DEFAULT_MU     0.1
 #define DEFAULT_PSI    0.5
 #define DEFAULT_RHO    0.5
 #define DEFAULT_RATE   1     /* note: assume rate_var = rate_mean */
@@ -163,6 +182,8 @@ extern int opt_method_relative;
 extern int opt_method_nodeprior;
 extern int opt_method_tipdates;
 extern int opt_showtree;
+extern int opt_fixgamma;
+extern int opt_mu_scale;
 extern char * opt_treefile;
 extern char * opt_outfile;
 extern char * opt_priorfile;
@@ -177,7 +198,7 @@ extern double opt_rho;
 extern double opt_psi;
 extern double opt_rate_mean;
 extern double opt_rate_var;
-
+extern double opt_cred_interval;
 extern unsigned int opt_parameters_bitv;
 
 /* matrices */
@@ -272,10 +293,16 @@ double exp_dist_logpdf(double lambda, double x);
 
 /* functions in ln.c */
 
-double ln_dist_pdf(double mean, double variance, double x);
-double ln_dist_logpdf(double mean, double variance, double x);
+double ln_dist_pdf(double mean, double stdev, double x);
+double ln_dist_logpdf(double mean, double stdev, double x);
+
+/* functions in norm.c */
+
+double norm_dist_pdf(double mean, double stdev, double x);
+double norm_dist_logpdf(double mean, double stdev, double x);
 
 /* functions in uni.c */
+
 double uni_dist_pdf(double a, double b, double x);
 double uni_dist_logpdf(double a, double b, double x);
 
@@ -292,11 +319,14 @@ tree_node_t * lca_compute(tree_node_t * root,
                           unsigned int count);
 
 /* functions in optimize.c */
-double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol);
+
+double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol, double initial_score);
 
 /* functions in sample.c */
 
 void sample(tree_node_t * root);
+void credible(tree_node_t * root);
+
 
 /* functions in parse_prior.y */
 

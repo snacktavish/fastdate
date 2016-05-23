@@ -60,6 +60,10 @@ Model parameters:
 * `--rate_variance`
 * `--max_age`
 
+Optimization-specific parameters:
+
+* `--opt_fix_gamma`
+
 ## Usage example
 
 In the example below, we demonstrate the usage of FASTDATE for estimating
@@ -129,7 +133,19 @@ must be provided.
 `./fastdate --method_tipdates --tree_file example/small.tre --prior_file example/tip_prior.txt --out_file tip_dates.tre 
 --bd_mu 1 --bd_lambda 4 --max_age 100 --bd_rho 0.01 --show_tree --grid 100 --rate_mean 5 --rate_variance 1 --bd_psi 0.1`
 
+## Parameter optimization
 
+Whenever a mandatory parameter (i.e., --bd_lambda --bd_mu --bd_rho --rate_mean --rate_variance) is not specified,
+it will be automatically optimized using L-BFGS-B minimization algorithm.
+
+``src/fastdate --method_relative --show_tree --grid 1000 --bd_rho 1 --tree_file example/small.tre --out_file output.newick --out_form ultrametric``
+
+Additionally, the argument `--opt_fix_gamma` forces a linkage between rate mean and variance.
+It is not compatible with `--rate_mean` nor `--rate_variance`.
+When specified, a single rate parameter `r` is optimized. 
+Rate mean is set to `r`, and rate variance is set to `1/r`.
+
+``src/fastdate --method_relative --show_tree --grid 1000 --bd_rho 1 --tree_file example/small.tre --out_file output.newick --out_form ultrametric --opt_fix_gamma``
 
 ## FASTDATE license and third party licenses
 
@@ -144,7 +160,7 @@ The code is written in C.
 **bd.c**           | Birth-death process related functions.
 **fastdate.c**     | Main file handling command-line parameters and executing corresponding parts.
 **gamma.c**        | Gamma density distribution functions.
-**exp.c**          | Exponensial distribution functions.
+**exp.c**          | Exponential distribution functions.
 **ln.c**           | Log-normal distributions functions.
 **lca.c**          | Lowest Common Ancestor computation.
 **parse_prior.y**  | Bison grammar for parsing node priors.
@@ -155,6 +171,7 @@ The code is written in C.
 **util.c**         | Various common utility functions.
 **arch.c**         | Architecture specific code (Mac/Linux).
 **dp.c**           | Dynamic programming algorithm.
+**optimize.c**     | Parameter optimization functions.
 **Makefile**       | Makefile.
 **parse_newick.y** | Bison grammar file for newick binary tree parsing.
 **lex_newick.l**   | Flex lexical analyzer for newick trees.

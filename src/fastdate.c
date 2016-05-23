@@ -41,6 +41,8 @@ int opt_method_relative;
 int opt_method_nodeprior;
 int opt_method_tipdates;
 int opt_showtree;
+int opt_fixgamma;
+int opt_mu_scale;
 char * opt_treefile;
 char * opt_outfile;
 char * opt_priorfile;
@@ -55,6 +57,7 @@ double opt_rho;
 double opt_psi;
 double opt_rate_mean;
 double opt_rate_var;
+double opt_cred_interval;
 
 unsigned int opt_parameters_bitv;
 
@@ -82,6 +85,9 @@ static struct option long_options[] =
   {"threads",            required_argument, 0, 0 },  /* 19 */
   {"seed",               required_argument, 0, 0 },  /* 20 */
   {"sample",             required_argument, 0, 0 },  /* 21 */
+  {"cred_interval",      required_argument, 0, 0 },  /* 22 */
+  {"opt_fix_gamma",      no_argument,       0, 0 },  /* 23 */
+
   { 0, 0, 0, 0 }
 };
 
@@ -106,11 +112,14 @@ void args_init(int argc, char ** argv)
   opt_quiet = 0;
   opt_max_age = 0;
   opt_threads = 1;
-  opt_outform = OUTPUT_DATED;
+  opt_outform = OUTPUT_ULTRAMETRIC;
   opt_seed = 0;
   opt_sample = 0;
-
+  opt_cred_interval = 0;
   opt_parameters_bitv = 0;
+  opt_fixgamma = 0;
+  opt_mu_scale = 0;
+
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -221,6 +230,13 @@ void args_init(int argc, char ** argv)
         opt_sample = atol(optarg);
         break;
 
+      case 22:
+        opt_cred_interval = atof(optarg);
+        break;
+      case 23:
+        opt_fixgamma = 1;
+        break;
+
       default:
         fatal("Internal error in option parsing");
     }
@@ -238,6 +254,10 @@ void args_init(int argc, char ** argv)
     mand_options++;
 
   /* check for non-fixed parameters */
+  if (!(opt_lambda || opt_mu))
+  {
+    opt_mu_scale = 1;
+  }
   if (!opt_lambda)
   {
     opt_lambda =  opt_mu + DEFAULT_LAMBDA;
@@ -256,15 +276,28 @@ void args_init(int argc, char ** argv)
     opt_rho = DEFAULT_RHO;
     opt_parameters_bitv |= PARAM_RHO;
   }
-  if (!opt_rate_mean)
+  if (opt_fixgamma)
   {
-	  opt_rate_mean = DEFAULT_RATE;
-	  opt_parameters_bitv |= PARAM_RATE_MEAN;
-  }
-  if (!opt_rate_var)
-  {
+    /* if fixgamma option is set,
+     * we optimize both mean and variance together */
+    opt_parameters_bitv |= PARAM_RATE_MEAN;
+    if (opt_rate_var || opt_rate_mean)
+        fatal("  --opt_fix_gamma is incompatible with --rate_mean and --rate_var");
     opt_rate_var = DEFAULT_RATE;
-    opt_parameters_bitv |= PARAM_RATE_VAR;
+    opt_rate_mean = DEFAULT_RATE;
+  }
+  else
+  {
+    if (!opt_rate_mean)
+    {
+      opt_rate_mean = DEFAULT_RATE;
+      opt_parameters_bitv |= PARAM_RATE_MEAN;
+    }
+    if (!opt_rate_var)
+    {
+      opt_rate_var = DEFAULT_RATE;
+      opt_parameters_bitv |= PARAM_RATE_VAR;
+    }
   }
 
   /* check for number of independent commands selected */
@@ -383,12 +416,14 @@ void cmd_help()
           "  --bd_psi REAL                  fossil sample rate\n"
           "  --rate_mean REAL               mean value of edge rate model (default: optimized).\n"
           "  --rate_variance REAL           variance value for edge rate model (default: optimized).\n"
+          "  --opt_fix_gamma                assume variance and mean for edge rate model are reciprocal to each other.\n"
           "  --max_age                      max age of the grid when using methods --method_nodeprior or --method_tipdates.\n"
          );
 }
 
 void cmd_method_relative()
 {
+  opt_max_age = 1;
   /* parse tree */
   if (!opt_quiet)
     fprintf(stdout, "Parsing tree file...\n");
@@ -396,18 +431,21 @@ void cmd_method_relative()
   if (!tree)
     fatal("Tree is probably not binary.\n");
 
-
   dp(tree);
-
-  if (opt_showtree)
-    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
-  write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
+
+  if (opt_cred_interval)
+    credible(tree);
+
+  write_newick_tree(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
@@ -433,15 +471,19 @@ void cmd_method_nodeprior()
   assert(extinct_leaves_count == 0);
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
-  write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
+
+  if (opt_cred_interval)
+    credible(tree);
+
+  write_newick_tree(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");
@@ -467,15 +509,19 @@ void cmd_method_tipdates()
   assert(extinct_leaves_count > 0);
   dp(tree);
 
-  if (opt_showtree)
-    show_ascii_tree(tree);
-
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
-  write_newick_tree(tree);
 
   if (opt_sample)
     sample(tree);
+
+  if (opt_cred_interval)
+    credible(tree);
+
+  write_newick_tree(tree);
+
+  if (opt_showtree)
+    show_ascii_tree(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");

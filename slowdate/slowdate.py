@@ -287,13 +287,13 @@ def calc_date_map_estimate(tree, age_prior_calc, rate_prior_calc, grid):
 def calc_stadler_c1(bd_lambda, bd_mu, bd_psi):
   f = bd_lambda - bd_mu - bd_psi
   s = 4.0 * bd_lambda * bd_psi
-  return math.sqrt(f*f - s)
+  return math.sqrt(f*f + s)
 
 def calc_stadler_constants(bd_lambda, bd_mu, bd_rho, bd_psi):
   STADLER_C1 = calc_stadler_c1(bd_lambda, bd_mu, bd_psi)
   debug('STADLER_C1 = {s}'.format(s=STADLER_C1))
   c2_numerator = bd_lambda - bd_mu - 2 * bd_lambda * bd_rho - bd_psi
-  STADLER_C2 = c2_numerator / STADLER_C1
+  STADLER_C2 = - c2_numerator / STADLER_C1
   debug('STADLER_C2 = {s}'.format(s=STADLER_C2))
   return STADLER_C1, STADLER_C2
 

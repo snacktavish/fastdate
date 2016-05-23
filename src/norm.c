@@ -21,37 +21,27 @@
 
 #include "fastdate.h"
 
-#ifndef M_SQRTPI
-#define M_SQRTPI       1.77245385090551602729  /* square root of pi*/
+
+#ifndef M_PI
+#define 3.14159265358979323846
 #endif
 
-#ifndef M_SQRT_2
-#define M_SQRT_2       1.41421356237309504880 /* square root of 2 */
-#endif
-
-
-
-
-static double constant = M_SQRTPI * M_SQRT_2;
-
-double ln_dist_pdf(double mean, double stdev, double x)
+double norm_dist_pdf(double mean, double stdev, double x)
 {
-  assert(stdev > 0);
-  assert(x > 0);
+  assert (stdev > 0);
 
-  return (1 / (x * stdev * constant)) *
-         exp(-(log(x) - mean)*(log(x) - mean) / (2 * stdev * stdev));
+  double terma = exp(-((x-mean)*(x-mean)/(2*stdev*stdev)));
+  double termb = stdev*sqrt(2*M_PI);
+
+  return (terma/termb);
 }
 
-double ln_dist_logpdf(double mean, double stdev, double x)
+double norm_dist_logpdf(double mean, double stdev, double x)
 {
-  assert(stdev > 0);
-  assert(x >= 0);
+  assert (stdev> 0);
 
-  if (x == 0) return  -__DBL_MAX__ / 2;
+  double terma = -(x-mean)*(x-mean) / (2*stdev*stdev);
+  double termb = log(sqrt(2*M_PI)*stdev);
 
-  return (-log(x) - log(stdev) - log(constant) -
-         (log(x) - mean)*(log(x) - mean) / (2 * stdev * stdev));
+  return terma-termb;
 }
-
-

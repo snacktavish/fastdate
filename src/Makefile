@@ -37,7 +37,7 @@ PROG=fastdate
 all: $(PROG)
 
 OBJS=util.o maps.o fastdate.o tree.o dp.o gamma.o bd.o parse_newick.o \
-     lex_newick.o arch.o exp.o ln.o uni.o nodeprior.o lca.o optimize.o \
+     lex_newick.o arch.o exp.o ln.o uni.o norm.o nodeprior.o lca.o optimize.o \
      lbfgsb/lbfgsb.o lbfgsb/linesearch.o lbfgsb/linpack.o lbfgsb/miniCBLAS.o \
      lbfgsb/subalgorithms.o sample.o parse_prior.o lex_prior.o
 
@@ -54,4 +54,4 @@ lex_%.c: lex_%.l
 	$(FLEX) -P $*_ -o $@ $<
 
 clean:
-	rm -f *~ $(OBJS) gmon.out $(PROG) parse_newick.c lex_newick.c parse_newick.h
+	rm -f *~ $(OBJS) gmon.out $(PROG) parse_newick.c lex_newick.c parse_newick.h parse_prior.h

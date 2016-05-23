@@ -24,9 +24,7 @@
 static int indend_space = 4;
 
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out);
-static void output_um_tree_recursive(tree_node_t * node, 
-                                     FILE * fp_out, 
-                                     long prev_age);
+static void output_um_tree_recursive(tree_node_t * node, FILE * fp_out);
 
 static double interval_age = 0;
 
@@ -42,8 +40,10 @@ void yy_dealloc_tree(tree_node_t * tree)
   if (!tree) return;
   free(tree->label);
   free(tree->matrix);
+  free(tree->matrix_sum);
   free(tree->matrix_left);
   free(tree->matrix_right);
+  free(tree->interval_weights);
   free(tree->prior_params);
   yy_dealloc_tree(tree->left);
   yy_dealloc_tree(tree->right);
@@ -85,7 +85,19 @@ static void print_tree_recurse(tree_node_t * tree,
     printf ("-");
   if (tree->left || tree->right) printf("+");
 
-  printf (" %s:%f (age: %ld)\n", tree->label, tree->length, tree->interval_line);
+  if (!tree->left && !tree->prior)
+  {
+    printf (" %s\n", tree->label);
+  }
+  else
+  {
+    printf (" %s (age: %f", tree->label, tree->interval_line * interval_age);
+    if (opt_cred_interval)
+      printf (", %.2f CR: [%f,%f]", opt_cred_interval,
+                                    tree->cr_minage,
+                                    tree->cr_maxage);
+    printf(")\n");
+  }
 
   if (active_node_order[indend_level-1] == 2) 
     active_node_order[indend_level-1] = 0;
@@ -116,7 +128,13 @@ void show_ascii_tree(tree_node_t * tree)
   active_node_order[0] = 1;
   active_node_order[1] = 1;
 
-  printf (" %s:%f (age: %ld)\n", tree->label, tree->length, tree->interval_line);
+  printf (" %s (age: %f", tree->label, tree->interval_line * interval_age);
+  if (opt_cred_interval)
+    printf (", %.2f CR: [%f,%f]", opt_cred_interval,
+                                  tree->cr_minage,
+                                  tree->cr_maxage);
+  printf(")\n");
+
   print_tree_recurse(tree->left, 1, active_node_order);
   print_tree_recurse(tree->right, 1, active_node_order);
   free(active_node_order);
@@ -139,38 +157,71 @@ long set_node_heights(tree_node_t * root)
 static void output_dated_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
-    fprintf(fp_out, "%s[&age=%f]:%f",
-            node->label, node->interval_line * interval_age, node->length);
+  {
+    if (!node->prior)
+      fprintf(fp_out, "%s:%f", node->label, node->length);
+    else
+    {
+      fprintf(fp_out, "%s[", node->label);
+      fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+      if (opt_cred_interval)
+        fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+      fprintf(fp_out, "]:%f", node->length);
+    }
+  }
   else
   {
     fprintf(fp_out, "(");
     output_dated_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
     output_dated_tree_recursive(node->right, fp_out);
-    fprintf(fp_out, ")%s[&age=%f]:%f", node->label ? node->label : "",
-                    node->interval_line * interval_age, node->length);
+
+    fprintf(fp_out, ")%s[", node->label ? node->label : "");
+    fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+    if (opt_cred_interval)
+      fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+    fprintf(fp_out, "]:%f", node->length);
   }
 }
 
-static void output_um_tree_recursive(tree_node_t * node, 
-                                     FILE * fp_out, 
-                                     long prev_age)
+static void output_um_tree_recursive(tree_node_t * node, FILE * fp_out)
 {
   if (!node->left || !node->right)
-    fprintf(fp_out, "%s:%f", node->label, 
-            (prev_age - node->interval_line) / (double)opt_grid_intervals);
+  {
+    if (!node->prior)
+      fprintf(fp_out, "%s:%f", node->label,
+              (node->parent->interval_line - node->interval_line) * interval_age);
+    else
+    {
+      fprintf(fp_out, "%s[", node->label);
+      fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+      if (opt_cred_interval)
+        fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+      fprintf(fp_out, "]:%f",
+              (node->parent->interval_line - node->interval_line)*interval_age);
+    }
+  }
   else
   {
     fprintf(fp_out, "(");
-    output_um_tree_recursive(node->left, fp_out, node->interval_line);
+    output_um_tree_recursive(node->left, fp_out);
     fprintf(fp_out, ",");
-    output_um_tree_recursive(node->right, fp_out, node->interval_line);
-    fprintf(fp_out, ")%s:%f", node->label ? node->label : "", 
-            (prev_age - node->interval_line) / (double)opt_grid_intervals);
+    output_um_tree_recursive(node->right, fp_out);
+    fprintf(fp_out, ")%s[", node->label ? node->label : "");
+    fprintf(fp_out, "&map_age=%f", node->interval_line * interval_age);
+    if (opt_cred_interval)
+      fprintf(fp_out, ",lower=%f,upper=%f", node->cr_minage, node->cr_maxage);
+    if (node->parent)
+      fprintf(fp_out, "]:%f",
+              (node->parent->interval_line - node->interval_line)*interval_age);
+    else
+      fprintf(fp_out, "]:0.0");
   }
 }
 
-static void traverse_iterative(tree_node_t * node, int * index, tree_node_t ** outbuffer)
+static void traverse_iterative(tree_node_t * node,
+                               int * index,
+                               tree_node_t ** outbuffer)
 {
   if (!node->left)
   {
@@ -232,12 +283,17 @@ int rtree_query_tipnodes(tree_node_t * root,
 void write_newick_tree(tree_node_t * node)
 {
   FILE * fp_out = fopen(opt_outfile, "w");
+
   if (!fp_out)
     fatal("Unable to open output file for writing");
-  interval_age = opt_max_age / (opt_grid_intervals - 1);
 
+  if (opt_max_age)
+    interval_age = opt_max_age / (opt_grid_intervals - 1);
+  else
+    interval_age = 1.0 / (opt_grid_intervals - 1);
+    
   if (opt_outform == OUTPUT_ULTRAMETRIC)
-    output_um_tree_recursive(node, fp_out, opt_grid_intervals);
+    output_um_tree_recursive(node, fp_out);
   else if (opt_outform == OUTPUT_DATED)
     output_dated_tree_recursive(node, fp_out);
   else
