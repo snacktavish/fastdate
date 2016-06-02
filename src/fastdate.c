@@ -43,6 +43,7 @@ int opt_method_tipdates;
 int opt_showtree;
 int opt_fixgamma;
 int opt_mu_scale;
+int opt_svg_showlegend;
 char * opt_treefile;
 char * opt_outfile;
 char * opt_priorfile;
@@ -50,6 +51,14 @@ long opt_seed;
 long opt_sample;
 long opt_grid_intervals;
 long opt_threads;
+long opt_svg_width;
+long opt_svg_fontsize;
+long opt_svg_tipspace;
+long opt_svg_marginleft;
+long opt_svg_marginright;
+long opt_svg_margintop;
+long opt_svg_marginbottom;
+long opt_svg_inner_radius;
 double opt_max_age;
 double opt_lambda;
 double opt_mu;
@@ -58,6 +67,7 @@ double opt_psi;
 double opt_rate_mean;
 double opt_rate_var;
 double opt_cred_interval;
+double opt_svg_legend_ratio;
 
 unsigned int opt_parameters_bitv;
 
@@ -87,6 +97,16 @@ static struct option long_options[] =
   {"sample",             required_argument, 0, 0 },  /* 21 */
   {"cred_interval",      required_argument, 0, 0 },  /* 22 */
   {"opt_fix_gamma",      no_argument,       0, 0 },  /* 23 */
+  {"svg_width",          required_argument, 0, 0 },  /* 24 */
+  {"svg_fontsize",       required_argument, 0, 0 },  /* 25 */
+  {"svg_tipspacing",     required_argument, 0, 0 },  /* 26 */
+  {"svg_legend_ratio",   required_argument, 0, 0 },  /* 27 */
+  {"svg_nolegend",       no_argument,       0, 0 },  /* 28 */
+  {"svg_marginleft",     required_argument, 0, 0 },  /* 29 */
+  {"svg_marginright",    required_argument, 0, 0 },  /* 30 */
+  {"svg_margintop",      required_argument, 0, 0 },  /* 31 */
+  {"svg_marginbottom",   required_argument, 0, 0 },  /* 32 */
+  {"svg_inner_radius",   required_argument, 0, 0 },  /* 33 */
 
   { 0, 0, 0, 0 }
 };
@@ -119,7 +139,16 @@ void args_init(int argc, char ** argv)
   opt_parameters_bitv = 0;
   opt_fixgamma = 0;
   opt_mu_scale = 0;
-
+  opt_svg_width = 1920;
+  opt_svg_fontsize = 12;
+  opt_svg_tipspace = 20;
+  opt_svg_legend_ratio = 0.1;
+  opt_svg_showlegend = 1;
+  opt_svg_marginleft = 20;
+  opt_svg_marginright = 20;
+  opt_svg_margintop = 20;
+  opt_svg_marginbottom = 20;
+  opt_svg_inner_radius = 5;
 
   while ((c = getopt_long_only(argc, argv, "", long_options, &option_index)) == 0)
   {
@@ -233,8 +262,49 @@ void args_init(int argc, char ** argv)
       case 22:
         opt_cred_interval = atof(optarg);
         break;
+
       case 23:
         opt_fixgamma = 1;
+        break;
+
+      case 24:
+        opt_svg_width = atoi(optarg);
+        break;
+
+      case 25:
+        opt_svg_fontsize = atol(optarg);
+        break;
+
+      case 26:
+        opt_svg_tipspace = atol(optarg);
+        break;
+
+      case 27:
+        opt_svg_legend_ratio = atof(optarg);
+        break;
+      
+      case 28:
+        opt_svg_showlegend = 0;
+        break;
+
+      case 29:
+        opt_svg_marginleft = atol(optarg);
+        break;
+
+      case 30:
+        opt_svg_marginright = atol(optarg);
+        break;
+
+      case 31:
+        opt_svg_margintop = atol(optarg);
+        break;
+
+      case 32:
+        opt_svg_marginbottom = atol(optarg);
+        break;
+
+      case 33:
+        opt_svg_inner_radius = atol(optarg);
         break;
 
       default:
@@ -484,6 +554,8 @@ void cmd_method_nodeprior()
 
   if (opt_showtree)
     show_ascii_tree(tree);
+
+  cmd_svg(tree);
 
   if (!opt_quiet)
     fprintf(stdout, "Done\n");

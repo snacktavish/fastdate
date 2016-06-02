@@ -132,6 +132,9 @@ typedef struct tree_noderec
   double cr_maxage;
   double * interval_weights;
 
+  /* svg related */
+  double svg_y;
+
 } tree_node_t;
 
 /* definitions */
@@ -184,13 +187,20 @@ extern int opt_method_tipdates;
 extern int opt_showtree;
 extern int opt_fixgamma;
 extern int opt_mu_scale;
-extern char * opt_treefile;
-extern char * opt_outfile;
-extern char * opt_priorfile;
+extern int opt_svg_showlegend;
 extern long opt_seed;
 extern long opt_sample;
 extern long opt_grid_intervals;
 extern long opt_threads;
+extern long opt_svg_width;
+extern long opt_svg_fontsize;
+extern long opt_svg_tipspace;
+extern long opt_svg_marginleft;
+extern long opt_svg_marginright;
+extern long opt_svg_margintop;
+extern long opt_svg_marginbottom;
+extern long opt_svg_inner_radius;
+extern double opt_svg_legend_ratio;
 extern double opt_max_age;
 extern double opt_lambda;
 extern double opt_mu;
@@ -200,6 +210,9 @@ extern double opt_rate_mean;
 extern double opt_rate_var;
 extern double opt_cred_interval;
 extern unsigned int opt_parameters_bitv;
+extern char * opt_treefile;
+extern char * opt_outfile;
+extern char * opt_priorfile;
 
 /* matrices */
 
@@ -331,3 +344,7 @@ void credible(tree_node_t * root);
 /* functions in parse_prior.y */
 
 list_t * yy_parse_nodeprior(const char * filename);
+
+/* functions in svg.c */
+
+void cmd_svg(tree_node_t * root);
