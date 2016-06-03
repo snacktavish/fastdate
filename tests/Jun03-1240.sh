@@ -1,0 +1,1 @@
+~/bin/speed-dating-master/src/fastdate --method_nodeprior --grid 3000 --prior_file Jun03-1240-50nodes.txt --bd_mu 1 --bd_lambda 2 --max_age 90  --bd_rho  1 --tree_file Jun03-1240.tre --rate_mean 0.0168 --rate_variance 0.0018 --out_file Jun03-1240.out
