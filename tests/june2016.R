@@ -11,6 +11,7 @@ lambda <- 2
 mu <- 1
 #### Generate an ultrametric tree
 myTree <- generateFDtree(lambda, mu, ntips, trHeight)
+write.tree(myTree, paste(prefix, "-origTree.tre", sep = ""))
 plot(myTree)
 #### Scale branch lengths
 gmean <- 0.0168
@@ -27,15 +28,26 @@ write(cmd, paste(prefix, ".sh", sep = ""))
 # RUN FASTDATE
 
 ## LOOK AT RESULTS
-### How well do they match set nodes?
-compare <- compareNodes2Tree("Jun03-1240.out", "Jun03-1240-50nodes.txt")
-
-# Make plot
-plot(compare[,1], pch = 16, ylab = "Node Depth", bty = "n")
+### How well do they match set node priors?
+list.results <- compareNodes2Tree("Jun03-1240.out", "Jun03-1240-50nodes.txt")
+# Make plot to compare nodepriors to estimated
+compare <- list.results[[1]]
+plot(compare[,1], pch = 16, ylab = "Node Depth", bty = "n", ylim = c(0, 60))
 points(compare[,2], col = "red", pch = 16)
 for (i in 1:dim(compare)[1]) {
   lines(c(compare[i,1], compare[i,2])~ c(i,i), lty = 3)
 }
 legend("topright", legend = c("simulated", "estimated"), col = c("black", "red"), bty = "n", pch = 16)
 
+## compare 
+node.num <- (ntips + 1) : (2 * ntips - 1)
+node.noPrior <- setdiff(node.num, results[[2]])
+NoPr <- compareNoPrior("Jun03-1240.out", node.noPrior, "Jun03-1240-origTree.tre")
+# Make plot to compare nodes without prior to estimated
+plot(NoPr[,1], pch = 16, ylab = "Node Depth", bty = "n", ylim = c(0, 60))
+points(NoPr[,2], col = "red", pch = 16)
+for (i in 1:dim(NoPr)[1]) {
+  lines(c(NoPr[i,1], NoPr[i,2])~ c(i,i), lty = 3)
+}
+legend("topright", legend = c("simulated", "estimated"), col = c("black", "red"), bty = "n", pch = 16)
 

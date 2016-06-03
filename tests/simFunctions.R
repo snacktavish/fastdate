@@ -50,13 +50,29 @@ compareNodes2Tree <- function(path2tr, path2node) {
   a <- read.tree(path2tr)
   treeHeight <- max(nodeHeights(a))
   np <- read.table(path2node)
-  comptab <- NULL
+  comptab <- mrcas <- NULL
   for (i in 1:dim(np)[1]) {
     nodes <- unlist(strsplit(as.vector(np[i,1]), ","))
     mean <- gsub("\\(", "", strsplit(as.vector(np[i,3]), ",")[[1]][1])
     mrca <- getMRCA(a, nodes)
+    mrcas <- c(mrcas, mrca)
     est <- treeHeight - nodeheight(a, mrca)
     comptab <- rbind(comptab, as.numeric(c(mean, est)))
+  }
+  return(list(comptab, mrcas))
+}
+
+
+compareNoPrior <- function(outTr, mrcaNoPr, origTree) {
+  a <- read.tree(outTr)
+  b <- read.tree(origTree)
+  treeHeight2 <- max(nodeHeights(a))
+  treeHeight1 <- max(nodeHeights(b))
+  comptab <- NULL
+  for (i in 1:length(mrcaNoPr)) {
+    sim <- treeHeight1 - nodeheight(b, mrcaNoPr[i])
+    est <- treeHeight2 - nodeheight(a, mrcaNoPr[i])
+    comptab <- rbind(comptab, c(sim, est))
   }
   return(comptab)
 }
