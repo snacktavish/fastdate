@@ -29,7 +29,7 @@
 #define LBFGSB_BOUND_BOTH  2
 #define LBFGSB_BOUND_UPPER 3
 
-#define ERROR_X 1.0e-2
+#define ERROR_X 1.0e-4
 
 /* information for parameter optimization */
 typedef struct
@@ -258,16 +258,15 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
   {
     x[i] = (opt_rate_mean > ERROR_X) ? opt_rate_mean : ERROR_X;
     lower_bounds[i] = ERROR_X;
-    upper_bounds[i] = MAX_RATE_MEAN;
-    bound_type[i] = LBFGSB_BOUND_BOTH;
+    // upper_bounds[i] = MAX_RATE_MEAN;
+    bound_type[i] = LBFGSB_BOUND_LOWER;
     i++;
   }
   if (params->which_parameters & PARAM_RATE_VAR)
   {
     x[i] = (opt_rate_var > ERROR_X) ? opt_rate_var : ERROR_X;
     lower_bounds[i] = ERROR_X;
-    upper_bounds[i] = MAX_RATE_VAR;
-    bound_type[i] = LBFGSB_BOUND_BOTH;
+    bound_type[i] = LBFGSB_BOUND_LOWER;
     i++;
   }
 
@@ -311,7 +310,6 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
         upper_bounds[1] = opt_lambda - ERROR_X;
       }
 
-      /* TODO: compute score and gradient */
       score = compute_score (params, x);
 
       compute_gradients (params, x, g, params->num_variables, score);
@@ -323,12 +321,15 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
   }
 
   score = compute_score (params, x);
-  if (-score < initial_score)
+
+  /* check if score has improved */
+  if (score + initial_score > 1e-5)
   {
-    assert(0);
+    /* reset starting values */
     memcpy(x, start_x, params->num_variables * sizeof(double));
     score = compute_score (params, x);
   }
+
   free (iwa);
   free (wa);
   free (x);

@@ -24,9 +24,9 @@
 /* L-BFGS-B optimization factor
  * (relative to the machine epsilon)
  */
-static const double opt_factor = 1e12;
+static const double opt_factor = 1e7;
 /* gradient tolerance */
-static const double opt_pgtol = 0.1;
+static const double opt_pgtol = 0.001;
 /* epsilon for the iterative optimization */
 static const double opt_epsilon = 1.0e-2;
 
@@ -105,7 +105,7 @@ static double logsum(double old_logsum, double logterm)
    /* check if logterm is lost in rounding error */
    if (old_logsum - logterm > 30)
      return old_logsum;
-   
+
    ln_m = (old_logsum < logterm) ? old_logsum : logterm;
 
    old_logsum -= ln_m;
@@ -137,7 +137,7 @@ static void fill_tip_table(tree_node_t * node)
 
     /* if estimating absolute ages check for node priors and compute PDF */
     dist_logprob = age_prior_logpdf(node, abs_age_node);
-    
+
     node->matrix[i] = dist_logprob + bd_tipdates_prod_tip(abs_age_node);
     node->matrix_sum[i] = node->matrix[i];
   }
@@ -150,7 +150,7 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
   long low;
   long left_low;
   long right_low;
-  
+
   tree_node_t * left;
   tree_node_t * right;
 
@@ -208,7 +208,7 @@ static void fill_inner_table(tree_node_t * node, long entry_first, long entry_la
       assert(j+left->height < node->height + i);
       abs_age_left = (left_low+j)*interval_age;
 
-      prob_rate_left = gamma_dist_logpdf(left->length / 
+      prob_rate_left = gamma_dist_logpdf(left->length /
                                          (abs_age_node - abs_age_left));
       score = left->matrix[j] + prob_rate_left;
 
@@ -308,7 +308,7 @@ static inline void dp_recurse_worker(long t)
   tree_node_t * node  = tip->node;
 
   fill_inner_table(node, tip->entry_first, tip->entry_first + tip->entry_count);
-  
+
 }
 
 static void * threads_worker(void *vp)
@@ -540,7 +540,7 @@ static void alloc_node_entries(tree_node_t * node)
       if (node->prior == NODEPRIOR_UNI)
       {
         double max_age = ((uni_params_t *)(node->prior_params))->max_age;
-        long max_grid_line = lrint(ceil(max_age / interval_age)); 
+        long max_grid_line = lrint(ceil(max_age / interval_age));
 
         assert(max_grid_line >= node->height);
 
@@ -566,7 +566,7 @@ static void alloc_node_entries(tree_node_t * node)
   if (node->prior == NODEPRIOR_UNI)
   {
     double max_age = ((uni_params_t *)(node->prior_params))->max_age;
-    long max_grid_line = lrint(ceil(max_age / interval_age)); 
+    long max_grid_line = lrint(ceil(max_age / interval_age));
 
     assert(max_grid_line >= node->height);
 
@@ -711,7 +711,8 @@ void dp(tree_node_t * tree)
     printf ("Backtracking...\n");
 
   score = dp_backtrack(tree);
-  
+  printf("\nThe score: %f\n", score);
+
   /* optimize parameters */
   if (opt_parameters_bitv)
   {
@@ -752,6 +753,7 @@ void dp(tree_node_t * tree)
       printf("[Iteration %d]\n", ++i);
       cur_score = score;
       //opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol);
+
       if (opt_parameters_bitv & PARAM_LAMBDA)
       {
         score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol, cur_score);
@@ -782,6 +784,8 @@ void dp(tree_node_t * tree)
         score = opt_parameters(tree, PARAM_RATE_VAR, opt_factor, opt_pgtol, cur_score);
         printf("%15.4f rate var:  %6.4f\n", score, opt_rate_var);
       }
+
+      score = opt_parameters(tree, opt_parameters_bitv, opt_factor, opt_pgtol, cur_score);
     }
     if (opt_threads > 1)
       threads_exit();
