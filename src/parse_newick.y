@@ -42,7 +42,15 @@ static void hash_table_insert(char * label)
 {
   ENTRY entry;
 
+  /* TODO: Unfortunately, BSD and GNU versions of hdestroy differ in that
+     the BSD implementation deallocates (calls free) on all keys in the
+     hash table, while GNU does not. Replace the hash table with a custom
+     implementation or google/city hash. */
+#ifdef __APPLE__
+  entry.key = xstrdup(label);
+#else
   entry.key = label;
+#endif
   entry.data = NULL;
   hsearch(entry,ENTER);
 
