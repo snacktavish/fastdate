@@ -270,12 +270,14 @@ int rtree_query_tipnodes(tree_node_t * root, tree_node_t ** node_list);
 
 /* functions in dp.c */
 
-void dp(tree_node_t * tree);
-double dp_evaluate(tree_node_t * tree);
+void dp(tree_node_t * tree, long extinct_leaves_count, long fossils_count);
+double dp_evaluate(tree_node_t * tree,
+                   long extinct_leaves_count,
+                   long fossils_count);
 
 /* functions in gamma.c */
 
-void gamma_dist_init(void);
+void gamma_dist_init(double a, double b);
 double gamma_dist_logpdf(double x);
 
 /* functions in bd.c */

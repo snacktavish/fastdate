@@ -655,12 +655,15 @@ static double dp_backtrack(tree_node_t * root)
   return max_score;
 }
 
-double dp_evaluate(tree_node_t * tree)
+double dp_evaluate(tree_node_t * tree,
+                   long extinct_leaves_count,
+                   long fossils_count)
 {
   double score = 0.0;
 
-  gamma_dist_init();
-  bd_init(0, 0);
+  gamma_dist_init(opt_rate_mean*opt_rate_mean/opt_rate_var,
+                  opt_rate_mean/opt_rate_var);
+  bd_init(fossils_count,extinct_leaves_count);
 
   if (opt_threads > 1)
   {
@@ -675,15 +678,16 @@ double dp_evaluate(tree_node_t * tree)
   return score;
 }
 
-void dp(tree_node_t * tree)
+void dp(tree_node_t * tree, long extinct_leaves_count, long fossils_count)
 {
   double score;
 
   assert(opt_grid_intervals > tree->height);
   tree_height = tree->height;
 
-  gamma_dist_init();
-  bd_init(0,0);
+  gamma_dist_init(opt_rate_mean*opt_rate_mean/opt_rate_var,
+                  opt_rate_mean/opt_rate_var);
+  bd_init(fossils_count,extinct_leaves_count);
 
   /* compute the absolute age of an interval line */
   interval_age = opt_max_age / (opt_grid_intervals - 1);

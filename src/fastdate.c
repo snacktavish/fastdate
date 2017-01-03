@@ -501,7 +501,7 @@ void cmd_method_relative()
   if (!tree)
     fatal("Tree is probably not binary.\n");
 
-  dp(tree);
+  dp(tree,0,0);
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
@@ -539,7 +539,7 @@ void cmd_method_nodeprior()
     fprintf(stdout, "Setting node priors...\n");
   set_node_priors(tree, &fossils_count, &extinct_leaves_count);
   assert(extinct_leaves_count == 0);
-  dp(tree);
+  dp(tree,0,0);
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
@@ -579,7 +579,7 @@ void cmd_method_tipdates()
     fprintf(stdout, "Setting tip priors...\n");
   set_node_priors(tree, &fossils_count, &extinct_leaves_count);
   assert(extinct_leaves_count > 0);
-  dp(tree);
+  dp(tree,extinct_leaves_count,fossils_count);
 
   if (!opt_quiet)
     fprintf(stdout, "Writing tree file...\n");
