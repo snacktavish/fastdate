@@ -37,7 +37,11 @@ static void hashtable_create(tree_node_t * root)
     if (!node_list[i]->label)
       continue;
       
+#ifdef __APPLE__
+    entry.key = xstrdup(node_list[i]->label);
+#else
     entry.key  = node_list[i]->label;
+#endif
     entry.data = (void *)node_list[i];
     hsearch(entry,ENTER);
   }
