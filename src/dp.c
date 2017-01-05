@@ -760,36 +760,78 @@ void dp(tree_node_t * tree, long extinct_leaves_count, long fossils_count)
 
       if (opt_parameters_bitv & PARAM_LAMBDA)
       {
-        score = opt_parameters(tree, PARAM_LAMBDA, opt_factor, opt_pgtol, cur_score);
+        score = opt_parameters(tree,
+                               PARAM_LAMBDA,
+                               opt_factor,
+                               opt_pgtol,
+                               cur_score,
+                               extinct_leaves_count,
+                               fossils_count);
         printf("%15.4f lambda:    %6.4f\n", score, opt_lambda);
       }
       if (opt_parameters_bitv & PARAM_MU)
       {
-        score = opt_parameters(tree, PARAM_MU, opt_factor, opt_pgtol, cur_score);
+        score = opt_parameters(tree,
+                               PARAM_MU,
+                               opt_factor,
+                               opt_pgtol,
+                               cur_score,
+                               extinct_leaves_count,
+                               fossils_count);
         printf("%15.4f mu:        %6.4f\n", score, opt_mu);
       }
       if (opt_parameters_bitv & PARAM_PSI)
       {
-        score = opt_parameters(tree, PARAM_PSI, opt_factor, opt_pgtol, cur_score);
+        score = opt_parameters(tree,
+                               PARAM_PSI,
+                               opt_factor,
+                               opt_pgtol,
+                               cur_score,
+                               extinct_leaves_count,
+                               fossils_count);
         printf("%15.4f psi:       %6.4f\n", score, opt_psi);
       }
       if (opt_parameters_bitv & PARAM_RHO)
       {
-        score = opt_parameters(tree, PARAM_RHO, opt_factor, opt_pgtol, cur_score);
+        score = opt_parameters(tree,
+                               PARAM_RHO,
+                               opt_factor,
+                               opt_pgtol,
+                               cur_score,
+                               extinct_leaves_count,
+                               fossils_count);
         printf("%15.4f rho:       %6.4f\n", score, opt_rho);
       }
       if (opt_parameters_bitv & PARAM_RATE_MEAN)
       {
-        score = opt_parameters (tree, PARAM_RATE_MEAN, opt_factor, opt_pgtol, cur_score);
+        score = opt_parameters(tree,
+                               PARAM_RATE_MEAN,
+                               opt_factor,
+                               opt_pgtol,
+                               cur_score,
+                               extinct_leaves_count,
+                               fossils_count);
         printf ("%15.4f rate mean: %6.4f\n", score, opt_rate_mean);
       }
       if (opt_parameters_bitv & PARAM_RATE_VAR)
       {
-        score = opt_parameters(tree, PARAM_RATE_VAR, opt_factor, opt_pgtol, cur_score);
+        score = opt_parameters(tree,
+                               PARAM_RATE_VAR,
+                               opt_factor,
+                               opt_pgtol,
+                               cur_score,
+                               extinct_leaves_count,
+                               fossils_count);
         printf("%15.4f rate var:  %6.4f\n", score, opt_rate_var);
       }
 
-      score = opt_parameters(tree, opt_parameters_bitv, opt_factor, opt_pgtol, cur_score);
+      score = opt_parameters(tree,
+                             opt_parameters_bitv,
+                             opt_factor,
+                             opt_pgtol,
+                             cur_score,
+                             extinct_leaves_count,
+                             fossils_count);
     }
     if (opt_threads > 1)
       threads_exit();

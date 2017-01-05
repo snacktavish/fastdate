@@ -333,7 +333,13 @@ tree_node_t * lca_compute(tree_node_t * root,
 
 /* functions in optimize.c */
 
-double opt_parameters(tree_node_t * tree, int which, double factr, double pgtol, double initial_score);
+double opt_parameters(tree_node_t * tree,
+                      int which,
+                      double factr,
+                      double pgtol,
+                      double initial_score,
+                      long extinct_leaves_count,
+                      long fossils_count);
 
 /* functions in sample.c */
 

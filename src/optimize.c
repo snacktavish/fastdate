@@ -54,7 +54,10 @@ static int count_bits(int i)
 
 //static int n_comp = 0;
 
-static double compute_score(optimize_options_t * params, double * x)
+static double compute_score(optimize_options_t * params,
+                            double * x,
+                            long extinct_leaves_count,
+                            long fossils_count)
 {
   //printf("BDG compute %d\n", n_comp++);
   int i;
@@ -134,7 +137,7 @@ static double compute_score(optimize_options_t * params, double * x)
   assert (opt_lambda > opt_mu);
 
   /* evaluate proposal */
-  score = dp_evaluate(params->tree) * -1;
+  score = dp_evaluate(params->tree,extinct_leaves_count,fossils_count) * -1;
 
 #ifdef DEBUG
   printf(" score = %f\n", score);
@@ -142,8 +145,13 @@ static double compute_score(optimize_options_t * params, double * x)
   return score;
 }
 
-static void compute_gradients(optimize_options_t * params, double * x,
-    double * g, int n, double score)
+static void compute_gradients(optimize_options_t * params,
+                              double * x,
+                              double * g,
+                              int n,
+                              double score,
+                              long extinct_leaves_count,
+                              long fossils_count)
 {
   int i;
   double h, temp;
@@ -157,7 +165,10 @@ static void compute_gradients(optimize_options_t * params, double * x,
 
     x[i] = temp + h;
     h = x[i] - temp;
-    double lnderiv = compute_score(params, x);
+    double lnderiv = compute_score(params,
+                                   x,
+                                   extinct_leaves_count,
+                                   fossils_count);
 
     /* compute gradient */
     g[i] = (lnderiv - score) / h;
@@ -167,11 +178,13 @@ static void compute_gradients(optimize_options_t * params, double * x,
   }
 }
 
-static double opt_parameters_lbfgsb (tree_node_t * tree,
-                                     int which,
-                                     double factr,
-                                     double pgtol,
-                                     double initial_score)
+static double opt_parameters_lbfgsb(tree_node_t * tree,
+                                    int which,
+                                    double factr,
+                                    double pgtol,
+                                    double initial_score,
+                                    long extinct_leaves_count,
+                                    long fossils_count)
 {
   int i;
   int continue_opt;
@@ -310,9 +323,15 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
         upper_bounds[1] = opt_lambda - ERROR_X;
       }
 
-      score = compute_score (params, x);
+      score = compute_score(params,x,extinct_leaves_count,fossils_count);
 
-      compute_gradients (params, x, g, params->num_variables, score);
+      compute_gradients(params,
+                        x,
+                        g,
+                        params->num_variables,
+                        score,
+                        extinct_leaves_count,
+                        fossils_count);
     }
     else if (*task != NEW_X)
     {
@@ -320,14 +339,14 @@ static double opt_parameters_lbfgsb (tree_node_t * tree,
     }
   }
 
-  score = compute_score (params, x);
+  score = compute_score(params,x,extinct_leaves_count,fossils_count);
 
   /* check if score has improved */
   if (score + initial_score > 1e-5)
   {
     /* reset starting values */
     memcpy(x, start_x, params->num_variables * sizeof(double));
-    score = compute_score (params, x);
+    score = compute_score(params,x,extinct_leaves_count,fossils_count);
   }
 
   free (iwa);
@@ -348,9 +367,17 @@ double opt_parameters(tree_node_t * tree,
                       int which,
                       double factr,
                       double pgtol,
-                      double cur_score)
+                      double cur_score,
+                      long extinct_leaves_count,
+                      long fossils_count)
 {
-  double score = opt_parameters_lbfgsb(tree, which, factr, pgtol, cur_score);
+  double score = opt_parameters_lbfgsb(tree,
+                                       which,
+                                       factr,
+                                       pgtol,
+                                       cur_score,
+                                       extinct_leaves_count,
+                                       fossils_count);
 
   return score;
 } /* optimize_parameters */
